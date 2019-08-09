@@ -45,7 +45,7 @@ namespace edge
 		hr = _dxgiFactory->CreateSwapChainForHwnd (_d3dDevice, hwnd(), &desc, nullptr, nullptr, &_swapChain); assert(SUCCEEDED(hr));
 		_forceFullPresentation = true;
 
-		CreateD2DDeviceContext();
+		create_d2d_dc();
 
 		if (auto proc_addr = GetProcAddress(GetModuleHandleA("User32.dll"), "GetDpiForWindow"))
 		{
@@ -67,7 +67,7 @@ namespace edge
 		hr = dwrite_factory->CreateTextFormat (L"Courier New", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_CONDENSED, 11.0f * 96 / _dpi, L"en-US", &_debugTextFormat); assert(SUCCEEDED(hr));
 	}
 
-	void d2d_window::CreateD2DDeviceContext()
+	void d2d_window::create_d2d_dc()
 	{
 		assert (_d2dDeviceContext == nullptr);
 		assert (_d2dFactory       == nullptr);
@@ -87,7 +87,7 @@ namespace edge
 		_d2dDeviceContext->SetTextAntialiasMode (D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
 	}
 
-	void d2d_window::ReleaseD2DDeviceContext()
+	void d2d_window::release_d2d_dc()
 	{
 		assert (_d2dDeviceContext != nullptr);
 		assert (_d2dFactory != nullptr);
@@ -103,9 +103,9 @@ namespace edge
 		{
 			if (_swapChain != nullptr)
 			{
-				ReleaseD2DDeviceContext();
+				release_d2d_dc();
 				auto hr = _swapChain->ResizeBuffers (0, 0, 0, DXGI_FORMAT_UNKNOWN, 0); assert(SUCCEEDED(hr));
-				CreateD2DDeviceContext();
+				create_d2d_dc();
 			}
 
 			_clientSizeDips.width = client_width_pixels() * 96.0f / _dpi;
@@ -344,17 +344,13 @@ namespace edge
 			com_ptr<ID2D1SolidColorBrush> foreBrush;
 			_d2dDeviceContext->CreateSolidColorBrush (ColorF::ColorF (ColorF::Black), &foreBrush);
 
-			wchar_t text[50];
-			auto text_len = swprintf_s (text, L"%4d FPS\r\n %3d ms", (int)round(GetFPS()), (int)round(GetAverageRenderDuration()));
-			com_ptr<IDWriteTextLayout> tl;
-			hr = _dwrite_factory->CreateTextLayout (text, (UINT32)wcslen(text), _debugTextFormat, 10000, 10000, &tl); assert(SUCCEEDED(hr));
-
-			DWRITE_TEXT_METRICS metrics;
-			hr = tl->GetMetrics (&metrics); assert(SUCCEEDED(hr));
+			std::wstringstream ss;
+			ss << std::setw(4) << (int)round(GetFPS()) << L" FPS\r\n " << std::setw(3) << (int)round(GetAverageRenderDuration()) << L" ms";
+			auto tl = text_layout_with_metrics (_dwrite_factory, _debugTextFormat, ss.str());
 
 			D2D1_POINT_2F origin;
-			origin.x = frameDurationAndFpsRect.right - 4 - metrics.width;
-			origin.y = (frameDurationAndFpsRect.top + frameDurationAndFpsRect.bottom) / 2 - metrics.height / 2;
+			origin.x = frameDurationAndFpsRect.right - 4 - tl.width();
+			origin.y = (frameDurationAndFpsRect.top + frameDurationAndFpsRect.bottom) / 2 - tl.height() / 2;
 			_d2dDeviceContext->DrawTextLayout (origin, tl, foreBrush);
 		}
 		/*
@@ -365,7 +361,7 @@ namespace edge
 		}
 		*/
 
-		if ((_caret_blink_timer != nullptr) && (::GetFocus() == hwnd()) && _caret_blink_on)
+		if (_caret_blink_timer && (::GetFocus() == hwnd()) && _caret_blink_on)
 		{
 			_d2dDeviceContext->SetTransform(dpi_transform() * _caret_bounds.second);
 			com_ptr<ID2D1SolidColorBrush> b;
@@ -486,13 +482,13 @@ namespace edge
 	#pragma region Caret methods
 	void d2d_window::process_wm_set_focus()
 	{
-		if ((_caret_blink_timer != nullptr) && _caret_blink_on)
+		if (_caret_blink_timer && _caret_blink_on)
 			invalidate_caret();
 	}
 
 	void d2d_window::process_wm_kill_focus()
 	{
-		if ((_caret_blink_timer != nullptr) && _caret_blink_on)
+		if (_caret_blink_timer && _caret_blink_on)
 			invalidate_caret();
 	}
 
@@ -538,7 +534,7 @@ namespace edge
 	{
 		assert (!_painting); // "This function may not be called during paiting.
 
-		assert (_caret_blink_timer != nullptr); // ShowCaret() was not called.
+		assert (_caret_blink_timer); // ShowCaret() was not called.
 
 		_caret_blink_timer = nullptr;
 
@@ -548,7 +544,7 @@ namespace edge
 
 	void d2d_window::process_wm_blink()
 	{
-		if (_caret_blink_timer != nullptr)
+		if (_caret_blink_timer)
 		{
 			_caret_blink_on = !_caret_blink_on;
 			invalidate_caret();
@@ -557,19 +553,16 @@ namespace edge
 
 	#pragma endregion
 
-	text_layout text_layout::create (IDWriteFactory* dWriteFactory, IDWriteTextFormat* format, std::string_view str, float maxWidth)
+	text_layout::text_layout (IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, std::string_view str, float maxWidth)
 	{
 		assert (maxWidth >= 0);
-
-		HRESULT hr;
-
 		if (maxWidth == 0)
 			maxWidth = 100'000;
 
-		com_ptr<IDWriteTextLayout> tl;
+		HRESULT hr;
 		if (str.empty())
 		{
-			hr = dWriteFactory->CreateTextLayout (L"", 0, format, maxWidth, 100'000, &tl);
+			hr = dwrite_factory->CreateTextLayout (L"", 0, format, maxWidth, 100'000, &_layout);
 			assert(SUCCEEDED(hr));
 		}
 		else
@@ -580,13 +573,39 @@ namespace edge
 			auto buffer = std::make_unique<wchar_t[]>(utf16_char_count);
 			MultiByteToWideChar (CP_UTF8, 0, str.data(), (int)str.length(), buffer.get(), utf16_char_count);
 
-			hr = dWriteFactory->CreateTextLayout (buffer.get(), (UINT32) utf16_char_count, format, (maxWidth != 0) ? maxWidth : 10000, 10000, &tl);
+			hr = dwrite_factory->CreateTextLayout (buffer.get(), (UINT32) utf16_char_count, format, std::min(maxWidth, 100'000.0f), 100'000, &_layout);
 			assert(SUCCEEDED(hr));
 		}
+	}
 
-		DWRITE_TEXT_METRICS metrics;
-		hr = tl->GetMetrics(&metrics); assert(SUCCEEDED(hr));
+	text_layout::text_layout (IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, std::wstring_view str, float maxWidth)
+	{
+		assert (maxWidth >= 0);
+		if (maxWidth == 0)
+			maxWidth = 100'000;
 
-		return text_layout { std::move(tl), metrics };
+		HRESULT hr;
+		if (str.empty())
+		{
+			hr = dwrite_factory->CreateTextLayout (L"", 0, format, maxWidth, 100'000, &_layout);
+			assert(SUCCEEDED(hr));
+		}
+		else
+		{
+			hr = dwrite_factory->CreateTextLayout (str.data(), (UINT32) str.size(), format, std::min(maxWidth, 100'000.0f), 100'000, &_layout);
+			assert(SUCCEEDED(hr));
+		}
+	}
+
+	text_layout_with_metrics::text_layout_with_metrics (IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, std::string_view str, float maxWidth)
+		: text_layout (dwrite_factory, format, str, maxWidth)
+	{
+		auto hr = this->operator->()->GetMetrics(&_metrics); assert(SUCCEEDED(hr));
+	}
+
+	text_layout_with_metrics::text_layout_with_metrics (IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, std::wstring_view str, float maxWidth)
+		: text_layout (dwrite_factory, format, str, maxWidth)
+	{
+		auto hr = this->operator->()->GetMetrics(&_metrics); assert(SUCCEEDED(hr));
 	}
 }

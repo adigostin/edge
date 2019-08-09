@@ -7,8 +7,6 @@ inline bool operator== (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return (p0.x == p1
 inline bool operator!= (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return (p0.x != p1.x) || (p0.y != p1.y); }
 bool operator== (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
 bool operator!= (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
-inline POINT location (const RECT& r) { return { r.left, r.top }; }
-//inline SIZE size (const RECT& r) { return { r.right - r.left, r.bottom - r.top }; }
 inline bool operator== (POINT a, POINT b) { return (a.x == b.x) && (a.y == b.y); }
 inline bool operator!= (POINT a, POINT b) { return (a.x != b.x) || (a.y != b.y); }
 inline bool operator== (SIZE a, SIZE b) { return (a.cx == b.cx) && (a.cy == b.cy); }
@@ -34,6 +32,7 @@ namespace edge
 	D2D1_RECT_F polygon_bounds (const std::array<D2D1_POINT_2F, 4>& points);
 	D2D1_COLOR_F interpolate (const D2D1_COLOR_F& first, const D2D1_COLOR_F& second, uint32_t percent_first);
 	D2D1_RECT_F align_to_pixel (const D2D1_RECT_F& rect, uint32_t dpi);
+	std::string utf16_to_utf8 (std::wstring_view str_utf16);
 	std::string bstr_to_utf8 (BSTR bstr);
 	inline D2D1_POINT_2F location (const D2D1_RECT_F& r) { return { r.left, r.top }; }
 	inline D2D1_SIZE_F size (const D2D1_RECT_F& r) { return { r.right - r.left, r.bottom - r.top }; }

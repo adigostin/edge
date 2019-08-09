@@ -129,12 +129,12 @@ public:
 
 		if (msg == WM_MOUSEMOVE)
 		{
-			modifier_key modifiers = (modifier_key)wParam;
+			modifier_key mks = (modifier_key)wParam;
 			if (::GetKeyState(VK_MENU) < 0)
-				modifiers |= modifier_key::alt;
+				mks |= modifier_key::alt;
 			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ _pixel_width / 2, _pixel_width / 2 };
-			process_mouse_move (modifiers, pt, dip);
+			process_mouse_move (mks, pt, dip);
 		}
 
 		if ((msg == WM_KEYDOWN) || (msg == WM_SYSKEYDOWN))
@@ -317,11 +317,11 @@ public:
 
 		if (_root_items.empty())
 		{
-			auto tl = text_layout::create (dwrite_factory(), _textFormat, "(no selection)");
-			D2D1_POINT_2F p = { client_width() / 2 - tl.metrics.width / 2, client_height() / 2 - tl.metrics.height / 2};
+			auto tl = text_layout_with_metrics (dwrite_factory(), _textFormat, "(no selection)");
+			D2D1_POINT_2F p = { client_width() / 2 - tl.width() / 2, client_height() / 2 - tl.height() / 2};
 			com_ptr<ID2D1SolidColorBrush> brush;
 			dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &brush);
-			dc->DrawTextLayout (p, tl.layout, brush);
+			dc->DrawTextLayout (p, tl, brush);
 			return;
 		}
 
@@ -367,13 +367,13 @@ public:
 				float lr_padding = 3;
 				std::stringstream ss;
 				ss << value_item->_prop->_name << " (" << value_item->_prop->type_name() << ")";
-				auto title_layout = text_layout::create(dwrite_factory(), _boldTextFormat, ss.str(), client_width() - 2 * lr_padding);
-				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top }, title_layout.layout, rc.fore_brush);
+				auto title_layout = text_layout_with_metrics (dwrite_factory(), _boldTextFormat, ss.str(), client_width() - 2 * lr_padding);
+				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top }, title_layout, rc.fore_brush);
 
 				if (value_item->_prop->_description)
 				{
-					auto desc_layout = text_layout::create(dwrite_factory(), _textFormat, value_item->_prop->_description, client_width() - 2 * lr_padding);
-					dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top + title_layout.metrics.height }, desc_layout.layout, rc.fore_brush);
+					auto desc_layout = text_layout(dwrite_factory(), _textFormat, value_item->_prop->_description, client_width() - 2 * lr_padding);
+					dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top + title_layout.height() }, desc_layout, rc.fore_brush);
 				}
 			}
 		}
@@ -586,7 +586,7 @@ public:
 		return result;
 	}
 	
-	void process_mouse_button_down (mouse_button button, modifier_key modifier_keys, POINT pixel, D2D1_POINT_2F dip)
+	void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
 	{
 		::SetFocus (hwnd());
 
@@ -605,7 +605,7 @@ public:
 		}
 
 		if (_text_editor && point_in_rect(_text_editor->rect(), dip))
-			return _text_editor->process_mouse_button_down(button, modifier_keys, pixel, dip);
+			return _text_editor->process_mouse_button_down(button, mks, pixel, dip);
 
 		auto clicked_item = item_at(dip);
 
@@ -618,10 +618,10 @@ public:
 		}
 
 		if (clicked_item.first != nullptr)
-			clicked_item.first->process_mouse_button_down (button, modifier_keys, pixel, dip, clicked_item.second);
+			clicked_item.first->process_mouse_button_down (button, mks, pixel, dip, clicked_item.second);
 	}
 
-	void process_mouse_button_up (mouse_button button, modifier_key modifier_keys, POINT pixel, D2D1_POINT_2F dip)
+	void process_mouse_button_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
 	{
 		if (_description_resize_offset)
 		{
@@ -631,14 +631,14 @@ public:
 		}
 
 		if (_text_editor && point_in_rect(_text_editor->rect(), dip))
-			return _text_editor->process_mouse_button_up (button, modifier_keys, pixel, dip);
+			return _text_editor->process_mouse_button_up (button, mks, pixel, dip);
 
 		auto clicked_item = item_at(dip);
 		if (clicked_item.first != nullptr)
-			clicked_item.first->process_mouse_button_up (button, modifier_keys, pixel, dip, clicked_item.second);
+			clicked_item.first->process_mouse_button_up (button, mks, pixel, dip, clicked_item.second);
 	}
 
-	void process_mouse_move (modifier_key modifier_keys, POINT pixel, D2D1_POINT_2F dip)
+	void process_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
 	{
 		if (_description_resize_offset)
 		{
@@ -649,7 +649,7 @@ public:
 		}
 
 		if (_text_editor && point_in_rect(_text_editor->rect(), dip))
-			return _text_editor->process_mouse_move (modifier_keys, pixel, dip);
+			return _text_editor->process_mouse_move (mks, pixel, dip);
 	}
 
 	void try_commit_editor()
@@ -658,7 +658,9 @@ public:
 			return;
 
 		auto prop_item = dynamic_cast<value_pgitem*>(_selected_item); assert(prop_item);
-		bool changed = try_change_property (prop_item->parent()->parent()->objects(), prop_item->_prop, _text_editor->u8str().c_str());
+		auto text_utf16 = _text_editor->wstr();
+		auto text_utf8 = utf16_to_utf8(text_utf16);
+		bool changed = try_change_property (prop_item->parent()->parent()->objects(), prop_item->_prop, text_utf8);
 		if (!changed)
 		{
 			std::wstringstream ss;
@@ -699,7 +701,7 @@ public:
 
 	virtual float line_thickness() const override final { return _line_thickness; }
 
-	handled process_virtual_key_down (UINT key, modifier_key modifier_keys)
+	handled process_virtual_key_down (UINT key, modifier_key mks)
 	{
 		if ((key == VK_RETURN) || (key == VK_UP) || (key == VK_DOWN))
 		{
@@ -724,15 +726,15 @@ public:
 		}
 
 		if (_text_editor)
-			return _text_editor->process_virtual_key_down (key, modifier_keys);
+			return _text_editor->process_virtual_key_down (key, mks);
 
 		return handled::no;
 	}
 
-	handled process_virtual_key_up (UINT key, modifier_key modifier_keys)
+	handled process_virtual_key_up (UINT key, modifier_key mks)
 	{
 		if (_text_editor)
-			return _text_editor->process_virtual_key_up (key, modifier_keys);
+			return _text_editor->process_virtual_key_up (key, mks);
 
 		return handled::no;
 	}

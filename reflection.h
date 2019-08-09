@@ -97,8 +97,8 @@ namespace edge
 		setter_t const _setter;
 		std::optional<value_t> const _default_value;
 
-		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t>&& default_value)
-			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), _default_value(std::move(default_value))
+		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t> default_value)
+			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), _default_value(default_value)
 		{ }
 
 		virtual const char* type_name() const override final { return property_traits::type_name; }
@@ -128,10 +128,20 @@ namespace edge
 			return property_traits::to_string(get(obj));
 		}
 
+	private:
+		template<typename t = property_traits>
+		std::enable_if_t<std::is_same_v<decltype(t::from_string), bool(std::string_view, value_t&)>, bool>
+			static from_string_internal (std::string_view in, value_t& out, object* obj) { return property_traits::from_string(in, out); }
+
+		template<typename t = property_traits>
+		std::enable_if_t<std::is_same_v<decltype(t::from_string), bool(std::string_view, value_t&, const object*)>, bool>
+			static from_string_internal (std::string_view in, value_t& out, const object* obj) { return property_traits::from_string(in, out, obj); }
+
+	public:
 		virtual bool try_set_from_string (object* obj, std::string_view str_in) const override final
 		{
 			value_t value;
-			bool ok = property_traits::from_string(str_in, value);
+			bool ok = from_string_internal(str_in, value, obj);
 			if (ok)
 			{
 				if (std::holds_alternative<member_setter_t>(_setter))
@@ -276,6 +286,17 @@ namespace edge
 	using temp_string_p = typed_property<temp_string_property_traits>;
 	using backed_string_property_traits = string_property_traits<true>;
 	using backed_string_p = typed_property<backed_string_property_traits>;
+
+	enum class side_t { left, top, right, bottom };
+	static inline const char side_type_name[] = "side";
+	static inline constexpr NVP side_nvps[] = {
+		{ "Left",   (int) side_t::left },
+		{ "Top",    (int) side_t::top },
+		{ "Right",  (int) side_t::right },
+		{ "Bottom", (int) side_t::bottom },
+		{ 0, 0 },
+	};
+	using side_p = edge::enum_property<side_t, side_type_name, side_nvps>;
 
 	// ========================================================================
 
@@ -426,7 +447,7 @@ namespace edge
 		virtual bool set_value (object* obj, size_t index, std::string_view from) const override
 		{
 			typename property_traits::value_t value;
-			bool converted = property_traits::from_string(from, value, obj);
+			bool converted = property_traits::from_string(from, value);
 			if (!converted)
 				return false;
 			(static_cast<object_t*>(obj)->*_set_value) (index, value);
@@ -436,7 +457,7 @@ namespace edge
 		virtual bool insert_value (object* obj, size_t index, std::string_view from) const override
 		{
 			typename property_traits::value_t value;
-			bool converted = property_traits::from_string(from, value, obj);
+			bool converted = property_traits::from_string(from, value);
 			if (!converted)
 				return false;
 			(static_cast<object_t*>(obj)->*_insert_value) (index, value);

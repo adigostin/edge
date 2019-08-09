@@ -20,6 +20,7 @@ namespace edge
 			std::string new_value;
 		};
 
+		// TODO: rename to property_edited_e
 		struct property_changed_e : event<property_changed_e, property_changed_args&&> { };
 		virtual property_changed_e::subscriber property_changed() = 0;
 

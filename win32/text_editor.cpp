@@ -14,7 +14,7 @@ namespace edge
 		com_ptr<ID2D1Brush> _text_brush;
 		D2D1_RECT_F _editorBounds;
 		std::wstring _text;
-		com_ptr<IDWriteTextLayout> _text_layout;
+		text_layout_with_metrics _text_layout;
 		size_t _selection_origin_pos = 0;
 		size_t _caret_pos;
 		d2d_window* const _control;
@@ -34,16 +34,16 @@ namespace edge
 			_text.resize (buffer_size_chars + 1);
 			MultiByteToWideChar (CP_UTF8, 0, text.data(), (int)text.size(), _text.data(), buffer_size_chars);
 			_text.resize (buffer_size_chars);
-			auto hr = _dwrite_factory->CreateTextLayout (_text.data(), (UINT32)_text.size(), _format, 10000, 10000, &_text_layout); assert(SUCCEEDED(hr));
+			_text_layout = text_layout_with_metrics (_dwrite_factory, _format, _text);
 			/*
 			_transform = GetTransformToProjectCoords(e);
 			_horzAlignment = (e->GetHorzAlignmentPD() != nullptr) ? e->GetHorzAlignmentPD()->Get(e) : HorzAlignmentLeft;
 			_vertAlignment = (e->GetVertAlignmentPD() != nullptr) ? e->GetVertAlignmentPD()->Get(e) : VertAlignmentTop;
 			*/
-			CalculateTextAndEditorBounds();
+			extend_editor_bounds();
 
 			set_caret_pos (_text.size(), true);
-			SetCaretScreenLocationFromCaretIndex();
+			set_caret_screen_location_from_caret_pos();
 
 			//_control->GetZoomOrOriginChanged().AddHandler (&TextEditor::OnZoomOrOriginChanged, this);
 
@@ -83,24 +83,13 @@ namespace edge
 			}
 		}
 
-		void SetCaretScreenLocationFromCaretIndex()
+		void set_caret_screen_location_from_caret_pos()
 		{
-			HRESULT hr;
-
-			auto offset = GetTextOffset();
+			auto offset = get_text_location();
 
 			float x = 0;
 			if (_caret_pos > 0)
-			{
-				com_ptr<IDWriteTextLayout> layout_before_caret;
-				hr = _dwrite_factory->CreateTextLayout (_text.data(), (UINT32)_caret_pos, _format, 10000, 10000, &layout_before_caret); assert(SUCCEEDED(hr));
-				DWRITE_TEXT_METRICS metrics;
-				hr = layout_before_caret->GetMetrics (&metrics); assert(SUCCEEDED(hr));
-				x = metrics.width;
-			}
-
-			DWRITE_TEXT_METRICS metrics;
-			hr = _text_layout->GetMetrics(&metrics); assert(SUCCEEDED(hr));
+				x = text_layout_with_metrics (_dwrite_factory, _format, { _text.data(), _caret_pos }).width();
 
 			static constexpr float caret_width_not_aligned = 1.5f;
 			float pixel_width = 96.0f / _control->dpi();
@@ -110,7 +99,7 @@ namespace edge
 			b.left = roundf ((offset.x + x - caret_width / 2) / pixel_width) * pixel_width;
 			b.top = roundf (offset.y / pixel_width) * pixel_width;
 			b.right = b.left + caret_width;
-			b.bottom = roundf ((b.top + metrics.height) / pixel_width) * pixel_width;
+			b.bottom = roundf ((b.top + _text_layout.height()) / pixel_width) * pixel_width;
 			b = align_to_pixel(b, _control->dpi());
 			_control->show_caret(b, D2D1::ColorF(_text_argb & 0x00FF'FFFF));
 		}
@@ -120,13 +109,13 @@ namespace edge
 		{
 			window;  // Avoid Reporting unreferenced formal parameter
 			auto editor = static_cast<TextEditor*>(callbackArg);
-			editor->SetCaretScreenLocationFromCaretIndex();
+			editor->set_caret_screen_location_from_caret_pos();
 		}
 		*/
 		// TODO: rename to get_byte_index_at
 		size_t GetPosAtDLocation (D2D1_POINT_2F dLocation, bool* isInside)
 		{
-			auto textOffset = GetTextOffset();
+			auto textOffset = get_text_location();
 	
 			auto locationInEditorCoords = dLocation - textOffset;
 	
@@ -149,46 +138,44 @@ namespace edge
 			return pos;
 		}
 	
-		virtual void process_mouse_button_down (mouse_button button, modifier_key modifier_keys, POINT pixel, D2D1_POINT_2F dip) override
+		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
 		{
 			if (button == mouse_button::left)
 			{
 				bool isInside;
 				size_t byte_index = GetPosAtDLocation (dip, &isInside);
 
-				bool keepSelectionOrigin = ((modifier_keys & modifier_key::shift) != 0);
+				bool keepSelectionOrigin = ((mks & modifier_key::shift) != 0);
 
 				set_caret_pos (byte_index, keepSelectionOrigin);
-				SetCaretScreenLocationFromCaretIndex ();
+				set_caret_screen_location_from_caret_pos ();
 			}
 		}
 
-		virtual void process_mouse_button_up (mouse_button button, modifier_key modifier_keys, POINT pixel, D2D1_POINT_2F dip) override
+		virtual void process_mouse_button_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
 		{
 		}
 
-		virtual void process_mouse_move (modifier_key modifier_keys, POINT pixel, D2D1_POINT_2F dip) override
+		virtual void process_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
 		{
-			if ((modifier_keys & modifier_key::lbutton) != 0)
+			if ((mks & modifier_key::lbutton) != 0)
 			{
 				size_t pos = GetPosAtDLocation (dip, nullptr);
 				set_caret_pos (pos, true);
-				SetCaretScreenLocationFromCaretIndex();
+				set_caret_screen_location_from_caret_pos();
 			}
 		}
 		
-		virtual handled process_virtual_key_down (uint32_t virtualKey, modifier_key modifierKeysDown) override
+		virtual handled process_virtual_key_down (uint32_t virtualKey, modifier_key mks) override
 		{
-			HRESULT hr;
-
 			#pragma region Left
 			if (virtualKey == VK_LEFT)
 			{
-				if ((modifierKeysDown == 0) || (modifierKeysDown == MK_SHIFT))
+				if ((mks == modifier_key::none) || (mks == modifier_key::shift))
 				{
-					bool keepSelectionOrigin = (modifierKeysDown == MK_SHIFT);
+					bool keepSelectionOrigin = (mks == modifier_key::shift);
 					set_caret_pos ((_caret_pos > 0) ? (_caret_pos - 1) : 0, keepSelectionOrigin);
-					SetCaretScreenLocationFromCaretIndex ();
+					set_caret_screen_location_from_caret_pos ();
 					return handled::yes;
 				}
 			}
@@ -196,17 +183,17 @@ namespace edge
 			#pragma region Right
 			else if (virtualKey == VK_RIGHT)
 			{
-				if ((modifierKeysDown == 0) || (modifierKeysDown == MK_SHIFT))
+				if ((mks == modifier_key::none) || (mks == modifier_key::shift))
 				{
-					bool keepSelectionOrigin = (modifierKeysDown == MK_SHIFT);
+					bool keepSelectionOrigin = (mks == modifier_key::shift);
 					set_caret_pos ((_caret_pos < _text.length()) ? (_caret_pos + 1) : _text.length(), keepSelectionOrigin);
-					SetCaretScreenLocationFromCaretIndex ();
+					set_caret_screen_location_from_caret_pos ();
 					return handled::yes;
 				}
 			}
 			#pragma endregion
 			#pragma region Control + A
-			else if ((modifierKeysDown == MK_CONTROL) && (virtualKey == 'A'))
+			else if ((mks == modifier_key::control) && (virtualKey == 'A'))
 			{
 				select_all();
 				return handled::yes;
@@ -215,11 +202,11 @@ namespace edge
 			#pragma region Home
 			else if (virtualKey == VK_HOME)
 			{
-				if ((modifierKeysDown == 0) || (modifierKeysDown == MK_SHIFT))
+				if ((mks == modifier_key::none) || (mks == modifier_key::shift))
 				{
-					bool keepSelectionOrigin = (modifierKeysDown == MK_SHIFT);
+					bool keepSelectionOrigin = (mks == modifier_key::shift);
 					set_caret_pos (0, keepSelectionOrigin);
-					SetCaretScreenLocationFromCaretIndex ();
+					set_caret_screen_location_from_caret_pos ();
 					return handled::yes;
 				}
 			}
@@ -227,17 +214,17 @@ namespace edge
 			#pragma region End
 			else if (virtualKey == VK_END)
 			{
-				if ((modifierKeysDown == 0) || (modifierKeysDown == MK_SHIFT))
+				if ((mks == modifier_key::none) || (mks == modifier_key::shift))
 				{
-					bool keepSelectionOrigin = (modifierKeysDown == MK_SHIFT);
+					bool keepSelectionOrigin = (mks == modifier_key::shift);
 					set_caret_pos (_text.length(), keepSelectionOrigin);
-					SetCaretScreenLocationFromCaretIndex ();
+					set_caret_screen_location_from_caret_pos ();
 					return handled::yes;
 				}
 			}
 			#pragma endregion
 			#pragma region Del
-			else if ((modifierKeysDown == 0) && (virtualKey == VK_DELETE))
+			else if ((mks == modifier_key::none) && (virtualKey == VK_DELETE))
 			{
 				if (_selection_origin_pos == _caret_pos)
 				{
@@ -245,10 +232,10 @@ namespace edge
 					if (_caret_pos < _text.length())
 					{
 						_text.erase (_caret_pos, 1);
-						hr = _dwrite_factory->CreateTextLayout (_text.data(), (UINT32)_text.size(), _format, 10000, 10000, &_text_layout); assert(SUCCEEDED(hr));
+						_text_layout = text_layout_with_metrics (_dwrite_factory, _format, _text);
 						set_caret_pos (_caret_pos, false);
-						CalculateTextAndEditorBounds ();
-						SetCaretScreenLocationFromCaretIndex ();
+						extend_editor_bounds ();
+						set_caret_screen_location_from_caret_pos ();
 						invalidate();
 					}
 				}
@@ -258,10 +245,10 @@ namespace edge
 					size_t selectionStart = std::min (_caret_pos, _selection_origin_pos);
 					size_t selectionEnd   = std::max (_caret_pos, _selection_origin_pos);
 					_text.erase (selectionStart, selectionEnd - selectionStart);
-					hr = _dwrite_factory->CreateTextLayout (_text.data(), (UINT32)_text.size(), _format, 10000, 10000, &_text_layout); assert(SUCCEEDED(hr));
+					_text_layout = text_layout_with_metrics (_dwrite_factory, _format, _text);
 					set_caret_pos (selectionStart, false);
-					CalculateTextAndEditorBounds ();
-					SetCaretScreenLocationFromCaretIndex ();
+					extend_editor_bounds ();
+					set_caret_screen_location_from_caret_pos ();
 					invalidate();
 				}
 
@@ -269,7 +256,7 @@ namespace edge
 			}
 			#pragma endregion
 			#pragma region Back
-			else if ((modifierKeysDown == 0) && (virtualKey == VK_BACK))
+			else if ((mks == modifier_key::none) && (virtualKey == VK_BACK))
 			{
 				if (_selection_origin_pos == _caret_pos)
 				{
@@ -277,10 +264,10 @@ namespace edge
 					if (_caret_pos > 0)
 					{
 						_text.erase (_caret_pos - 1, 1);
-						hr = _dwrite_factory->CreateTextLayout (_text.data(), (UINT32)_text.size(), _format, 10000, 10000, &_text_layout); assert(SUCCEEDED(hr));
+						_text_layout = text_layout_with_metrics (_dwrite_factory, _format, _text);
 						set_caret_pos (_caret_pos - 1, false);
-						CalculateTextAndEditorBounds ();
-						SetCaretScreenLocationFromCaretIndex ();
+						extend_editor_bounds ();
+						set_caret_screen_location_from_caret_pos ();
 						invalidate();
 					}
 				}
@@ -290,9 +277,10 @@ namespace edge
 					size_t selectionStart = std::min (_caret_pos, _selection_origin_pos);
 					size_t selectionEnd   = std::max (_caret_pos, _selection_origin_pos);
 					_text.erase (selectionStart, selectionEnd - selectionStart);
+					_text_layout = text_layout_with_metrics (_dwrite_factory, _format, _text);
 					set_caret_pos (selectionStart, false);
-					CalculateTextAndEditorBounds ();
-					SetCaretScreenLocationFromCaretIndex ();
+					extend_editor_bounds();
+					set_caret_screen_location_from_caret_pos ();
 					invalidate();
 				}
 
@@ -300,21 +288,21 @@ namespace edge
 			}
 			#pragma endregion
 			#pragma region Control + X / Shift + Del (Cut)   OR   Control + C / Control + Ins (Copy)
-			else if (((modifierKeysDown == MK_CONTROL) && (virtualKey == 'X'))
-				|| ((modifierKeysDown == MK_SHIFT) && (virtualKey == VK_DELETE))
-				|| ((modifierKeysDown == MK_CONTROL) && (virtualKey == 'C'))
-				|| ((modifierKeysDown == MK_CONTROL) && (virtualKey == VK_INSERT)))
+			else if (((mks == modifier_key::control) && (virtualKey == 'X'))
+				|| ((mks == modifier_key::shift) && (virtualKey == VK_DELETE))
+				|| ((mks == modifier_key::control) && (virtualKey == 'C'))
+				|| ((mks == modifier_key::control) && (virtualKey == VK_INSERT)))
 			{
 				if (_caret_pos != _selection_origin_pos)
 				{
 					size_t selectionStart = std::min (_caret_pos, _selection_origin_pos);
 					size_t charCount = abs((int) _caret_pos - (int) _selection_origin_pos);
 
-					auto hMem = GlobalAlloc (GMEM_MOVEABLE, 2 * (charCount + 1)); assert(hMem);
-					wchar_t* mem = (wchar_t*) GlobalLock(hMem); assert(mem);
+					auto hMem = ::GlobalAlloc (GMEM_MOVEABLE, 2 * (charCount + 1)); assert(hMem);
+					wchar_t* mem = (wchar_t*) ::GlobalLock(hMem); assert(mem);
 					wcsncpy_s (mem, charCount + 1, _text.data() + selectionStart, charCount);
 					mem[charCount] = 0;
-					BOOL bRes = GlobalUnlock(hMem); assert (bRes || (GetLastError() == NO_ERROR));
+					BOOL bRes = ::GlobalUnlock(hMem); assert (bRes || (GetLastError() == NO_ERROR));
 
 					bool putToClipboard = false;
 					if (::OpenClipboard(_control->hwnd()))
@@ -328,14 +316,16 @@ namespace edge
 						::CloseClipboard();
 					}
 
-					bool pressedCut = ((modifierKeysDown == MK_CONTROL) && (virtualKey == 'X')) || ((modifierKeysDown == MK_SHIFT) && (virtualKey == VK_DELETE));
-					if (pressedCut && putToClipboard)
+					bool cut = ((mks == modifier_key::control) && (virtualKey == 'X'))
+						|| ((mks == modifier_key::shift) && (virtualKey == VK_DELETE));
+					if (cut && putToClipboard)
 					{
 						// delete selection
-						_text.erase (selectionStart, charCount);
 						set_caret_pos (selectionStart, false);
-						CalculateTextAndEditorBounds();
-						SetCaretScreenLocationFromCaretIndex();
+						_text.erase (selectionStart, charCount);
+						_text_layout = text_layout_with_metrics (_dwrite_factory, _format, _text);
+						extend_editor_bounds();
+						set_caret_screen_location_from_caret_pos();
 						invalidate();
 					}
 				}
@@ -344,19 +334,19 @@ namespace edge
 			}
 			#pragma endregion
 			#pragma region Control + V / Shift + Ins (Paste)
-			else if (((modifierKeysDown == MK_CONTROL) && (virtualKey == 'V'))
-				|| ((modifierKeysDown == MK_SHIFT) && (virtualKey == VK_INSERT)))
+			else if (((mks == modifier_key::control) && (virtualKey == 'V'))
+				|| ((mks == modifier_key::shift) && (virtualKey == VK_INSERT)))
 			{
 				if (::OpenClipboard(_control->hwnd()))
 				{
 					auto h = GetClipboardData(CF_UNICODETEXT);
 					if (h != nullptr)
 					{
-						wchar_t* mem = (wchar_t*) GlobalLock(h);
+						wchar_t* mem = (wchar_t*) ::GlobalLock(h);
 						if (mem)
 						{
-							InsertTextOverwritingSelection(mem, wcslen(mem));
-							GlobalUnlock(h);
+							insert_text_over_selection(mem, wcslen(mem));
+							::GlobalUnlock(h);
 						}
 					}
 
@@ -370,15 +360,13 @@ namespace edge
 			return handled::no;
 		}
 
-		virtual handled process_virtual_key_up (uint32_t key, modifier_key modifiers) override
+		virtual handled process_virtual_key_up (uint32_t key, modifier_key mks) override
 		{
 			return handled::no;
 		}
 		
-		void InsertTextOverwritingSelection (const wchar_t* textToInsert, size_t textToInsertCharCount)
+		void insert_text_over_selection (const wchar_t* textToInsert, size_t textToInsertCharCount)
 		{
-			HRESULT hr;
-
 			if (_selection_origin_pos != _caret_pos)
 			{
 				// replace selection
@@ -386,19 +374,19 @@ namespace edge
 				size_t selectionEnd   = std::max (_caret_pos, _selection_origin_pos);
 				_text.erase (selectionStart, selectionEnd - selectionStart);
 				_text.insert (selectionStart, textToInsert, textToInsertCharCount);
-				hr = _dwrite_factory->CreateTextLayout (_text.data(), (UINT32)_text.size(), _format, 10000, 10000, &_text_layout); assert(SUCCEEDED(hr));
+				_text_layout = text_layout_with_metrics (_dwrite_factory, _format, _text);
 				set_caret_pos (selectionStart + textToInsertCharCount, false);
 			}
 			else
 			{
 				// insert char at caret pos
 				_text.insert (_caret_pos, textToInsert, textToInsertCharCount);
-				hr = _dwrite_factory->CreateTextLayout (_text.data(), (UINT32)_text.size(), _format, 10000, 10000, &_text_layout); assert(SUCCEEDED(hr));
+				_text_layout = text_layout_with_metrics (_dwrite_factory, _format, _text);
 				set_caret_pos (_caret_pos + textToInsertCharCount, false);
 			}
 
-			CalculateTextAndEditorBounds ();
-			SetCaretScreenLocationFromCaretIndex ();
+			extend_editor_bounds ();
+			set_caret_screen_location_from_caret_pos ();
 			invalidate();
 		}
 
@@ -410,12 +398,13 @@ namespace edge
 					assert(false); // not implemented
 
 				wchar_t c = (wchar_t) ch;
-				InsertTextOverwritingSelection (&c, 1);
+				insert_text_over_selection (&c, 1);
 				return handled::yes;
 			}
 
 			return handled::no;
 		}
+
 		void invalidate()
 		{
 			auto poly = corners(_editorBounds);
@@ -424,17 +413,14 @@ namespace edge
 			_control->invalidate(bounds);
 		}
 
-		void CalculateTextAndEditorBounds()
+		void extend_editor_bounds()
 		{
-			DWRITE_TEXT_METRICS metrics;
-			auto hr = _text_layout->GetMetrics (&metrics); assert(SUCCEEDED(hr));
-
 			auto newEditorBounds = _editorBounds;
 
-			if (metrics.width > _editorBounds.right - _editorBounds.left)
+			if (_text_layout.width() > _editorBounds.right - _editorBounds.left)
 			{
 				// extend bounds horizontally
-				float dif = metrics.width - (_editorBounds.right - _editorBounds.left);
+				float dif = _text_layout.width() - (_editorBounds.right - _editorBounds.left);
 				/*
 				if (_horzAlignment == HorzAlignmentLeft)
 				{
@@ -453,7 +439,7 @@ namespace edge
 				newEditorBounds.right += dif;
 			}
 
-			if (metrics.height > _editorBounds.bottom - _editorBounds.top)
+			if (_text_layout.height() > _editorBounds.bottom - _editorBounds.top)
 			{
 				// extend bounds vertically
 				/*
@@ -461,7 +447,7 @@ namespace edge
 				{
 				case VertAlignmentTop:
 				*/
-					newEditorBounds.bottom = newEditorBounds.top + metrics.height;
+					newEditorBounds.bottom = newEditorBounds.top + _text_layout.height();
 				/*
 					break;
 
@@ -489,7 +475,7 @@ namespace edge
 			}
 		}
 
-		D2D1_POINT_2F GetTextOffset() const
+		D2D1_POINT_2F get_text_location() const
 		{
 			return { _editorBounds.left + _lr_padding, _editorBounds.top };
 			/*
@@ -521,29 +507,21 @@ namespace edge
 			dc->CreateSolidColorBrush (D2D1::ColorF(_fill_argb & 0xFFFFFF, (_fill_argb >> 24) / 255.0f), &fill_brush);
 			dc->FillRectangle (_editorBounds, fill_brush);
 
-			auto textOffset = GetTextOffset();
+			auto textOffset = get_text_location();
 
 			size_t selectionStartIndex = std::min (_selection_origin_pos, _caret_pos);
 			size_t selectionEndIndex   = std::max (_selection_origin_pos, _caret_pos);
 			if (selectionEndIndex != selectionStartIndex)
 			{
-				com_ptr<IDWriteTextLayout> layoutTextBefore;
-				auto hr = _dwrite_factory->CreateTextLayout (_text.data(),
-					(UINT32)selectionStartIndex, _format, 10000, 10000, &layoutTextBefore); assert(SUCCEEDED(hr));
-				DWRITE_TEXT_METRICS layoutTextBefore_metrics;
-				hr = layoutTextBefore->GetMetrics (&layoutTextBefore_metrics); assert(SUCCEEDED(hr));
+				auto layoutTextBefore = text_layout_with_metrics (_dwrite_factory, _format, { _text.data(), selectionStartIndex });
 				
-				com_ptr<IDWriteTextLayout> layoutSelectedText;
-				hr = _dwrite_factory->CreateTextLayout (_text.data() + selectionStartIndex,
-					(UINT32)(selectionEndIndex - selectionStartIndex), _format, 10000, 10000, &layoutSelectedText); assert(SUCCEEDED(hr));
-				DWRITE_TEXT_METRICS layoutSelectedText_metrics;
-				hr = layoutSelectedText->GetMetrics (&layoutSelectedText_metrics); assert(SUCCEEDED(hr));
+				auto layoutSelectedText = text_layout_with_metrics (_dwrite_factory, _format, { _text.data() + selectionStartIndex, selectionEndIndex - selectionStartIndex});
 
 				D2D1_RECT_F rect;
-				rect.left = textOffset.x + layoutTextBefore_metrics.width;
+				rect.left = textOffset.x + layoutTextBefore.width();
 				rect.top = textOffset.y;
-				rect.right = rect.left + layoutSelectedText_metrics.width;
-				rect.bottom = rect.top + layoutSelectedText_metrics.height;
+				rect.right = rect.left + layoutSelectedText.width();
+				rect.bottom = rect.top + layoutSelectedText.height();
 
 				com_ptr<ID2D1SolidColorBrush> b;
 				dc->CreateSolidColorBrush (D2D1::ColorF(D2D1::ColorF::LightBlue), &b);
@@ -555,16 +533,6 @@ namespace edge
 			dc->DrawTextLayout (textOffset, _text_layout, text_brush, D2D1_DRAW_TEXT_OPTIONS_NO_SNAP);
 		}
 
-		virtual std::string u8str() const override final
-		{
-			int char_count = WideCharToMultiByte (CP_UTF8, 0, _text.data(), (int)_text.size(), nullptr, 0, nullptr, nullptr);
-			std::string str;
-			str.resize (char_count);
-			WideCharToMultiByte (CP_UTF8, 0, _text.data(), (int)_text.size(), str.data(), char_count, 0, nullptr);
-			str.resize (str.size());
-			return str;
-		}
-
 		virtual std::wstring_view wstr() const override final { return _text; }
 
 		virtual void select_all() override
@@ -573,11 +541,10 @@ namespace edge
 			{
 				_selection_origin_pos = 0;
 				set_caret_pos (_text.length(), true);
-				SetCaretScreenLocationFromCaretIndex ();
+				set_caret_screen_location_from_caret_pos ();
 				invalidate();
 			}
 		}
-
 
 		virtual const D2D1_RECT_F& rect() const override { return _editorBounds; }
 	};

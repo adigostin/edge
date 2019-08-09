@@ -61,8 +61,8 @@ namespace edge
 		virtual float content_height() const = 0;
 		virtual HCURSOR cursor() const { return nullptr; }
 		virtual bool selectable() const = 0;
-		virtual void process_mouse_button_down (mouse_button button, modifier_key modifiers, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
-		virtual void process_mouse_button_up   (mouse_button button, modifier_key modifiers, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
+		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
+		virtual void process_mouse_button_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
 	};
 
 	class expandable_item : public pgitem
@@ -107,7 +107,7 @@ namespace edge
 	{
 		using base = expandable_item;
 
-		text_layout _layout;
+		text_layout_with_metrics _layout;
 
 	public:
 		const property_group* const _group;
@@ -129,7 +129,7 @@ namespace edge
 		using base = object_item;
 
 		std::string _heading;
-		text_layout _text_layout;
+		text_layout_with_metrics _text_layout;
 
 	public:
 		property_grid_i* const _grid;
@@ -163,18 +163,18 @@ namespace edge
 		virtual float content_height() const override;
 		virtual HCURSOR cursor() const override final;
 		virtual bool selectable() const override final { return true; }
-		virtual void process_mouse_button_down (mouse_button button, modifier_key modifiers, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
-		virtual void process_mouse_button_up   (mouse_button button, modifier_key modifiers, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
+		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
+		virtual void process_mouse_button_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
 
 		void create_value_layout_internal (IDWriteFactory* factory, IDWriteTextFormat* format, float width);
 		bool multiple_values() const;
 		bool can_edit() const;
 
-		text_layout _name;
+		text_layout_with_metrics _name;
 
 		struct
 		{
-			text_layout tl;
+			text_layout_with_metrics tl;
 			bool readable;
 		} _value;
 	};
