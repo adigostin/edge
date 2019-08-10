@@ -1,7 +1,6 @@
 
 #include "pch.h"
 #include "utility_functions.h"
-#include "win32_lib.h"
 
 using namespace D2D1;
 
@@ -17,30 +16,6 @@ bool operator!= (const D2D1_RECT_F& a, const D2D1_RECT_F& b)
 
 namespace edge
 {
-	bool HitTestLine (const zoomable_i* zoomable, D2D1_POINT_2F dLocation, float tolerance, D2D1_POINT_2F p0w, D2D1_POINT_2F p1w, float lineWidth)
-	{
-		auto fd = zoomable->pointw_to_pointd(p0w);
-		auto td = zoomable->pointw_to_pointd(p1w);
-
-		float halfw = zoomable->lengthw_to_lengthd(lineWidth) / 2.0f;
-		if (halfw < tolerance)
-			halfw = tolerance;
-
-		float angle = atan2(td.y - fd.y, td.x - fd.x);
-		float s = sin(angle);
-		float c = cos(angle);
-
-		std::array<D2D1_POINT_2F, 4> vertices =
-		{
-			D2D1_POINT_2F { fd.x + s * halfw, fd.y - c * halfw },
-			D2D1_POINT_2F { fd.x - s * halfw, fd.y + c * halfw },
-			D2D1_POINT_2F { td.x - s * halfw, td.y + c * halfw },
-			D2D1_POINT_2F { td.x + s * halfw, td.y - c * halfw }
-		};
-
-		return point_in_polygon (vertices, dLocation);
-	}
-
 	bool point_in_rect(const D2D1_RECT_F& rect, D2D1_POINT_2F location)
 	{
 		return (location.x >= rect.left) && (location.x < rect.right) && (location.y >= rect.top) && (location.y < rect.bottom);

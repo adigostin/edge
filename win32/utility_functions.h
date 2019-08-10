@@ -1,3 +1,4 @@
+
 #pragma once
 
 inline D2D1_SIZE_F operator- (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return { p0.x - p1.x, p0.y - p1.y }; }
@@ -17,9 +18,6 @@ inline bool operator!= (const D2D1_COLOR_F& a, const D2D1_COLOR_F& b) { return m
 
 namespace edge
 {
-	struct zoomable_i;
-
-	bool HitTestLine (const zoomable_i* zoomable, D2D1_POINT_2F dLocation, float tolerance, D2D1_POINT_2F p0w, D2D1_POINT_2F p1w, float lineWidth);
 	bool point_in_rect(const D2D1_RECT_F& rect, D2D1_POINT_2F location);
 	bool point_in_polygon(const std::array<D2D1_POINT_2F, 4>& vertices, D2D1_POINT_2F point);
 	D2D1_RECT_F InflateRect (const D2D1_RECT_F& rect, float distance);

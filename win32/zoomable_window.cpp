@@ -7,6 +7,32 @@ using namespace D2D1;
 
 namespace edge
 {
+	bool zoomable_i::hit_test_line (D2D1_POINT_2F dLocation, float tolerance, D2D1_POINT_2F p0w, D2D1_POINT_2F p1w, float lineWidth) const
+	{
+		auto fd = this->pointw_to_pointd(p0w);
+		auto td = this->pointw_to_pointd(p1w);
+
+		float halfw = this->lengthw_to_lengthd(lineWidth) / 2.0f;
+		if (halfw < tolerance)
+			halfw = tolerance;
+
+		float angle = atan2(td.y - fd.y, td.x - fd.x);
+		float s = sin(angle);
+		float c = cos(angle);
+
+		std::array<D2D1_POINT_2F, 4> vertices =
+		{
+			D2D1_POINT_2F { fd.x + s * halfw, fd.y - c * halfw },
+			D2D1_POINT_2F { fd.x - s * halfw, fd.y + c * halfw },
+			D2D1_POINT_2F { td.x - s * halfw, td.y + c * halfw },
+			D2D1_POINT_2F { td.x + s * halfw, td.y - c * halfw }
+		};
+
+		return point_in_polygon (vertices, dLocation);
+	}
+
+	// ========================================================================
+
 	void zoomable_window::create_render_resources (ID2D1DeviceContext* dc)
 	{
 		base::create_render_resources(dc);

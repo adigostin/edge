@@ -22,13 +22,7 @@
     <ClInclude Include="win32\text_editor.h">
       <Filter>win32</Filter>
     </ClInclude>
-    <ClInclude Include="win32\transform.h">
-      <Filter>win32</Filter>
-    </ClInclude>
     <ClInclude Include="win32\utility_functions.h">
-      <Filter>win32</Filter>
-    </ClInclude>
-    <ClInclude Include="win32\win32_lib.h">
       <Filter>win32</Filter>
     </ClInclude>
     <ClInclude Include="win32\window.h">
@@ -70,9 +64,6 @@
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="win32\assert.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
-    <ClCompile Include="win32\win32_lib.cpp">
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="win32\pch.cpp">

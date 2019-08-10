@@ -1,6 +1,6 @@
 
 #pragma once
-#include "win32_lib.h"
+#include "../events.h"
 
 namespace edge
 {
@@ -23,6 +23,38 @@ namespace edge
 	inline constexpr modifier_key& operator |= (modifier_key& a, modifier_key b) noexcept { return (modifier_key&) ((std::underlying_type_t<modifier_key>&)a |= (std::underlying_type_t<modifier_key>)b); }
 	inline constexpr bool operator== (modifier_key a, std::underlying_type_t<modifier_key> b) noexcept { return (std::underlying_type_t<modifier_key>)a == b; }
 	inline constexpr bool operator!= (modifier_key a, std::underlying_type_t<modifier_key> b) noexcept { return (std::underlying_type_t<modifier_key>)a != b; }
+
+	struct __declspec(novtable) win32_window_i
+	{
+		virtual ~win32_window_i() { }
+
+		virtual HWND hwnd() const = 0;
+
+		bool visible() const;
+
+		RECT client_rect_pixels() const;
+		SIZE client_size_pixels() const;
+		RECT GetRect() const;
+
+	public:
+		LONG GetX() const { return GetRect().left; }
+		LONG GetY() const { return GetRect().top; }
+		POINT GetLocation() const;
+		LONG GetWidth() const;
+		LONG GetHeight() const;
+		SIZE GetSize() const;
+
+		void SetRect (const RECT& rect)
+		{
+			BOOL bRes = ::MoveWindow (hwnd(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
+			assert(bRes);
+		}
+
+		void invalidate()
+		{
+			::InvalidateRect (hwnd(), nullptr, FALSE);
+		}
+	};
 
 	struct wnd_class_params
 	{
@@ -63,4 +95,10 @@ namespace edge
 
 		static LRESULT CALLBACK WindowProcStatic (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	};
+
+	struct GdiObjectDeleter
+	{
+		void operator() (HGDIOBJ object) { ::DeleteObject(object); }
+	};
+	typedef std::unique_ptr<std::remove_pointer<HFONT>::type, GdiObjectDeleter> HFONT_unique_ptr;
 }
