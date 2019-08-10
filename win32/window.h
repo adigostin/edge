@@ -56,7 +56,6 @@ namespace edge
 		RECT client_rect_pixels() const { return { 0, 0, _clientSize.cx, _clientSize.cy }; }
 
 		HWND hwnd() const { return _hwnd; }
-		destroying_event::subscriber destroying() { return destroying_event::subscriber(this); }
 
 	private:
 		HWND _hwnd = nullptr;

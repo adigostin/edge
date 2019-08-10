@@ -107,7 +107,7 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, 
 
 	if (uMsg == WM_DESTROY)
 	{
-		this->event_invoker<destroying_event>()(this);
+		_clientSize = { 0, 0 };
 		return 0;
 	}
 

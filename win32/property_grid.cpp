@@ -304,8 +304,6 @@ public:
 		invalidate();
 	}
 
-	virtual destroying_event::subscriber destroying() override { return base::destroying(); }
-
 	virtual HWND hwnd() const override { return base::hwnd(); }
 
 	virtual void render (ID2D1DeviceContext* dc) const override

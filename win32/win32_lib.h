@@ -13,9 +13,6 @@ namespace edge
 	{
 		virtual ~win32_window_i() { }
 
-		struct destroying_event : public edge::event<destroying_event, win32_window_i*> { };
-
-		virtual destroying_event::subscriber destroying() = 0;
 		virtual HWND hwnd() const = 0;
 
 		bool IsVisible() const;
