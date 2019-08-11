@@ -476,7 +476,7 @@ namespace edge
 		return SIZE{ (int)(sizeDips.width / 96.0f * _dpi), (int)(sizeDips.height / 96.0f * _dpi) };
 	}
 
-	D2D1_MATRIX_3X2_F d2d_window::dpi_transform() const
+	D2D1::Matrix3x2F d2d_window::dpi_transform() const
 	{
 		return { (float)_dpi / 96, 0, 0, (float)_dpi / 96, 0, 0 };
 	}

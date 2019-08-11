@@ -69,7 +69,7 @@ namespace edge
 		POINT pointd_to_pointp (D2D1_POINT_2F locationDips, int round_style) const;
 		D2D1_SIZE_F GetDipSizeFromPixelSize(SIZE sizePixels) const;
 		SIZE GetPixelSizeFromDipSize(D2D1_SIZE_F sizeDips) const;
-		D2D1_MATRIX_3X2_F dpi_transform() const;
+		D2D1::Matrix3x2F dpi_transform() const;
 
 		ID3D11DeviceContext1* d3d_dc() const { return _d3dDeviceContext; }
 		ID2D1DeviceContext* d2d_dc() const { return _d2dDeviceContext; }
