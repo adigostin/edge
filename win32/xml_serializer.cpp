@@ -220,7 +220,7 @@ namespace edge
 			hr = child_elem->getAttribute(index_attr_name, index_attr_value.GetAddress());
 			if (hr == S_OK)
 			{
-				bool converted = size_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index);
+				bool converted = size_t_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index);
 				assert(converted);
 			}
 
@@ -242,7 +242,7 @@ namespace edge
 			_variant_t index_attr_value;
 			hr = entry_elem->getAttribute(index_attr_name, index_attr_value.GetAddress()); assert(SUCCEEDED(hr));
 			size_t index;
-			bool converted = size_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index); assert(converted);
+			bool converted = size_t_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index); assert(converted);
 
 			_variant_t value_attr_value;
 			hr = entry_elem->getAttribute(value_attr_name, value_attr_value.GetAddress()); assert(SUCCEEDED(hr));
@@ -344,5 +344,123 @@ namespace edge
 	void deserialize_to (IXMLDOMElement* element, object* obj)
 	{
 		return deserialize_to_internal (element, obj, false);
+	}
+
+	HRESULT format_and_save_to_file (IXMLDOMDocument3* doc, const wchar_t* file_path)
+	{
+		/*
+		static const char StylesheetText[] =
+			"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+			"<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" version=\"1.0\">\n"
+			"  <xsl:output method=\"xml\" indent=\"yes\" omit-xml-declaration=\"no\" />\n"
+			"  <xsl:template match=\"@* | node()\">\n"
+			"    <xsl:copy>\n"
+			"      <xsl:apply-templates select=\"@* | node()\"/>\n"
+			"    </xsl:copy>\n"
+			"  </xsl:template>\n"
+			"</xsl:stylesheet>\n"
+			"";
+
+		edge::com_ptr<IXMLDOMDocument3> loadXML;
+		HRESULT hr = CoCreateInstance (CLSID_DOMDocument60, nullptr, CLSCTX_INPROC_SERVER, __uuidof(loadXML), (void**) &loadXML);
+		if (FAILED(hr))
+			return hr;
+		VARIANT_BOOL successful;
+		hr = loadXML->loadXML (_bstr_t(StylesheetText), &successful);
+		if (FAILED(hr))
+			return hr;
+
+		// Create the final document which will be indented properly.
+		edge::com_ptr<IXMLDOMDocument3> pXMLFormattedDoc;
+		hr = CoCreateInstance(CLSID_DOMDocument60, nullptr, CLSCTX_INPROC_SERVER, __uuidof(pXMLFormattedDoc), (void**) &pXMLFormattedDoc);
+		if (FAILED(hr))
+			return hr;
+
+		edge::com_ptr<IDispatch> pDispatch;
+		hr = pXMLFormattedDoc->QueryInterface(IID_IDispatch, (void**)&pDispatch);
+		if (FAILED(hr))
+			return hr;
+
+		_variant_t vtOutObject;
+		vtOutObject.vt = VT_DISPATCH;
+		vtOutObject.pdispVal = pDispatch;
+		vtOutObject.pdispVal->AddRef();
+
+		// Apply the transformation to format the final document.
+		hr = doc->transformNodeToObject(loadXML,vtOutObject);
+		if (FAILED(hr))
+			return hr;
+
+		// By default it writes the encoding UTF-16; let's change it to UTF-8.
+		edge::com_ptr<IXMLDOMNode> firstChild;
+		hr = pXMLFormattedDoc->get_firstChild(&firstChild);
+		if (FAILED(hr))
+			return hr;
+		edge::com_ptr<IXMLDOMNamedNodeMap> pXMLAttributeMap;
+		hr = firstChild->get_attributes(&pXMLAttributeMap);
+		if (FAILED(hr))
+			return hr;
+		edge::com_ptr<IXMLDOMNode> encodingNode;
+		hr = pXMLAttributeMap->getNamedItem(_bstr_t("encoding"), &encodingNode);
+		if (FAILED(hr))
+			return hr;
+		encodingNode->put_nodeValue (_variant_t("UTF-8"));
+
+		assert (!::PathIsRelative(file_path));
+		const wchar_t* file_name = ::PathFindFileName(file_path);
+		std::wstring dir (file_path, file_name);
+		if (!::PathFileExists(dir.c_str()))
+		{
+			if (!CreateDirectory(dir.c_str(), nullptr))
+				return HRESULT_FROM_WIN32(GetLastError());
+		}
+		hr = pXMLFormattedDoc->save(_variant_t(file_path));
+		return hr;
+		*/
+		com_ptr<IStream> stream;
+		auto hr = SHCreateStreamOnFileEx (file_path, STGM_WRITE | STGM_SHARE_DENY_WRITE | STGM_CREATE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &stream);
+		if (FAILED(hr))
+			return hr;
+
+		com_ptr<IMXWriter> writer;
+		hr = CoCreateInstance (CLSID_MXXMLWriter60, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&writer));
+		if (FAILED(hr))
+			return hr;
+
+		hr = writer->put_encoding (_bstr_t("utf-8"));
+		if (FAILED(hr))
+			return hr;
+
+		hr = writer->put_indent (_variant_t(true));
+		if (FAILED(hr))
+			return hr;
+
+		hr = writer->put_standalone (_variant_t(true));
+		if (FAILED(hr))
+			return hr;
+
+		hr = writer->put_output (_variant_t(stream));
+		if (FAILED(hr))
+			return hr;
+
+		com_ptr<ISAXXMLReader> saxReader;
+		hr = CoCreateInstance (CLSID_SAXXMLReader60, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&saxReader));
+		if (FAILED(hr))
+			return hr;
+
+		hr = saxReader->putContentHandler(com_ptr<ISAXContentHandler>(writer));
+		if (FAILED(hr))
+			return hr;
+
+		hr = saxReader->putProperty(L"http://xml.org/sax/properties/lexical-handler", _variant_t(writer));
+		if (FAILED(hr))
+			return hr;
+
+		hr = saxReader->parse(_variant_t(doc));
+		if (FAILED(hr))
+			return hr;
+
+		hr = stream->Commit(STGC_DEFAULT);
+		return hr;
 	}
 }

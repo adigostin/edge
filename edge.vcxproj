@@ -31,6 +31,7 @@
     <ClInclude Include="win32\property_grid_items.h" />
     <ClInclude Include="win32\targetver.h" />
     <ClInclude Include="win32\text_editor.h" />
+    <ClInclude Include="win32\text_layout.h" />
     <ClInclude Include="win32\utility_functions.h" />
     <ClInclude Include="win32\window.h" />
     <ClInclude Include="win32\xml_serializer.h" />
@@ -76,6 +77,7 @@
     <ClCompile Include="win32\property_grid.cpp" />
     <ClCompile Include="win32\property_grid_items.cpp" />
     <ClCompile Include="win32\text_editor.cpp" />
+    <ClCompile Include="win32\text_layout.cpp" />
     <ClCompile Include="win32\utility_functions.cpp" />
     <ClCompile Include="win32\window.cpp" />
     <ClCompile Include="win32\xml_serializer.cpp" />

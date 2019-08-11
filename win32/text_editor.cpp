@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "text_editor.h"
 #include "utility_functions.h"
+#include "text_layout.h"
 
 namespace edge
 {

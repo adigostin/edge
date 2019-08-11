@@ -67,10 +67,7 @@ public:
 
 	virtual IDWriteTextFormat* text_format() const override final { return _textFormat; }
 
-	virtual void invalidate() override final
-	{
-		base::invalidate();
-	}
+	virtual void invalidate() override final { ::InvalidateRect (hwnd(), nullptr, FALSE); }
 
 	virtual std::optional<LRESULT> window_proc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) override
 	{

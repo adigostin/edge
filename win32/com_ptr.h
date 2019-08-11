@@ -111,4 +111,40 @@ namespace edge
 			return &_ptr;
 		}
 	};
+
+	template<typename T> class co_task_mem_ptr
+	{
+		T* _ptr = nullptr;
+
+	public:
+		co_task_mem_ptr() = default;
+
+		~co_task_mem_ptr()
+		{
+			if (_ptr != nullptr)
+			{
+				auto p = _ptr;
+				_ptr = nullptr;
+				::CoTaskMemFree(p);
+			}
+		}
+
+		operator T*() const { return _ptr; }
+
+		T* get() const { return _ptr; }
+
+		T* operator->() const { return _ptr; }
+
+		T** operator&()
+		{
+			if (_ptr != nullptr)
+			{
+				auto p = _ptr;
+				_ptr = nullptr;
+				::CoTaskMemFree(p);
+			}
+
+			return &_ptr;
+		}
+	};
 }

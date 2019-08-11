@@ -9,6 +9,8 @@ inline D2D1_SIZE_F operator/ (D2D1_SIZE_F a, float b) { return { a.width / b, a.
 inline void operator+= (D2D1_POINT_2F& a, D2D1_SIZE_F b) { a.x += b.width; a.y += b.height; }
 inline bool operator== (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return (p0.x == p1.x) && (p0.y == p1.y); }
 inline bool operator!= (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return (p0.x != p1.x) || (p0.y != p1.y); }
+inline bool operator== (D2D1_SIZE_F p0, D2D1_SIZE_F p1) { return (p0.width == p1.width) && (p0.height == p1.height); }
+inline bool operator!= (D2D1_SIZE_F p0, D2D1_SIZE_F p1) { return (p0.width != p1.width) || (p0.height != p1.height); }
 bool operator== (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
 bool operator!= (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
 inline bool operator== (POINT a, POINT b) { return (a.x == b.x) && (a.y == b.y); }
@@ -33,6 +35,7 @@ namespace edge
 	D2D1_RECT_F polygon_bounds (const std::array<D2D1_POINT_2F, 4>& points);
 	D2D1_COLOR_F interpolate (const D2D1_COLOR_F& first, const D2D1_COLOR_F& second, uint32_t percent_first);
 	D2D1_RECT_F align_to_pixel (const D2D1_RECT_F& rect, uint32_t dpi);
+	std::wstring utf8_to_utf16 (std::string_view str_utf8);
 	std::string utf16_to_utf8 (std::wstring_view str_utf16);
 	std::string bstr_to_utf8 (BSTR bstr);
 	inline D2D1_POINT_2F location (const D2D1_RECT_F& r) { return { r.left, r.top }; }
@@ -40,8 +43,10 @@ namespace edge
 	inline D2D1_POINT_2F center (const D2D1_RECT_F& r) { return { (r.left + r.right) / 2, (r.top + r.bottom) / 2 }; }
 	inline LONG width (const RECT& rc) { return rc.right - rc.left; }
 	inline LONG height (const RECT& rc) { return rc.bottom - rc.top; }
+	inline float width (const D2D1_RECT_F& r) { return r.right - r.left; }
+	inline float height (const D2D1_RECT_F& r) { return r.bottom - r.top; }
 	D2D1_RECT_F make_positive (const D2D1_RECT_F& r);
-	D2D1_RECT_F union_rect (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
+	D2D1_RECT_F union_rects (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
 }
 
 struct timer_queue_timer_deleter

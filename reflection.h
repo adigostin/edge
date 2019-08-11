@@ -264,9 +264,9 @@ namespace edge
 	using uint64_property_traits = arithmetic_property_traits<uint64_t, uint64_type_name>;
 	using uint64_p = typed_property<uint64_property_traits>;
 
-	static inline const char size_type_name[] = "size";
-	using size_property_traits = arithmetic_property_traits<size_t, size_type_name>;
-	using size_p = typed_property<size_property_traits>;
+	static inline const char size_t_type_name[] = "size_t";
+	using size_t_property_traits = arithmetic_property_traits<size_t, size_t_type_name>;
+	using size_t_p = typed_property<size_t_property_traits>;
 
 	static inline const char float_type_name[] = "float";
 	using float_property_traits = arithmetic_property_traits<float_t, float_type_name>;

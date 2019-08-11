@@ -68,6 +68,7 @@ namespace edge
 		SIZE GetPixelSizeFromDipSize(D2D1_SIZE_F sizeDips) const;
 		D2D1_MATRIX_3X2_F dpi_transform() const;
 
+		ID3D11DeviceContext1* d3d_dc() const { return _d3dDeviceContext; }
 		ID2D1DeviceContext* d2d_dc() const { return _d2dDeviceContext; }
 		ID2D1Factory1* d2d_factory() const { return _d2dFactory; }
 		IDWriteFactory* dwrite_factory() const { return _dwrite_factory; }
@@ -97,31 +98,5 @@ namespace edge
 		void process_wm_paint();
 		void process_wm_set_focus();
 		void process_wm_kill_focus();
-	};
-
-	class text_layout
-	{
-		com_ptr<IDWriteTextLayout> _layout;
-
-	public:
-		text_layout() = default;
-		text_layout (IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, std::string_view str, float maxWidth = 0);
-		text_layout (IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, std::wstring_view str, float maxWidth = 0);
-		operator IDWriteTextLayout*() const { return _layout.get(); }
-		IDWriteTextLayout* operator->() const { return _layout.get(); }
-	};
-
-	class text_layout_with_metrics : public text_layout
-	{
-		DWRITE_TEXT_METRICS _metrics;
-
-	public:
-		text_layout_with_metrics() = default;
-		text_layout_with_metrics (IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, std::string_view str, float maxWidth = 0);
-		text_layout_with_metrics (IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, std::wstring_view str, float maxWidth = 0);
-		float left() const { return _metrics.left; }
-		float width() const { return _metrics.width; }
-		float height() const { return _metrics.height; }
-		float layout_width() const { return _metrics.layoutWidth; }
 	};
 }

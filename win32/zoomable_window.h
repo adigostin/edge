@@ -56,7 +56,6 @@ namespace edge
 		void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth);
 		void zoom_to (D2D1_POINT_2F aimpoint, float zoom, bool smooth);
 
-		using base::hwnd;
 		using base::invalidate;
 
 		// zoomable_i
@@ -65,6 +64,9 @@ namespace edge
 		virtual D2D1_POINT_2F pointw_to_pointd (D2D1_POINT_2F wlocation) const override;
 		virtual float lengthw_to_lengthd (float wLength) const override { return wLength * _zoom; }
 		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() override { return zoom_transform_changed_e::subscriber(this); }
+
+		// win32_window_i
+		virtual HWND hwnd() const override { return base::hwnd(); }
 
 	protected:
 		virtual std::optional<LRESULT> window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;

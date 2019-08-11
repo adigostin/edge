@@ -135,6 +135,14 @@ namespace edge
 		return result;
 	}
 
+	std::wstring utf8_to_utf16 (std::string_view str_utf8)
+	{
+		int char_count = MultiByteToWideChar (CP_UTF8, 0, str_utf8.data(), -1, nullptr, 0);
+		std::wstring wide (char_count, 0);
+		MultiByteToWideChar (CP_UTF8, 0, str_utf8.data(), -1, wide.data(), char_count);
+		return wide;
+	}
+
 	std::string utf16_to_utf8 (std::wstring_view str_utf16)
 	{
 		int size_bytes = WideCharToMultiByte (CP_UTF8, 0, str_utf16.data(), (int) str_utf16.size(), nullptr, 0, nullptr, nullptr);
@@ -158,7 +166,7 @@ namespace edge
 		return { l, t, r, b };
 	}
 
-	D2D1_RECT_F union_rect (const D2D1_RECT_F& one, const D2D1_RECT_F& other)
+	D2D1_RECT_F union_rects (const D2D1_RECT_F& one, const D2D1_RECT_F& other)
 	{
 		auto aa = make_positive(one);
 		auto bb = make_positive(other);

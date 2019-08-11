@@ -13,4 +13,6 @@ namespace edge
 		virtual void on_deserializing() = 0;
 		virtual void on_deserialized() = 0;
 	};
+
+	HRESULT format_and_save_to_file (IXMLDOMDocument3* doc, const wchar_t* file_path);
 }

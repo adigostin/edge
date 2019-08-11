@@ -8,14 +8,6 @@
 
 #include "targetver.h"
 
-// From https://msdn.microsoft.com/en-us/library/974tc9t1.aspx
-#include <crtdbg.h>
-#include <malloc.h>
-
-#ifdef _DEBUG
-#define new new(_CLIENT_BLOCK, __FILE__, __LINE__)
-#endif
-
 // C/C++
 #include <array>
 #include <cstdint>
@@ -40,6 +32,7 @@
 #include <d2d1_1helper.h>
 #include <d3d11_1.h>
 #include <dwrite.h>
+#include <MsXml6.h>
 #include <Shlwapi.h>
 #include <Unknwn.h>
 #include <VersionHelpers.h>

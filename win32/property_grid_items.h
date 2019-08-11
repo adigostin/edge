@@ -3,6 +3,7 @@
 #include "..\object.h"
 #include "com_ptr.h"
 #include "d2d_window.h"
+#include "text_layout.h"
 
 namespace edge
 {

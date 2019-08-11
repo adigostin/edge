@@ -71,7 +71,7 @@ namespace edge
 		return true;
 	}
 
-	bool size_property_traits::from_string (std::string_view from, size_t&to)
+	bool size_t_property_traits::from_string (std::string_view from, size_t&to)
 	{
 	#if defined(_WIN32) || defined(_WIN64)
 		#ifdef _WIN64
