@@ -37,9 +37,9 @@ namespace edge
 	{
 		base::create_render_resources(dc);
 
-		if (_smoothZoomInfo != nullptr)
+		if (_smooth_zoom_info)
 		{
-			auto& szi = *_smoothZoomInfo;
+			auto& szi = _smooth_zoom_info.value();
 
 			// zoom in progress
 			LARGE_INTEGER timeNow;
@@ -48,7 +48,7 @@ namespace edge
 			LARGE_INTEGER frequency;
 			bRes = QueryPerformanceFrequency(&frequency); assert(bRes);
 
-			LONGLONG ellapsedMilliseconds = (timeNow.QuadPart - szi._zoomStartTime.QuadPart) * 1000 / frequency.QuadPart;
+			float ellapsedMilliseconds = (float)(((double)timeNow.QuadPart - (double)szi.begin_time.QuadPart) * 1000 / frequency.QuadPart);
 			if (ellapsedMilliseconds == 0)
 			{
 				// The WM_PAINT message came too fast, so the zoom hasn't changed yet.
@@ -56,39 +56,27 @@ namespace edge
 			}
 			else
 			{
-				static constexpr float DurationMilliseconds = 150;
+				static constexpr float duration_milliseconds = 150;
 
-				float newZoom = szi._zoomStart + (float)ellapsedMilliseconds * (szi._zoomEnd - szi._zoomStart) / (float)DurationMilliseconds;
-				float newWOX = szi._woXStart + (float)ellapsedMilliseconds * (szi._woXEnd - szi._woXStart) / (float)DurationMilliseconds;
-				float newWOY = szi._woYStart + (float)ellapsedMilliseconds * (szi._woYEnd - szi._woYStart) / (float)DurationMilliseconds;
-
-				if (szi._zoomEnd > szi._zoomStart)
+				float new_zoom;
+				D2D1_POINT_2F new_aimpoint;
+				if (ellapsedMilliseconds < duration_milliseconds)
 				{
-					// zoom increasing
-					if (newZoom > szi._zoomEnd)
-					{
-						newZoom = szi._zoomEnd;
-						newWOX = szi._woXEnd;
-						newWOY = szi._woYEnd;
-					}
+					new_zoom = 1 / (1 / szi.begin_zoom + ellapsedMilliseconds * (1 / szi.end_zoom - 1 / szi.begin_zoom) / duration_milliseconds);
+					new_aimpoint.x = szi.begin_aimpoint.x + ellapsedMilliseconds * (szi.end_aimpoint.x - szi.begin_aimpoint.x) / duration_milliseconds;
+					new_aimpoint.y = szi.begin_aimpoint.y + ellapsedMilliseconds * (szi.end_aimpoint.y - szi.begin_aimpoint.y) / duration_milliseconds;
 				}
 				else
 				{
-					// zoom decreasing
-					if (newZoom < szi._zoomEnd)
-					{
-						newZoom = szi._zoomEnd;
-						newWOX = szi._woXEnd;
-						newWOY = szi._woYEnd;
-					}
+					new_zoom     = szi.end_zoom;
+					new_aimpoint = szi.end_aimpoint;
 				}
 
-				if (_zoom != newZoom)
+				if ((_zoom != new_zoom) || (_aimpoint != new_aimpoint))
 				{
-					_zoom = newZoom;
-					_workspaceOrigin.x = newWOX;
-					_workspaceOrigin.y = newWOY;
-					this->OnZoomTransformChanged();
+					_zoom = new_zoom;
+					_aimpoint = new_aimpoint;
+					this->on_zoom_transform_changed();
 				}
 			}
 		}
@@ -98,9 +86,9 @@ namespace edge
 	{
 		base::release_render_resources(dc);
 
-		if (_smoothZoomInfo != nullptr)
+		if (_smooth_zoom_info)
 		{
-			if (_smoothZoomInfo->_zoomEnd != _zoom)
+			if ((_smooth_zoom_info->end_zoom != _zoom) || (_smooth_zoom_info->end_aimpoint != _aimpoint))
 			{
 				// zooming still in progress. paint again as soon as possible.
 				::InvalidateRect(hwnd(), nullptr, TRUE);
@@ -108,34 +96,37 @@ namespace edge
 			else
 			{
 				// zoom finished
-				_smoothZoomInfo.reset();
+				_smooth_zoom_info.reset();
 			}
 		}
 	}
 
 	Matrix3x2F zoomable_window::zoom_transform() const
 	{
-		return Matrix3x2F(_zoom, 0, 0, _zoom, _workspaceOrigin.x, _workspaceOrigin.y);
+		return Matrix3x2F::Translation(-_aimpoint.x, -_aimpoint.y) * Matrix3x2F::Scale(_zoom, _zoom) * Matrix3x2F::Translation(client_width() / 2, client_height() / 2);
 	}
 
-	void zoomable_window::ProcessWmSize(WPARAM wparam, LPARAM lparam)
+	void zoomable_window::process_wm_size(WPARAM wparam, LPARAM lparam)
 	{
-		if (_zoomedToRect != nullptr)
-			ZoomToRectangle (_zoomedToRect->_rect, _zoomedToRect->_minMarginDips, _zoomedToRect->_maxZoomOrZero, false);
+		if (_zoomed_to_rect)
+		{
+			auto copy = _zoomed_to_rect->rect;
+			zoom_to (copy, _zoomed_to_rect->min_margin, _zoomed_to_rect->min_zoom, _zoomed_to_rect->max_zoom, false);
+		}
 	}
 
-	void zoomable_window::SetZoomAndOrigin(float zoom, float originX, float originY, bool smooth)
+	void zoomable_window::zoom_to (D2D1_POINT_2F aimpoint, float zoom, bool smooth)
 	{
-		SetZoomAndOriginInternal(zoom, originX, originY, smooth);
-		_zoomedToRect.reset();
+		set_zoom_and_aimpoint_internal (zoom, aimpoint, smooth);
+		_zoomed_to_rect.reset();
 	}
 
-	void zoomable_window::OnZoomTransformChanged()
+	void zoomable_window::on_zoom_transform_changed()
 	{
-		//this->event_invoker<zoom_transform_changed_event>()(this);
+		this->event_invoker<zoom_transform_changed_e>()(this);
 	}
 
-	void zoomable_window::ZoomToRectangle (const D2D1_RECT_F& rect, float minMarginDips, float maxZoomOrZero, bool smooth)
+	void zoomable_window::zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth)
 	{
 		assert((rect.right > rect.left) && (rect.bottom > rect.top));
 
@@ -144,67 +135,60 @@ namespace edge
 		// Make below calculations with even sizes, to make sure things are always pixel-aligned when zoom is 1.
 		clientSizeDips.width = std::floor(clientSizeDips.width / 2) * 2;
 		clientSizeDips.height = std::floor(clientSizeDips.height / 2) * 2;
-		minMarginDips = std::floor(minMarginDips);
+		min_margin = std::floor(min_margin);
 
-		//float minMarginPixels = minMarginDips;
-		float horzZoom = (clientSizeDips.width - 2 * minMarginDips) / (rect.right - rect.left);
-		float vertZoom = (clientSizeDips.height - 2 * minMarginDips) / (rect.bottom - rect.top);
+		float horzZoom = (clientSizeDips.width - 2 * min_margin) / (rect.right - rect.left);
+		float vertZoom = (clientSizeDips.height - 2 * min_margin) / (rect.bottom - rect.top);
 		float newZoom = horzZoom < vertZoom ? horzZoom : vertZoom;
 		if (newZoom < 0.3f)
 			newZoom = 0.3f;
 
-		if ((maxZoomOrZero > 0.0f) && (newZoom > maxZoomOrZero))
-			newZoom = maxZoomOrZero;
+		if ((max_zoom > 0) && (newZoom > max_zoom))
+			newZoom = max_zoom;
 
-		float newWOX = (clientSizeDips.width - (rect.right - rect.left) * newZoom) / 2 - rect.left * newZoom;
-		float newWOY = (clientSizeDips.height - (rect.bottom - rect.top) * newZoom) / 2 - rect.top * newZoom;
+		if ((min_zoom > 0) && (newZoom < min_zoom))
+			newZoom = min_zoom;
 
-		SetZoomAndOriginInternal(newZoom, newWOX, newWOY, smooth);
+		set_zoom_and_aimpoint_internal (newZoom, center(rect), smooth);
 
-		_zoomedToRect = std::make_unique<ZoomedToRect>();
-		_zoomedToRect->_rect = rect;
-		_zoomedToRect->_minMarginDips = minMarginDips;
-		_zoomedToRect->_maxZoomOrZero = maxZoomOrZero;
+		_zoomed_to_rect = zoomed_to_rect{ };
+		_zoomed_to_rect->rect = rect;
+		_zoomed_to_rect->min_margin = min_margin;
+		_zoomed_to_rect->min_zoom   = min_zoom;
+		_zoomed_to_rect->max_zoom   = max_zoom;
 	}
 
-	void zoomable_window::SetZoomAndOriginInternal(float newZoom, float newOriginX, float newOriginY, bool smooth)
+	void zoomable_window::set_zoom_and_aimpoint_internal (float newZoom, D2D1_POINT_2F aimpoint, bool smooth)
 	{
 		if (smooth)
 		{
-			_smoothZoomInfo = std::make_unique<SmoothZoomInfo>();
-			_smoothZoomInfo->_zoomStart = _zoom;
-			_smoothZoomInfo->_woXStart = _workspaceOrigin.x;
-			_smoothZoomInfo->_woYStart = _workspaceOrigin.y;
-			_smoothZoomInfo->_zoomEnd = newZoom;
-			_smoothZoomInfo->_woXEnd = newOriginX;
-			_smoothZoomInfo->_woYEnd = newOriginY;
-			QueryPerformanceCounter(&_smoothZoomInfo->_zoomStartTime);
+			_smooth_zoom_info = smooth_zoom_info{ };
+			_smooth_zoom_info->begin_zoom = _zoom;
+			_smooth_zoom_info->begin_aimpoint = _aimpoint;
+			_smooth_zoom_info->end_zoom = newZoom;
+			_smooth_zoom_info->end_aimpoint = aimpoint;
+			QueryPerformanceCounter(&_smooth_zoom_info->begin_time);
 			// Zooming will continue in BeginDraw.
 		}
 		else
 		{
 			_zoom = newZoom;
-			_workspaceOrigin.x = newOriginX;
-			_workspaceOrigin.y = newOriginY;
-			_smoothZoomInfo.reset();
+			_aimpoint = aimpoint;
+			_smooth_zoom_info.reset();
 		}
 
-		this->OnZoomTransformChanged();
+		this->on_zoom_transform_changed();
 		::InvalidateRect(base::hwnd(), nullptr, FALSE);
 	}
 
-	bool zoomable_window::ProcessWmMButtonDown(WPARAM wparam, LPARAM lparam)
+	void zoomable_window::process_wm_mbuttondown (WPARAM wparam, LPARAM lparam)
 	{
-		if (!_enableUserZoomingAndPanning)
-			return false; // not handled
-
 		POINT pt = { GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam) };
 		_panningLastMouseLocation = pointp_to_pointd(pt.x, pt.y);
 		_panning = true;
-		return true; // handled
 	}
 
-	void zoomable_window::ProcessWmMouseMove(WPARAM wparam, LPARAM lparam)
+	void zoomable_window::process_wm_mousemove(WPARAM wparam, LPARAM lparam)
 	{
 		POINT point = { GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam) };
 
@@ -212,102 +196,86 @@ namespace edge
 		{
 			auto dipLocation = pointp_to_pointd(point.x, point.y);
 
-			_workspaceOrigin.x += (dipLocation.x - _panningLastMouseLocation.x);
-			_workspaceOrigin.y += (dipLocation.y - _panningLastMouseLocation.y);
-
+			_aimpoint += (_panningLastMouseLocation - dipLocation) / _zoom;
+			
 			_panningLastMouseLocation = dipLocation;
 
-			_zoomedToRect.reset();
-			this->OnZoomTransformChanged();
-			//OnUserPanned();
+			_zoomed_to_rect.reset();
+			this->on_zoom_transform_changed();
 			::InvalidateRect(base::hwnd(), nullptr, FALSE);
 		}
 	}
 
-	bool zoomable_window::ProcessWmMButtonUp(WPARAM wparam, LPARAM lparam)
+	void zoomable_window::process_wm_mbuttonup(WPARAM wparam, LPARAM lparam)
 	{
-		if (!_enableUserZoomingAndPanning)
-			return false; // not handled
-
 		_panning = false;
-		return true; // handled
 	}
 
-	bool zoomable_window::ProcessWmMouseWheel(WPARAM wparam, LPARAM lparam)
+	void zoomable_window::process_wm_mousewheel(WPARAM wparam, LPARAM lparam)
 	{
-		if (!_enableUserZoomingAndPanning)
-			return false; // not handled
-
 		auto keyState = GET_KEYSTATE_WPARAM(wparam);
 		auto zDelta = GET_WHEEL_DELTA_WPARAM(wparam);
 		POINT pt = { GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam) };
 
 		ScreenToClient(hwnd(), &pt);
 
-		float factor = (zDelta > 0) ? ZoomFactor : (1 / ZoomFactor);
+		static constexpr float zoom_factor = 1.5f;
+
+		float factor = (zDelta > 0) ? zoom_factor : (1 / zoom_factor);
 
 		if (keyState & MK_CONTROL)
 			factor = ((factor - 1) / 10) + 1;
 
-		auto dipLocation = this->pointp_to_pointd(pt.x, pt.y);
+		auto dlocation = pointp_to_pointd(pt.x, pt.y);
 
-		float _zoomHitWX = (dipLocation.x - _workspaceOrigin.x) / _zoom;
-		float _zoomHitWY = (dipLocation.y - _workspaceOrigin.y) / _zoom;
+		auto wlocation = pointd_to_pointw(dlocation);
 
-		// TODO: compose also for workspaceOrigin
-		//_zoomEnd = _zoomEnd * factor; // if a zooming animation is currently running, compose its endZoom with the new factor
-		float newZoom = ((_smoothZoomInfo != nullptr) ? _smoothZoomInfo->_zoomEnd : _zoom) * factor;
+		float newZoom = (_smooth_zoom_info ? _smooth_zoom_info->end_zoom : _zoom) * factor;
 		if (newZoom < 0.1f)
 			newZoom = 0.1f;
-		float newWOX = dipLocation.x - _zoomHitWX * newZoom;
-		float newWOY = dipLocation.y - _zoomHitWY * newZoom;
+		auto o = dlocation - client_size() / 2;
+		float new_aimpoint_x = 2 * wlocation.x - o.x / _zoom - o.x / newZoom - _aimpoint.x;
+		float new_aimpoint_y = 2 * wlocation.y - o.y / _zoom - o.y / newZoom - _aimpoint.y;
 
-		SetZoomAndOriginInternal(newZoom, newWOX, newWOY, true);
-
-		_zoomedToRect.reset();
-		return true; // handled
+		set_zoom_and_aimpoint_internal (newZoom, { new_aimpoint_x, new_aimpoint_y }, true);
+		
+		_zoomed_to_rect.reset();
 	}
 
 	std::optional<LRESULT> zoomable_window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
-		if (uMsg == WM_MOUSEWHEEL)
+		if (_enableUserZoomingAndPanning)
 		{
-			bool handled = ProcessWmMouseWheel(wParam, lParam);
-			if (handled)
+			if (uMsg == WM_MOUSEWHEEL)
+			{
+				process_wm_mousewheel(wParam, lParam);
 				return 0;
-			else
-				return base::window_proc(hwnd, uMsg, wParam, lParam);
-		}
+			}
 
-		if (uMsg == WM_MBUTTONDOWN)
-		{
-			bool handled = ProcessWmMButtonDown(wParam, lParam);
-			if (handled)
+			if (uMsg == WM_MBUTTONDOWN)
+			{
+				process_wm_mbuttondown (wParam, lParam);
 				return 0;
-			else
-				return base::window_proc(hwnd, uMsg, wParam, lParam);
-		}
+			}
 
-		if (uMsg == WM_MBUTTONUP)
-		{
-			bool handled = ProcessWmMButtonUp(wParam, lParam);
-			if (handled)
+			if (uMsg == WM_MBUTTONUP)
+			{
+				process_wm_mbuttonup (wParam, lParam);
 				return 0;
-			else
-				return base::window_proc(hwnd, uMsg, wParam, lParam);
-		}
+			}
 
-		if (uMsg == WM_MOUSEMOVE)
-		{
-			ProcessWmMouseMove(wParam, lParam);
-			base::window_proc(hwnd, uMsg, wParam, lParam);
-			return 0;
+			if (uMsg == WM_MOUSEMOVE)
+			{
+				process_wm_mousemove(wParam, lParam);
+				base::window_proc(hwnd, uMsg, wParam, lParam);
+				return 0;
+			}
 		}
 
 		if (uMsg == WM_SIZE)
 		{
 			base::window_proc (hwnd, uMsg, wParam, lParam); // Pass it to the base class first, which stores the client size.
-			ProcessWmSize(wParam, lParam);
+			process_wm_size(wParam, lParam);
 			return 0;
 		}
 
@@ -316,15 +284,15 @@ namespace edge
 
 	D2D1_POINT_2F zoomable_window::pointd_to_pointw (D2D1_POINT_2F dlocation) const
 	{
-		float x = (dlocation.x - _workspaceOrigin.x) / _zoom;
-		float y = (dlocation.y - _workspaceOrigin.y) / _zoom;
+		float x = (dlocation.x - client_width () / 2) / _zoom + _aimpoint.x;
+		float y = (dlocation.y - client_height() / 2) / _zoom + _aimpoint.y;
 		return { x, y };
 	}
 
 	D2D1_POINT_2F zoomable_window::pointw_to_pointd (D2D1_POINT_2F wlocation) const
 	{
-		float x = _workspaceOrigin.x + wlocation.x * _zoom;
-		float y = _workspaceOrigin.y + wlocation.y * _zoom;
+		float x = (wlocation.x - _aimpoint.x) * _zoom + client_width() / 2;
+		float y = (wlocation.y - _aimpoint.y) * _zoom + client_height() / 2;
 		return { x, y };
 	}
 }

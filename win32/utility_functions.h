@@ -4,6 +4,9 @@
 inline D2D1_SIZE_F operator- (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return { p0.x - p1.x, p0.y - p1.y }; }
 inline D2D1_POINT_2F operator- (D2D1_POINT_2F p, D2D1_SIZE_F s) {return { p.x - s.width, p.y - s.height }; }
 inline D2D1_POINT_2F operator+ (D2D1_POINT_2F p, D2D1_SIZE_F s) {return { p.x + s.width, p.y + s.height }; }
+inline D2D1_SIZE_F operator* (float a, D2D1_SIZE_F b) { return { a * b.width, a * b.height }; }
+inline D2D1_SIZE_F operator/ (D2D1_SIZE_F a, float b) { return { a.width / b, a.height / b }; }
+inline void operator+= (D2D1_POINT_2F& a, D2D1_SIZE_F b) { a.x += b.width; a.y += b.height; }
 inline bool operator== (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return (p0.x == p1.x) && (p0.y == p1.y); }
 inline bool operator!= (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return (p0.x != p1.x) || (p0.y != p1.y); }
 bool operator== (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
@@ -37,6 +40,8 @@ namespace edge
 	inline D2D1_POINT_2F center (const D2D1_RECT_F& r) { return { (r.left + r.right) / 2, (r.top + r.bottom) / 2 }; }
 	inline LONG width (const RECT& rc) { return rc.right - rc.left; }
 	inline LONG height (const RECT& rc) { return rc.bottom - rc.top; }
+	D2D1_RECT_F make_positive (const D2D1_RECT_F& r);
+	D2D1_RECT_F union_rect (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
 }
 
 struct timer_queue_timer_deleter

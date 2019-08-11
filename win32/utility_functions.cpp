@@ -148,4 +148,24 @@ namespace edge
 		size_t char_count = SysStringLen(bstr);
 		return utf16_to_utf8 ({ bstr, char_count });
 	}
+
+	D2D1_RECT_F make_positive (const D2D1_RECT_F& rect)
+	{
+		float l = std::min (rect.left, rect.right);
+		float t = std::min (rect.top,  rect.bottom);
+		float r = std::max (rect.left, rect.right);
+		float b = std::max (rect.top,  rect.bottom);
+		return { l, t, r, b };
+	}
+
+	D2D1_RECT_F union_rect (const D2D1_RECT_F& one, const D2D1_RECT_F& other)
+	{
+		auto aa = make_positive(one);
+		auto bb = make_positive(other);
+		float l = std::min (aa.left, bb.left);
+		float t = std::min (aa.top, bb.top);
+		float r = std::max (aa.right, bb.right);
+		float b = std::max (aa.bottom, bb.bottom);
+		return { l, t, r, b };
+	}
 }
