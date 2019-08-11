@@ -26,6 +26,9 @@ namespace edge
 		std::pair<D2D1_RECT_F, D2D1_MATRIX_3X2_F> _caret_bounds;
 		D2D1_COLOR_F _caret_color;
 		uint32_t _dpi;
+		float _pixel_width;
+		float _line_thickness;
+		static constexpr float line_thickness_not_aligned = 0.6f;
 
 		struct RenderPerfInfo
 		{
@@ -83,6 +86,8 @@ namespace edge
 		using base::invalidate;
 
 		uint32_t dpi() const { return _dpi; }
+		float pixel_width() const { return _pixel_width; }
+		float line_thickness() const { return _line_thickness; }
 
 	protected:
 		virtual std::optional<LRESULT> window_proc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
@@ -91,6 +96,7 @@ namespace edge
 		virtual void release_render_resources (ID2D1DeviceContext* dc) { }
 
 	private:
+		void recalc_pixel_width_and_line_thickness();
 		void invalidate_caret();
 		void process_wm_blink();
 		void create_d2d_dc();

@@ -66,6 +66,14 @@ namespace edge
 		QueryPerformanceFrequency(&_performanceCounterFrequency);
 
 		hr = dwrite_factory->CreateTextFormat (L"Courier New", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_CONDENSED, 11.0f * 96 / _dpi, L"en-US", &_debugTextFormat); assert(SUCCEEDED(hr));
+
+		recalc_pixel_width_and_line_thickness();
+	}
+
+	void d2d_window::recalc_pixel_width_and_line_thickness()
+	{
+		_pixel_width = GetDipSizeFromPixelSize ({ 1, 0 }).width;
+		_line_thickness = roundf(line_thickness_not_aligned / _pixel_width) * _pixel_width;
 	}
 
 	void d2d_window::create_d2d_dc()
@@ -122,6 +130,7 @@ namespace edge
 			_dpi = proc(hwnd);
 			_clientSizeDips.width = client_width_pixels() * 96.0f / _dpi;
 			_clientSizeDips.height = client_height_pixels() * 96.0f / _dpi;
+			recalc_pixel_width_and_line_thickness();
 			::InvalidateRect (hwnd, nullptr, FALSE);
 			return 0;
 		}

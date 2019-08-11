@@ -8,7 +8,6 @@
 using namespace edge;
 
 static constexpr float indent_width = 10;
-static constexpr float line_thickness_not_aligned = 0.6f;
 static constexpr float separator_height = 4;
 static constexpr float description_min_height = 20;
 
@@ -28,8 +27,6 @@ class edge::property_grid : d2d_window, public virtual property_grid_i
 	com_ptr<IDWriteTextFormat> _wingdings;
 	std::unique_ptr<text_editor_i> _text_editor;
 	float _name_column_factor = 0.6f;
-	float _pixel_width;
-	float _line_thickness;
 	float _description_height = 120;
 	std::vector<std::unique_ptr<root_item>> _root_items;
 	pgitem* _selected_item = nullptr;
@@ -52,16 +49,7 @@ public:
 
 		hr = dWriteFactory->CreateTextFormat (L"Wingdings", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
 											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_wingdings); assert(SUCCEEDED(hr));
-
-		recalc_pixel_width_and_line_thickness();
 	}
-
-	void recalc_pixel_width_and_line_thickness()
-	{
-		_pixel_width = GetDipSizeFromPixelSize ({ 1, 0 }).width;
-		_line_thickness = roundf(line_thickness_not_aligned / _pixel_width) * _pixel_width;
-	}
-
 
 	virtual IDWriteFactory* dwrite_factory() const override final { return base::dwrite_factory(); }
 
@@ -95,7 +83,6 @@ public:
 
 		if (msg == 0x02E3) // WM_DPICHANGED_AFTERPARENT
 		{
-			recalc_pixel_width_and_line_thickness();
 			if (!_root_items.empty())
 			{
 				discard_editor();
@@ -116,7 +103,7 @@ public:
 		{
 			auto button = ((msg == WM_LBUTTONDOWN) || (msg == WM_LBUTTONUP)) ? mouse_button::left : mouse_button::right;
 			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ _pixel_width / 2, _pixel_width / 2 };
+			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
 			if ((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN))
 				process_mouse_button_down (button, (modifier_key)wParam, pt, dip);
 			else
@@ -130,7 +117,7 @@ public:
 			if (::GetKeyState(VK_MENU) < 0)
 				mks |= modifier_key::alt;
 			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ _pixel_width / 2, _pixel_width / 2 };
+			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
 			process_mouse_move (mks, pt, dip);
 		}
 
@@ -183,7 +170,7 @@ public:
 				{
 					if (ScreenToClient (hwnd, &pt))
 					{
-						auto dip = pointp_to_pointd(pt.x, pt.y) + D2D1_SIZE_F{ _pixel_width / 2, _pixel_width / 2 };
+						auto dip = pointp_to_pointd(pt.x, pt.y) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
 						process_wm_setcursor({ pt.x, pt.y }, dip);
 						return TRUE;
 					}
@@ -235,7 +222,7 @@ public:
 			auto item_height = item->content_height();
 
 			auto horz_line_y = y + item_height;
-			horz_line_y = ceilf (horz_line_y / _pixel_width) * _pixel_width;
+			horz_line_y = ceilf (horz_line_y / pixel_width()) * pixel_width();
 
 			item_layout il;
 			il.y_top = y;
@@ -249,7 +236,7 @@ public:
 			if (cancel)
 				return;
 
-			y = horz_line_y + _line_thickness;
+			y = horz_line_y + line_thickness();
 
 			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
 			{
@@ -287,7 +274,7 @@ public:
 			il.x_value = vcx;
 			il.x_right = std::max (client_width(), vcx + 75.0f);
 
-			item->create_text_layouts (dwrite_factory(), _textFormat, il, _line_thickness);
+			item->create_text_layouts (dwrite_factory(), _textFormat, il, line_thickness());
 
 			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
 			{
@@ -336,17 +323,17 @@ public:
 		enum_items ([&, this](pgitem* item, const item_layout& layout, bool& cancel)
 		{
 			bool selected = (item == _selected_item);
-			item->render (rc, layout, _line_thickness, selected, focused);
+			item->render (rc, layout, line_thickness(), selected, focused);
 
 			if (selected && _text_editor)
 				_text_editor->render(dc);
 
-			if (layout.y_bottom + _line_thickness >= items_bottom)
+			if (layout.y_bottom + line_thickness() >= items_bottom)
 				cancel = true;
 
-			D2D1_POINT_2F p0 = { 0, layout.y_bottom + _line_thickness / 2 };
-			D2D1_POINT_2F p1 = { client_width(), layout.y_bottom + _line_thickness / 2 };
-			dc->DrawLine (p0, p1, rc.disabled_fore_brush, _line_thickness);
+			D2D1_POINT_2F p0 = { 0, layout.y_bottom + line_thickness() / 2 };
+			D2D1_POINT_2F p1 = { client_width(), layout.y_bottom + line_thickness() / 2 };
+			dc->DrawLine (p0, p1, rc.disabled_fore_brush, line_thickness());
 		});
 		dc->PopAxisAlignedClip();
 
@@ -393,7 +380,7 @@ public:
 	float value_column_x() const
 	{
 		float w = client_width() * _name_column_factor;
-		w = roundf (w / _pixel_width) * _pixel_width;
+		w = roundf (w / pixel_width()) * pixel_width();
 		return std::max (75.0f, w);
 	}
 
@@ -694,7 +681,7 @@ public:
 		return true;
 	}
 
-	virtual float line_thickness() const override final { return _line_thickness; }
+	virtual float line_thickness() const override { return base::line_thickness(); }
 
 	handled process_virtual_key_down (UINT key, modifier_key mks)
 	{
