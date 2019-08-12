@@ -254,6 +254,7 @@ namespace edge
 
 			if (uMsg == WM_MBUTTONDOWN)
 			{
+				::SetFocus(hwnd);
 				process_wm_mbuttondown (wParam, lParam);
 				return 0;
 			}
