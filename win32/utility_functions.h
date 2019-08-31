@@ -38,13 +38,6 @@ namespace edge
 	std::wstring utf8_to_utf16 (std::string_view str_utf8);
 	std::string utf16_to_utf8 (std::wstring_view str_utf16);
 	std::string bstr_to_utf8 (BSTR bstr);
-	inline D2D1_POINT_2F location (const D2D1_RECT_F& r) { return { r.left, r.top }; }
-	inline D2D1_SIZE_F size (const D2D1_RECT_F& r) { return { r.right - r.left, r.bottom - r.top }; }
-	inline D2D1_POINT_2F center (const D2D1_RECT_F& r) { return { (r.left + r.right) / 2, (r.top + r.bottom) / 2 }; }
-	inline LONG width (const RECT& rc) { return rc.right - rc.left; }
-	inline LONG height (const RECT& rc) { return rc.bottom - rc.top; }
-	inline float width (const D2D1_RECT_F& r) { return r.right - r.left; }
-	inline float height (const D2D1_RECT_F& r) { return r.bottom - r.top; }
 	D2D1_RECT_F make_positive (const D2D1_RECT_F& r);
 	D2D1_RECT_F union_rects (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
 }

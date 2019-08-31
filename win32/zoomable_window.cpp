@@ -149,7 +149,8 @@ namespace edge
 		if ((min_zoom > 0) && (newZoom < min_zoom))
 			newZoom = min_zoom;
 
-		set_zoom_and_aimpoint_internal (newZoom, center(rect), smooth);
+		D2D1_POINT_2F center = { (rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2 };
+		set_zoom_and_aimpoint_internal (newZoom, center, smooth);
 
 		_zoomed_to_rect = zoomed_to_rect{ };
 		_zoomed_to_rect->rect = rect;
