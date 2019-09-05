@@ -37,6 +37,6 @@ namespace edge
 		virtual float line_thickness() const = 0;
 	};
 
-	using property_grid_factory_t = std::unique_ptr<property_grid_i>(HINSTANCE hInstance, DWORD exStyle, const RECT& rect, HWND hWndParent, ID3D11DeviceContext1* deviceContext, IDWriteFactory* dWriteFactory);
+	using property_grid_factory_t = std::unique_ptr<property_grid_i>(HINSTANCE hInstance, DWORD exStyle, const RECT& rect, HWND hWndParent, ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory);
 	extern property_grid_factory_t* const property_grid_factory;
 }

@@ -14,7 +14,7 @@ namespace edge
 		bool _forceFullPresentation;
 		com_ptr<IDWriteFactory> const _dwrite_factory;
 		com_ptr<ID3D11Device1> _d3dDevice;
-		com_ptr<ID3D11DeviceContext1> _d3dDeviceContext;
+		com_ptr<ID3D11DeviceContext1> _d3d_dc;
 		com_ptr<IDXGIDevice2> _dxgiDevice;
 		com_ptr<IDXGIAdapter> _dxgiAdapter;
 		com_ptr<IDXGIFactory2> _dxgiFactory;
@@ -58,7 +58,7 @@ namespace edge
 	public:
 		d2d_window (HINSTANCE hInstance, DWORD exStyle, DWORD style,
 				   const RECT& rect, HWND hWndParent, int child_control_id,
-				   ID3D11DeviceContext1* deviceContext, IDWriteFactory* dwrite_factory);
+				   ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory);
 
 		D2D1_SIZE_F client_size() const { return _clientSizeDips; }
 		float client_width() const { return _clientSizeDips.width; }
@@ -71,7 +71,7 @@ namespace edge
 		SIZE GetPixelSizeFromDipSize(D2D1_SIZE_F sizeDips) const;
 		D2D1::Matrix3x2F dpi_transform() const;
 
-		ID3D11DeviceContext1* d3d_dc() const { return _d3dDeviceContext; }
+		ID3D11DeviceContext1* d3d_dc() const { return _d3d_dc; }
 		ID2D1DeviceContext* d2d_dc() const { return _d2dDeviceContext; }
 		ID2D1Factory1* d2d_factory() const { return _d2dFactory; }
 		IDWriteFactory* dwrite_factory() const { return _dwrite_factory; }
