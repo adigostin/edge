@@ -287,16 +287,16 @@ namespace edge
 	using backed_string_property_traits = string_property_traits<true>;
 	using backed_string_p = typed_property<backed_string_property_traits>;
 
-	enum class side_t { left, top, right, bottom };
+	enum class side { left, top, right, bottom };
 	static inline const char side_type_name[] = "side";
 	static inline constexpr NVP side_nvps[] = {
-		{ "Left",   (int) side_t::left },
-		{ "Top",    (int) side_t::top },
-		{ "Right",  (int) side_t::right },
-		{ "Bottom", (int) side_t::bottom },
+		{ "Left",   (int) side::left },
+		{ "Top",    (int) side::top },
+		{ "Right",  (int) side::right },
+		{ "Bottom", (int) side::bottom },
 		{ 0, 0 },
 	};
-	using side_p = edge::enum_property<side_t, side_type_name, side_nvps>;
+	using side_p = edge::enum_property<side, side_type_name, side_nvps>;
 
 	// ========================================================================
 
