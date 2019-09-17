@@ -1,5 +1,5 @@
 
-#include "assert.h"
+#include "../assert.h"
 
 volatile unsigned int assert_function_running = 0;
 
