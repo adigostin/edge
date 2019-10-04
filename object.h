@@ -116,6 +116,11 @@ namespace edge
 			this->on_child_inserted (index, raw);
 		}
 
+		void append (std::unique_ptr<child_t>&& o)
+		{
+			insert (children_store().size(), std::move(o));
+		}
+
 		std::unique_ptr<child_t> remove(size_t index)
 		{
 			auto& children = children_store();
