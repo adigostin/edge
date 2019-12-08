@@ -190,7 +190,7 @@ namespace edge
 		auto hr = collection_elem->get_firstChild(&child_node); assert(SUCCEEDED(hr));
 		while (child_node != nullptr)
 		{
-			com_ptr<IXMLDOMElement> child_elem = child_node.get();
+			com_ptr<IXMLDOMElement> child_elem = child_node;
 
 			_bstr_t namebstr;
 			auto hr = child_elem->get_nodeName(namebstr.GetAddress()); assert(SUCCEEDED(hr));
@@ -214,7 +214,7 @@ namespace edge
 		auto hr = collection_elem->get_firstChild(&child_node); assert(SUCCEEDED(hr));
 		while (child_node != nullptr)
 		{
-			com_ptr<IXMLDOMElement> child_elem = child_node.get();
+			com_ptr<IXMLDOMElement> child_elem = child_node;
 			size_t index = child_node_index;
 			_variant_t index_attr_value;
 			hr = child_elem->getAttribute(index_attr_name, index_attr_value.GetAddress());
@@ -238,7 +238,7 @@ namespace edge
 		auto hr = collection_elem->get_firstChild(&entry_node); assert(SUCCEEDED(hr));
 		while (entry_node != nullptr)
 		{
-			com_ptr<IXMLDOMElement> entry_elem = entry_node.get();
+			com_ptr<IXMLDOMElement> entry_elem = entry_node;
 			_variant_t index_attr_value;
 			hr = entry_elem->getAttribute(index_attr_name, index_attr_value.GetAddress()); assert(SUCCEEDED(hr));
 			size_t index;
@@ -277,7 +277,7 @@ namespace edge
 		{
 			com_ptr<IXMLDOMNode> attr_node;
 			hr = attrs->get_item(i, &attr_node); assert(SUCCEEDED(hr));
-			com_ptr<IXMLDOMAttribute> attr = attr_node.get();
+			com_ptr<IXMLDOMAttribute> attr = attr_node;
 			_bstr_t namebstr;
 			hr = attr->get_name(namebstr.GetAddress()); assert(SUCCEEDED(hr));
 
@@ -311,7 +311,7 @@ namespace edge
 		hr = element->get_firstChild(&child_node); assert(SUCCEEDED(hr));
 		while (child_node != nullptr)
 		{
-			com_ptr<IXMLDOMElement> child_elem = child_node.get();
+			com_ptr<IXMLDOMElement> child_elem = child_node;
 			_bstr_t namebstr;
 			hr = child_elem->get_nodeName(namebstr.GetAddress()); assert(SUCCEEDED(hr));
 			auto name = bstr_to_utf8(namebstr);
