@@ -13,6 +13,7 @@ namespace edge
 		virtual D2D1_POINT_2F pointw_to_pointd (D2D1_POINT_2F wlocation) const = 0;
 		virtual float lengthw_to_lengthd (float  wlength) const = 0;
 		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() = 0;
+		virtual void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth) = 0;
 
 		bool hit_test_line (D2D1_POINT_2F dLocation, float tolerance, D2D1_POINT_2F p0w, D2D1_POINT_2F p1w, float lineWidth) const;
 	};
@@ -53,7 +54,6 @@ namespace edge
 
 		float zoom() const { return _zoom; }
 		D2D1_POINT_2F aimpoint() const { return _aimpoint; }
-		void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth);
 		void zoom_to (D2D1_POINT_2F aimpoint, float zoom, bool smooth);
 
 		using base::invalidate;
@@ -64,6 +64,7 @@ namespace edge
 		virtual D2D1_POINT_2F pointw_to_pointd (D2D1_POINT_2F wlocation) const override;
 		virtual float lengthw_to_lengthd (float wLength) const override { return wLength * _zoom; }
 		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() override { return zoom_transform_changed_e::subscriber(this); }
+		virtual void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth) override;
 
 		// win32_window_i
 		virtual HWND hwnd() const override { return base::hwnd(); }
