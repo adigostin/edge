@@ -49,6 +49,8 @@ namespace edge
 		};
 		std::optional<zoomed_to_rect> _zoomed_to_rect;
 
+		D2D1_SIZE_F pixel_aligned_window_center() const;
+
 	public:
 		using base::base;
 

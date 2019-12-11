@@ -101,9 +101,24 @@ namespace edge
 		}
 	}
 
+	// We align the aimpoint to a pixel corner. We guarantee this alignment
+	// to users of this class so their graphics looks better at integer zoom factors.
+	D2D1_SIZE_F zoomable_window::pixel_aligned_window_center() const
+	{
+		float pw = pixel_width();
+
+		float center_x = client_width() / 2;
+		center_x = roundf(center_x / pw) * pw;
+
+		float center_y = client_height() / 2;
+		center_y = roundf(center_y / pw) * pw;
+
+		return { center_x, center_y };
+	}
+
 	Matrix3x2F zoomable_window::zoom_transform() const
 	{
-		return Matrix3x2F::Translation(-_aimpoint.x, -_aimpoint.y) * Matrix3x2F::Scale(_zoom, _zoom) * Matrix3x2F::Translation(client_width() / 2, client_height() / 2);
+		return Matrix3x2F::Translation(-_aimpoint.x, -_aimpoint.y) * Matrix3x2F::Scale(_zoom, _zoom) * Matrix3x2F::Translation(pixel_aligned_window_center());
 	}
 
 	void zoomable_window::process_wm_size(WPARAM wparam, LPARAM lparam)
@@ -131,11 +146,6 @@ namespace edge
 		assert((rect.right > rect.left) && (rect.bottom > rect.top));
 
 		auto clientSizeDips = base::client_size();
-
-		// Make below calculations with even sizes, to make sure things are always pixel-aligned when zoom is 1.
-		clientSizeDips.width = std::floor(clientSizeDips.width / 2) * 2;
-		clientSizeDips.height = std::floor(clientSizeDips.height / 2) * 2;
-		min_margin = std::floor(min_margin);
 
 		float horzZoom = (clientSizeDips.width - 2 * min_margin) / (rect.right - rect.left);
 		float vertZoom = (clientSizeDips.height - 2 * min_margin) / (rect.bottom - rect.top);
@@ -286,15 +296,17 @@ namespace edge
 
 	D2D1_POINT_2F zoomable_window::pointd_to_pointw (D2D1_POINT_2F dlocation) const
 	{
-		float x = (dlocation.x - client_width () / 2) / _zoom + _aimpoint.x;
-		float y = (dlocation.y - client_height() / 2) / _zoom + _aimpoint.y;
+		auto center = pixel_aligned_window_center();
+		float x = (dlocation.x - center.width) / _zoom + _aimpoint.x;
+		float y = (dlocation.y - center.height) / _zoom + _aimpoint.y;
 		return { x, y };
 	}
 
 	D2D1_POINT_2F zoomable_window::pointw_to_pointd (D2D1_POINT_2F wlocation) const
 	{
-		float x = (wlocation.x - _aimpoint.x) * _zoom + client_width() / 2;
-		float y = (wlocation.y - _aimpoint.y) * _zoom + client_height() / 2;
+		auto center = pixel_aligned_window_center();
+		float x = (wlocation.x - _aimpoint.x) * _zoom + center.width;
+		float y = (wlocation.y - _aimpoint.y) * _zoom + center.height;
 		return { x, y };
 	}
 }
