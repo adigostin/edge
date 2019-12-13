@@ -23,6 +23,7 @@
     <ClInclude Include="object.h" />
     <ClInclude Include="events.h" />
     <ClInclude Include="span.hpp" />
+    <ClInclude Include="win32\edge_win32.h" />
     <ClInclude Include="win32\pch.h" />
     <ClInclude Include="reflection.h" />
     <ClInclude Include="win32\com_ptr.h" />
@@ -53,6 +54,7 @@
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ForcedIncludeFiles>
     </ClCompile>
+    <ClCompile Include="win32\edge_win32.cpp" />
     <ClCompile Include="win32\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

@@ -4,20 +4,6 @@
 
 namespace edge
 {
-	struct zoomable_i : public win32_window_i
-	{
-		struct zoom_transform_changed_e : event<zoom_transform_changed_e, zoomable_i*> { };
-
-		virtual D2D1::Matrix3x2F zoom_transform() const = 0;
-		virtual D2D1_POINT_2F pointd_to_pointw (D2D1_POINT_2F dlocation) const = 0;
-		virtual D2D1_POINT_2F pointw_to_pointd (D2D1_POINT_2F wlocation) const = 0;
-		virtual float lengthw_to_lengthd (float  wlength) const = 0;
-		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() = 0;
-		virtual void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth) = 0;
-
-		bool hit_test_line (D2D1_POINT_2F dLocation, float tolerance, D2D1_POINT_2F p0w, D2D1_POINT_2F p1w, float lineWidth) const;
-	};
-
 	class zoomable_window abstract : public d2d_window, public zoomable_i
 	{
 		using base = d2d_window;
@@ -63,7 +49,7 @@ namespace edge
 		// zoomable_i
 		virtual D2D1::Matrix3x2F zoom_transform() const override;
 		virtual D2D1_POINT_2F pointd_to_pointw (D2D1_POINT_2F dlocation) const override;
-		virtual D2D1_POINT_2F pointw_to_pointd (D2D1_POINT_2F wlocation) const override;
+		virtual void pointw_to_pointd (tcb::span<D2D1_POINT_2F> locations) const override;
 		virtual float lengthw_to_lengthd (float wLength) const override { return wLength * _zoom; }
 		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() override { return zoom_transform_changed_e::subscriber(this); }
 		virtual void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth) override;

@@ -1,61 +1,9 @@
 
 #pragma once
-#include "../events.h"
+#include "edge_win32.h"
 
 namespace edge
 {
-	enum class handled { no = 0, yes = 1 };
-
-	enum class mouse_button { left, right, middle, };
-
-	enum class modifier_key
-	{
-		none    = 0,
-		shift   = 4,    // MK_SHIFT
-		control = 8,    // MK_CONTROL
-		alt     = 0x20, // MK_ALT
-		lbutton = 1,    // MK_LBUTTON
-		rbutton = 2,    // MK_RBUTTON
-		mbutton = 0x10, // MK_MBUTTON
-	};
-	//DEFINE_ENUM_FLAG_OPERATORS(modifier_key);
-	inline constexpr modifier_key operator& (modifier_key a, modifier_key b) noexcept { return (modifier_key) ((std::underlying_type_t<modifier_key>)a & (std::underlying_type_t<modifier_key>)b); }
-	inline constexpr modifier_key& operator |= (modifier_key& a, modifier_key b) noexcept { return (modifier_key&) ((std::underlying_type_t<modifier_key>&)a |= (std::underlying_type_t<modifier_key>)b); }
-	inline constexpr bool operator== (modifier_key a, std::underlying_type_t<modifier_key> b) noexcept { return (std::underlying_type_t<modifier_key>)a == b; }
-	inline constexpr bool operator!= (modifier_key a, std::underlying_type_t<modifier_key> b) noexcept { return (std::underlying_type_t<modifier_key>)a != b; }
-
-	struct __declspec(novtable) win32_window_i
-	{
-		virtual ~win32_window_i() { }
-
-		virtual HWND hwnd() const = 0;
-
-		bool visible() const;
-
-		RECT client_rect_pixels() const;
-		SIZE client_size_pixels() const;
-		RECT GetRect() const;
-
-	public:
-		LONG GetX() const { return GetRect().left; }
-		LONG GetY() const { return GetRect().top; }
-		POINT GetLocation() const;
-		LONG GetWidth() const;
-		LONG GetHeight() const;
-		SIZE GetSize() const;
-
-		void SetRect (const RECT& rect)
-		{
-			BOOL bRes = ::MoveWindow (hwnd(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
-			assert(bRes);
-		}
-
-		void invalidate()
-		{
-			::InvalidateRect (hwnd(), nullptr, FALSE);
-		}
-	};
-
 	struct wnd_class_params
 	{
 		LPCWSTR lpszClassName;
