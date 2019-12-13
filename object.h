@@ -127,7 +127,7 @@ namespace edge
 			assert (index < children.size());
 			child_t* raw = children[index].get();
 			this->on_child_removing (index, raw);
-			assert (raw->_parent == this->as_object());
+			assert (raw->_parent == this);
 			raw->_parent = nullptr;
 			auto result = std::move (children[index]);
 			children.erase (children.begin() + index);
