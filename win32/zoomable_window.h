@@ -45,6 +45,7 @@ namespace edge
 		void zoom_to (D2D1_POINT_2F aimpoint, float zoom, bool smooth);
 
 		using base::invalidate;
+		using zoomable_i::pointw_to_pointd;
 
 		// zoomable_i
 		virtual D2D1::Matrix3x2F zoom_transform() const override;

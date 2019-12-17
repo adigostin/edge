@@ -51,6 +51,11 @@ namespace edge
 		rect->bottom += distance;
 	}
 
+	D2D1_RECT_F inflate (D2D1_POINT_2F p, float distance)
+	{
+		return { p.x - distance, p.y - distance, p.x + distance, p.y + distance };
+	}
+
 	D2D1_ROUNDED_RECT InflateRoundedRect (const D2D1_ROUNDED_RECT& rr, float distance)
 	{
 		D2D1_ROUNDED_RECT result = rr;
