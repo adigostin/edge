@@ -45,6 +45,7 @@
     <ClInclude Include="win32\edge_win32.h">
       <Filter>win32</Filter>
     </ClInclude>
+    <ClInclude Include="collection.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="object.cpp" />
@@ -82,7 +83,9 @@
     <ClCompile Include="win32\text_layout.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="win32\edge_win32.cpp" />
+    <ClCompile Include="win32\edge_win32.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="win32">

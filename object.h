@@ -76,75 +76,6 @@ namespace edge
 		}
 	};
 
-	class object;
-
-	template<typename child_t>
-	struct __declspec(novtable) collection_i
-	{
-	private:
-		virtual std::vector<std::unique_ptr<child_t>>& children_store() = 0;
-		virtual object* as_object() = 0;
-
-	protected:
-		virtual void on_child_inserted (size_t index, child_t* child)
-		{
-			this->as_object()->event_invoker<child_inserted_event>()(this, index, child);
-		}
-
-		virtual void on_child_removing (size_t index, child_t* child)
-		{
-			this->as_object()->event_invoker<child_removing_event>()(this, index, child);
-		}
-
-	public:
-		struct child_inserted_event : public event<child_inserted_event, collection_i*, size_t, child_t*> { };
-		struct child_removing_event : public event<child_removing_event, collection_i*, size_t, child_t*> { };
-
-		const std::vector<std::unique_ptr<child_t>>& children() const
-		{
-			return const_cast<collection_i*>(this)->children_store();
-		}
-
-		void insert (size_t index, std::unique_ptr<child_t>&& o)
-		{
-			auto& children = children_store();
-			assert (index <= children.size());
-			child_t* raw = o.get();
-			children.insert (children.begin() + index, std::move(o));
-			assert (raw->_parent == nullptr);
-			raw->_parent = this;
-			this->on_child_inserted (index, raw);
-		}
-
-		void append (std::unique_ptr<child_t>&& o)
-		{
-			insert (children_store().size(), std::move(o));
-		}
-
-		std::unique_ptr<child_t> remove(size_t index)
-		{
-			auto& children = children_store();
-			assert (index < children.size());
-			child_t* raw = children[index].get();
-			this->on_child_removing (index, raw);
-			assert (raw->_parent == this);
-			raw->_parent = nullptr;
-			auto result = std::move (children[index]);
-			children.erase (children.begin() + index);
-			return result;
-		}
-
-		typename child_inserted_event::subscriber get_inserted_event()
-		{
-			return collection_i::object_inserted_event::subscriber(this->as_object());
-		}
-
-		typename child_removing_event::subscriber get_removing_event()
-		{
-			return collection_i::object_removing_event::subscriber(this->as_object());
-		}
-	};
-
 	enum class collection_property_change_type { set, insert, remove };
 
 	struct property_change_args
@@ -175,9 +106,6 @@ namespace edge
 
 	class object : public event_manager
 	{
-		template<typename child_type>
-		friend struct collection_i;
-
 	public:
 		virtual ~object() = default;
 
