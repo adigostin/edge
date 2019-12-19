@@ -112,9 +112,11 @@ namespace edge
 		{
 			if (_swapChain != nullptr)
 			{
+				this->d2d_dc_releasing();
 				release_d2d_dc();
 				auto hr = _swapChain->ResizeBuffers (0, 0, 0, DXGI_FORMAT_UNKNOWN, 0); assert(SUCCEEDED(hr));
 				create_d2d_dc();
+				this->d2d_dc_recreated();
 			}
 
 			_clientSizeDips.width = client_width_pixels() * 96.0f / _dpi;

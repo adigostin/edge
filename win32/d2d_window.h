@@ -95,6 +95,9 @@ namespace edge
 		virtual void render (ID2D1DeviceContext* dc) const = 0;
 		virtual void release_render_resources (ID2D1DeviceContext* dc) { }
 
+		virtual void d2d_dc_releasing() { }
+		virtual void d2d_dc_recreated() { }
+
 	private:
 		void recalc_pixel_width_and_line_thickness();
 		void invalidate_caret();
