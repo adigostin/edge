@@ -25,11 +25,11 @@ namespace edge
 {
 	bool point_in_rect(const D2D1_RECT_F& rect, D2D1_POINT_2F location);
 	bool point_in_polygon(const std::array<D2D1_POINT_2F, 4>& vertices, D2D1_POINT_2F point);
-	D2D1_RECT_F InflateRect (const D2D1_RECT_F& rect, float distance);
-	void InflateRect (D2D1_RECT_F* rect, float distance);
+	D2D1_RECT_F inflate (const D2D1_RECT_F& rect, float distance);
+	void inflate (D2D1_RECT_F* rect, float distance);
 	D2D1_RECT_F inflate (D2D1_POINT_2F p, float distance);
-	D2D1_ROUNDED_RECT InflateRoundedRect (const D2D1_ROUNDED_RECT& rr, float distance);
-	void InflateRoundedRect (D2D1_ROUNDED_RECT* rr, float distance);
+	D2D1_ROUNDED_RECT inflate (const D2D1_ROUNDED_RECT& rr, float distance);
+	void inflate (D2D1_ROUNDED_RECT* rr, float distance);
 	D2D1::ColorF GetD2DSystemColor (int sysColorIndex);
 	std::string get_window_text (HWND hwnd);
 	std::array<D2D1_POINT_2F, 4> corners (const D2D1_RECT_F& rect);

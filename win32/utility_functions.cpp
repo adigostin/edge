@@ -36,14 +36,14 @@ namespace edge
 		return c;
 	}
 
-	D2D1_RECT_F InflateRect (const D2D1_RECT_F& rect, float distance)
+	D2D1_RECT_F inflate (const D2D1_RECT_F& rect, float distance)
 	{
 		auto result = rect;
-		InflateRect (&result, distance);
+		inflate (&result, distance);
 		return result;
 	}
 
-	void InflateRect (D2D1_RECT_F* rect, float distance)
+	void inflate (D2D1_RECT_F* rect, float distance)
 	{
 		rect->left -= distance;
 		rect->top -= distance;
@@ -56,16 +56,16 @@ namespace edge
 		return { p.x - distance, p.y - distance, p.x + distance, p.y + distance };
 	}
 
-	D2D1_ROUNDED_RECT InflateRoundedRect (const D2D1_ROUNDED_RECT& rr, float distance)
+	D2D1_ROUNDED_RECT inflate (const D2D1_ROUNDED_RECT& rr, float distance)
 	{
 		D2D1_ROUNDED_RECT result = rr;
-		InflateRoundedRect (&result, distance);
+		inflate (&result, distance);
 		return result;
 	}
 
-	void InflateRoundedRect (D2D1_ROUNDED_RECT* rr, float distance)
+	void inflate (D2D1_ROUNDED_RECT* rr, float distance)
 	{
-		InflateRect (&rr->rect, distance);
+		inflate (&rr->rect, distance);
 
 		rr->radiusX += distance;
 		if (rr->radiusX < 0)
