@@ -50,7 +50,7 @@ namespace edge
 		// zoomable_i
 		virtual D2D1::Matrix3x2F zoom_transform() const override;
 		virtual D2D1_POINT_2F pointd_to_pointw (D2D1_POINT_2F dlocation) const override;
-		virtual void pointw_to_pointd (tcb::span<D2D1_POINT_2F> locations) const override;
+		virtual void pointw_to_pointd (span<D2D1_POINT_2F> locations) const override;
 		virtual float lengthw_to_lengthd (float wLength) const override { return wLength * _zoom; }
 		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() override { return zoom_transform_changed_e::subscriber(this); }
 		virtual void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth) override;

@@ -1,5 +1,6 @@
 #pragma once
 #include "../events.h"
+#include "../minstd.h"
 
 namespace edge
 {
@@ -61,7 +62,7 @@ namespace edge
 
 		virtual D2D1::Matrix3x2F zoom_transform() const = 0;
 		virtual D2D1_POINT_2F pointd_to_pointw (D2D1_POINT_2F dlocation) const = 0;
-		virtual void pointw_to_pointd (tcb::span<D2D1_POINT_2F> locations) const = 0;
+		virtual void pointw_to_pointd (span<D2D1_POINT_2F> locations) const = 0;
 		virtual float lengthw_to_lengthd (float  wlength) const = 0;
 		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() = 0;
 		virtual void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth) = 0;

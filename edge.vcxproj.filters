@@ -35,7 +35,6 @@
       <Filter>win32</Filter>
     </ClInclude>
     <ClInclude Include="reflection.h" />
-    <ClInclude Include="span.hpp" />
     <ClInclude Include="win32\xml_serializer.h">
       <Filter>win32</Filter>
     </ClInclude>
@@ -46,6 +45,7 @@
       <Filter>win32</Filter>
     </ClInclude>
     <ClInclude Include="collection.h" />
+    <ClInclude Include="minstd.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="object.cpp" />

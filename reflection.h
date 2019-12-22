@@ -1,13 +1,9 @@
 
 #pragma once
-#include <cstdint>
-#include <utility>
+#include <stdint.h>
+#include "minstd.h"
 #include <string>
-#include <vector>
-#include <optional>
-#include <memory>
 #include <variant>
-#include "assert.h"
 
 namespace edge
 {
@@ -25,7 +21,7 @@ namespace edge
 		virtual void cancel() = 0;
 	};
 
-	using property_editor_factory_t = std::unique_ptr<property_editor_i>(const std::vector<object*>& objects);
+	using property_editor_factory_t = std::unique_ptr<property_editor_i>(span<object* const> objects);
 
 	struct property_group
 	{
@@ -95,10 +91,10 @@ namespace edge
 
 		getter_t const _getter;
 		setter_t const _setter;
-		std::optional<value_t> const _default_value;
+		optional<value_t> const _default_value;
 
-		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t> default_value)
-			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), _default_value(default_value)
+		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, optional<value_t>&& default_value = nullopt)
+			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), _default_value(std::move(default_value))
 		{ }
 
 		virtual const char* type_name() const override final { return property_traits::type_name; }
@@ -128,20 +124,10 @@ namespace edge
 			return property_traits::to_string(get(obj));
 		}
 
-	private:
-		template<typename t = property_traits>
-		std::enable_if_t<std::is_same_v<decltype(t::from_string), bool(std::string_view, value_t&)>, bool>
-			static from_string_internal (std::string_view in, value_t& out, object* obj) { return property_traits::from_string(in, out); }
-
-		template<typename t = property_traits>
-		std::enable_if_t<std::is_same_v<decltype(t::from_string), bool(std::string_view, value_t&, const object*)>, bool>
-			static from_string_internal (std::string_view in, value_t& out, const object* obj) { return property_traits::from_string(in, out, obj); }
-
-	public:
 		virtual bool try_set_from_string (object* obj, std::string_view str_in) const override final
 		{
 			value_t value;
-			bool ok = from_string_internal(str_in, value, obj);
+			bool ok = property_traits::from_string(str_in, value);
 			if (ok)
 			{
 				if (std::holds_alternative<member_setter_t>(_setter))

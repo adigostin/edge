@@ -41,4 +41,3 @@
 #include <windowsx.h>
 
 #include "..\assert.h"
-#include "..\span.hpp"

@@ -2,12 +2,9 @@
 #pragma once
 #include "reflection.h"
 #include "events.h"
-#include "span.hpp"
 
 namespace edge
 {
-	using tcb::span;
-
 	struct type
 	{
 		static std::vector<const type*>* known_types;
@@ -39,17 +36,17 @@ namespace edge
 		static_assert (std::conjunction_v<std::is_base_of<value_property, factory_arg_props>...>, "factory params must derive from value_property");
 		static_assert (std::is_convertible_v<object_type*, object*>);
 
-		using factory_t = object_type*(*const)(typename factory_arg_props::param_t... factory_args);
+		using factory_t = object_type*(*)(typename factory_arg_props::param_t... factory_args);
 		
 		factory_t const _factory;
-		std::array<const value_property*, parameter_count> const _factory_props;
+		array<const value_property*, parameter_count> const _factory_props;
 
 	public:
 		xtype (const char* name, const type* base, span<const property* const> props,
-			factory_t factory, const factory_arg_props*... factory_props)
+			factory_t factory = nullptr, const factory_arg_props*... factory_props)
 			: type(name, base, props)
 			, _factory(factory)
-			, _factory_props(std::array<const value_property*, parameter_count>{ factory_props... })
+			, _factory_props(array<const value_property*, parameter_count>{ factory_props... })
 		{ }
 
 	private:

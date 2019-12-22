@@ -276,7 +276,7 @@ namespace edge
 		return { x, y };
 	}
 
-	void zoomable_window::pointw_to_pointd (tcb::span<D2D1_POINT_2F> locations) const
+	void zoomable_window::pointw_to_pointd (span<D2D1_POINT_2F> locations) const
 	{
 		auto center = pixel_aligned_window_center();
 		for (auto& l : locations)
