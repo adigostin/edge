@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include "minstd.h"
 #include <string>
-#include <variant>
 
 namespace edge
 {
@@ -86,8 +85,81 @@ namespace edge
 		using static_setter_t = void(*)(object*, param_t);
 		using member_var_t = value_t object::*;
 
-		using getter_t = std::variant<member_getter_t, static_getter_t, member_var_t>;
-		using setter_t = std::variant<member_setter_t, static_setter_t, nullptr_t>;
+		class getter_t
+		{
+			enum getter_type { member_function, static_function, member_var };
+
+			getter_type const type;
+			union
+			{
+				member_getter_t mg;
+				static_getter_t sg;
+				member_var_t    mv;
+			};
+
+		public:
+			constexpr getter_t (member_getter_t mg) noexcept : type(member_function), mg(mg) { }
+
+			template<typename StaticGetter>
+			constexpr getter_t (StaticGetter sg) noexcept : type(static_function), sg(static_cast<static_getter_t>(sg)) { }
+
+			constexpr getter_t (member_var_t mv) noexcept : type(member_var), mv(mv) { }
+
+			return_t get (const object* obj) const
+			{
+				if (type == member_function)
+					return (obj->*mg)();
+
+				if (type == static_function)
+					return sg(obj);
+
+				if (type == member_var)
+					return obj->*mv;
+
+				assert(false);
+				return { };
+			}
+		};
+
+		class setter_t
+		{
+			enum setter_type { member_function, static_function, none };
+
+			setter_type const type;
+			union
+			{
+				member_setter_t ms;
+				static_setter_t ss;
+				nullptr_t       np;
+			};
+
+		public:
+			constexpr setter_t (member_setter_t ms) noexcept : type(member_function), ms(ms) { }
+
+			template<typename StaticSetter>
+			constexpr setter_t (StaticSetter ss) noexcept : type(static_function), ss(static_cast<static_setter_t>(ss)) { }
+
+			constexpr setter_t (nullptr_t np) noexcept : type(none), np(np) { }
+
+			bool try_set_from_string (object* obj, std::string_view str_in) const
+			{
+				value_t value;
+				bool ok = property_traits::from_string(str_in, value);
+				if (ok)
+				{
+					if (type == member_function)
+						(obj->*ms)(value);
+					else if (type == static_function)
+						ss(obj, value);
+					else
+						assert(false);
+				}
+
+				return ok;
+			}
+
+			bool has_setter() const { return type != none; }
+		};
 
 		getter_t const _getter;
 		setter_t const _setter;
@@ -99,46 +171,17 @@ namespace edge
 
 		virtual const char* type_name() const override final { return property_traits::type_name; }
 
-		// TODO: rename to "can_set" for consistency
-		virtual bool has_setter() const override final { return !std::holds_alternative<nullptr_t>(_setter); }
+		virtual bool has_setter() const override final { return _setter.has_setter(); }
 
-		virtual property_editor_factory_t* custom_editor() const override { return custom_editor_; }
+		virtual property_editor_factory_t* custom_editor() const override final { return custom_editor_; }
 
-		return_t get (const object* obj) const
-		{
-			if (std::holds_alternative<member_getter_t>(_getter))
-				return (obj->*std::get<member_getter_t>(_getter))();
+		return_t get (const object* obj) const { return _getter.get(obj); }
 
-			if (std::holds_alternative<static_getter_t>(_getter))
-				return std::get<static_getter_t>(_getter)(obj);
-
-			if (std::holds_alternative<member_var_t>(_getter))
-				return obj->*std::get<member_var_t>(_getter);
-
-			assert(false);
-			return { };
-		}
-
-		std::string get_to_string (const object* obj) const final
-		{
-			return property_traits::to_string(get(obj));
-		}
+		virtual std::string get_to_string (const object* obj) const override final { return property_traits::to_string(_getter.get(obj)); }
 
 		virtual bool try_set_from_string (object* obj, std::string_view str_in) const override final
 		{
-			value_t value;
-			bool ok = property_traits::from_string(str_in, value);
-			if (ok)
-			{
-				if (std::holds_alternative<member_setter_t>(_setter))
-					(obj->*std::get<member_setter_t>(_setter))(value);
-				else if (std::holds_alternative<static_setter_t>(_setter))
-					std::get<static_setter_t>(_setter)(obj, value);
-				else
-					assert(false);
-			}
-
-			return ok;
+			return _setter.try_set_from_string (obj, str_in);
 		}
 
 		virtual const NVP* nvps() const override final
@@ -380,7 +423,23 @@ namespace edge
 
 		using member_get_size_t = size_t(object_t::*)() const;
 		using static_get_size_t = size_t(*)(const object_t*);
-		using get_size_t     = std::variant<member_get_size_t, static_get_size_t>;
+
+		enum accessor_type { member_function, static_function };
+
+		struct get_size_t
+		{
+			accessor_type const type;
+			union
+			{
+				member_get_size_t mg;
+				static_get_size_t sg;
+			};
+
+			constexpr get_size_t (member_get_size_t mg) : type(member_function), mg(mg) { }
+			constexpr get_size_t (static_get_size_t sg) : type(static_function), sg(sg) { }
+		};
+
+
 		using get_value_t    = typename property_traits::return_t(object_t::*)(size_t) const;
 		using set_value_t    = void(object_t::*)(size_t, typename property_traits::param_t);
 		using insert_value_t = void(object_t::*)(size_t, typename property_traits::param_t);
@@ -418,10 +477,14 @@ namespace edge
 		{
 			auto ot = static_cast<const object_t*>(obj);
 
-			if (std::holds_alternative<member_get_size_t>(_get_size))
-				return (ot->*std::get<member_get_size_t>(_get_size))();
-			else
-				return std::get<static_get_size_t>(_get_size)(ot);
+			if (_get_size.type == accessor_type::member_function)
+				return (ot->*(_get_size.mg))();
+
+			if (_get_size.type == accessor_type::static_function)
+				return _get_size.sg(ot);
+
+			assert(false);
+			return 0;
 		}
 
 		virtual std::string get_value (const object* obj, size_t index) const override
