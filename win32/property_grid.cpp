@@ -18,7 +18,7 @@ namespace edge
 
 #pragma warning (disable: 4250)
 
-class edge::property_grid : d2d_window, public virtual property_grid_i
+class edge::property_grid : public d2d_window, public property_grid_i
 {
 	using base = d2d_window;
 

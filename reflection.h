@@ -8,15 +8,12 @@ namespace edge
 {
 	class object;
 
-	struct property_editor_parent_i
-	{
-		virtual ~property_editor_parent_i() { }
-	};
+	using property_editor_parent = void*; // this is a platform-specific type; on Win32 it's a pointer to a edge::win32_window_i
 
 	struct property_editor_i
 	{
 		virtual ~property_editor_i() { }
-		virtual bool show (property_editor_parent_i* parent) = 0; // return IDOK, IDCANCEL, -1 (some error), 0 (hWndParent invalid or closed)
+		virtual bool show (property_editor_parent parent) = 0; // return IDOK, IDCANCEL, -1 (some error), 0 (hWndParent invalid or closed)
 		virtual void cancel() = 0;
 	};
 
@@ -98,9 +95,10 @@ namespace edge
 			};
 
 		public:
-			constexpr getter_t (member_getter_t mg) noexcept : type(member_function), mg(mg) { }
+			template<typename MemberGetter, std::enable_if_t<is_safely_castable_v<MemberGetter, member_getter_t>, int> = 0>
+			constexpr getter_t (MemberGetter mg) noexcept : type(member_function), mg(static_cast<member_getter_t>(mg)) { }
 
-			template<typename StaticGetter>
+			template<typename StaticGetter, std::enable_if_t<is_safely_castable_v<StaticGetter, static_getter_t>, int> = 0>
 			constexpr getter_t (StaticGetter sg) noexcept : type(static_function), sg(static_cast<static_getter_t>(sg)) { }
 
 			constexpr getter_t (member_var_t mv) noexcept : type(member_var), mv(mv) { }
@@ -134,9 +132,10 @@ namespace edge
 			};
 
 		public:
-			constexpr setter_t (member_setter_t ms) noexcept : type(member_function), ms(ms) { }
+			template<typename MemberSetter, std::enable_if_t<is_safely_castable_v<MemberSetter, member_setter_t>, int> = 0>
+			constexpr setter_t (MemberSetter ms) noexcept : type(member_function), ms(static_cast<member_setter_t>(ms)) { }
 
-			template<typename StaticSetter>
+			template<typename StaticSetter, std::enable_if_t<is_safely_castable_v<StaticSetter, static_setter_t>, int> = 0>
 			constexpr setter_t (StaticSetter ss) noexcept : type(static_function), ss(static_cast<static_setter_t>(ss)) { }
 
 			constexpr setter_t (nullptr_t np) noexcept : type(none), np(np) { }
@@ -414,6 +413,7 @@ namespace edge
 		virtual bool changed (const object* obj) const = 0;
 	};
 
+	// TODO: try to get rid of object_t
 	template<typename object_t, typename property_traits>
 	struct typed_value_collection_property : value_collection_property
 	{

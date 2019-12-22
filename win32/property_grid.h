@@ -6,7 +6,7 @@
 
 namespace edge
 {
-	struct __declspec(novtable) property_grid_i : public win32_window_i, public property_editor_parent_i
+	struct __declspec(novtable) property_grid_i : public win32_window_i
 	{
 		virtual ~property_grid_i() { }
 		virtual void clear() = 0;

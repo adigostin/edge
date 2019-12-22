@@ -2,7 +2,7 @@
 #ifndef EDGE_STD_H
 #define EDGE_STD_H
 
-// This file contains a few types that resemble standard types from C++11/14/17/20.
+// This file contains a few types that resemble standard ones from C++11/14/17/20.
 // They're meant to be used also on embedded systems, where compilers sometimes
 // don't have a C++ runtime library, and where heap allocation is not desirable.
 
@@ -23,6 +23,26 @@ namespace edge
 
 	template<bool Test, class Ty = void>
 	using enable_if_t = typename enable_if<Test, Ty>::type;
+
+	// ========================================================================
+
+	template<class... _Types>
+	using void_t = void;
+
+	template <typename From, typename To, typename = void>
+	struct is_safely_castable
+	{
+		static constexpr bool value = false;
+	};
+
+	template <typename From, typename To>
+	struct is_safely_castable<From, To, void_t<decltype(static_cast<To>(*(From*)(nullptr)))>>
+	{
+		static constexpr bool value = true;
+	};
+
+	template<class From, class To>
+	inline constexpr bool is_safely_castable_v = is_safely_castable<From, To>::value;
 
 	// ========================================================================
 

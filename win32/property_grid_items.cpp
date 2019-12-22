@@ -317,7 +317,7 @@ void value_pgitem::process_mouse_button_down (mouse_button button, modifier_key 
 	if (_prop->custom_editor())
 	{
 		auto editor = _prop->custom_editor()(parent()->parent()->objects());
-		editor->show(root()->_grid);
+		editor->show(static_cast<win32_window_i*>(root()->_grid));
 		return;
 	}
 
