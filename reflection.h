@@ -62,10 +62,7 @@ namespace edge
 
 	// ========================================================================
 
-	template<typename property_traits,
-		const NVP* nvps_ = nullptr,
-		property_editor_factory_t* custom_editor_ = nullptr
-	>
+	template<typename property_traits, property_editor_factory_t* custom_editor_ = nullptr>
 	struct typed_property : value_property
 	{
 		using base = value_property;
@@ -198,9 +195,25 @@ namespace edge
 			return _setter.try_set_from_string (obj, str_in);
 		}
 
+	private:
+		
+		// https://stackoverflow.com/a/17534399/451036
+
+		template <typename T, typename = void>
+		struct has_nvps
+		{ static constexpr bool value = false; };
+
+		template <typename T>
+		struct has_nvps<T, typename enable_if<bool(sizeof(&T::nvps))>::type>
+		{ static constexpr bool value = true; };
+
+	public:
 		virtual const NVP* nvps() const override final
 		{
-			return nvps_;
+			if constexpr (has_nvps<property_traits>::value)
+				return property_traits::nvps;
+
+			return nullptr;
 		}
 
 		virtual bool equal (object* obj1, object* obj2) const override final
@@ -217,7 +230,7 @@ namespace edge
 		}
 	};
 
-	template<typename enum_t, const char* type_name_, const NVP* nvps, bool serialize_as_integer, const char* unknown_str>
+	template<typename enum_t, const char* type_name_, const NVP* nvps_, bool serialize_as_integer, const char* unknown_str>
 	struct enum_property_traits
 	{
 		static constexpr const char* type_name = type_name_;
@@ -225,12 +238,14 @@ namespace edge
 		using param_t = enum_t;
 		using return_t = enum_t;
 
+		static constexpr const NVP* nvps = nvps_;
+
 		static std::string to_string (enum_t from)
 		{
 			if (serialize_as_integer)
 				return int32_property_traits::to_string((int32_t)from);
 
-			for (auto nvp = nvps; nvp->first != nullptr; nvp++)
+			for (auto nvp = nvps_; nvp->first != nullptr; nvp++)
 			{
 				if (nvp->second == (int)from)
 					return nvp->first;
@@ -252,7 +267,7 @@ namespace edge
 				}
 			}
 
-			for (auto nvp = nvps; nvp->first != nullptr; nvp++)
+			for (auto nvp = nvps_; nvp->first != nullptr; nvp++)
 			{
 				if (from == nvp->first)
 				{
@@ -267,8 +282,8 @@ namespace edge
 
 	extern const char unknown_enum_value_str[];
 
-	template<typename enum_t, const char* type_name, const NVP* nvps, bool serialize_as_integer = false, const char* unknown_str = unknown_enum_value_str>
-	using enum_property = typed_property<enum_property_traits<enum_t, type_name, nvps, serialize_as_integer, unknown_str>, nvps>;
+	template<typename enum_t, const char* type_name, const NVP* nvps_, bool serialize_as_integer = false, const char* unknown_str = unknown_enum_value_str>
+	using enum_property = typed_property<enum_property_traits<enum_t, type_name, nvps_, serialize_as_integer, unknown_str>>;
 
 	// ===========================================
 

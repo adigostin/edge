@@ -107,7 +107,7 @@ namespace edge
 		constexpr span() noexcept
 		{ }
 
-		constexpr span (T* ptr, size_t count)
+		constexpr span (T* ptr, size_t count) noexcept
 			: _members(ptr, ptr + count)
 		{ }
 
