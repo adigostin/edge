@@ -82,6 +82,18 @@ namespace edge
 		using static_setter_t = void(*)(object*, param_t);
 		using member_var_t = value_t object::*;
 
+		template <typename From, typename To, typename = void>
+		struct is_static_castable
+		{
+			static constexpr bool value = false;
+		};
+
+		template <typename From, typename To>
+		struct is_static_castable<From, To, void_t<decltype(static_cast<To>(*(From*)(nullptr)))>>
+		{
+			static constexpr bool value = true;
+		};
+
 		class getter_t
 		{
 			enum getter_type { none, member_function, static_function, member_var };
@@ -98,10 +110,10 @@ namespace edge
 		public:
 			constexpr getter_t (nullptr_t np) noexcept : type(none), np(np) { }
 
-			template<typename MemberGetter, std::enable_if_t<is_safely_castable_v<MemberGetter, member_getter_t>, int> = 0>
+			template<typename MemberGetter, enable_if_t<is_static_castable<MemberGetter, member_getter_t>::value, int> = 0>
 			constexpr getter_t (MemberGetter mg) noexcept : type(member_function), mg(static_cast<member_getter_t>(mg)) { }
 
-			template<typename StaticGetter, std::enable_if_t<is_safely_castable_v<StaticGetter, static_getter_t>, int> = 0>
+			template<typename StaticGetter, enable_if_t<is_static_castable<StaticGetter, static_getter_t>::value, int> = 0>
 			constexpr getter_t (StaticGetter sg) noexcept : type(static_function), sg(static_cast<static_getter_t>(sg)) { }
 
 			constexpr getter_t (member_var_t mv) noexcept : type(member_var), mv(mv) { }
@@ -137,10 +149,10 @@ namespace edge
 		public:
 			constexpr setter_t (nullptr_t np) noexcept : type(none), np(np) { }
 
-			template<typename MemberSetter, std::enable_if_t<is_safely_castable_v<MemberSetter, member_setter_t>, int> = 0>
+			template<typename MemberSetter, enable_if_t<is_static_castable<MemberSetter, member_setter_t>::value, int> = 0>
 			constexpr setter_t (MemberSetter ms) noexcept : type(member_function), ms(static_cast<member_setter_t>(ms)) { }
 
-			template<typename StaticSetter, std::enable_if_t<is_safely_castable_v<StaticSetter, static_setter_t>, int> = 0>
+			template<typename StaticSetter, enable_if_t<is_static_castable<StaticSetter, static_setter_t>::value, int> = 0>
 			constexpr setter_t (StaticSetter ss) noexcept : type(static_function), ss(static_cast<static_setter_t>(ss)) { }
 
 			bool try_set_from_string (object* obj, std::string_view str_in) const

@@ -29,21 +29,6 @@ namespace edge
 	template<class... _Types>
 	using void_t = void;
 
-	template <typename From, typename To, typename = void>
-	struct is_safely_castable
-	{
-		static constexpr bool value = false;
-	};
-
-	template <typename From, typename To>
-	struct is_safely_castable<From, To, void_t<decltype(static_cast<To>(*(From*)(nullptr)))>>
-	{
-		static constexpr bool value = true;
-	};
-
-	template<class From, class To>
-	inline constexpr bool is_safely_castable_v = is_safely_castable<From, To>::value;
-
 	// ========================================================================
 
 	template<typename T, size_t Size>
