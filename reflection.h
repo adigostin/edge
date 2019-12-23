@@ -84,17 +84,20 @@ namespace edge
 
 		class getter_t
 		{
-			enum getter_type { member_function, static_function, member_var };
+			enum getter_type { none, member_function, static_function, member_var };
 
 			getter_type const type;
 			union
 			{
+				nullptr_t       np;
 				member_getter_t mg;
 				static_getter_t sg;
 				member_var_t    mv;
 			};
 
 		public:
+			constexpr getter_t (nullptr_t np) noexcept : type(none), np(np) { }
+
 			template<typename MemberGetter, std::enable_if_t<is_safely_castable_v<MemberGetter, member_getter_t>, int> = 0>
 			constexpr getter_t (MemberGetter mg) noexcept : type(member_function), mg(static_cast<member_getter_t>(mg)) { }
 
@@ -126,19 +129,19 @@ namespace edge
 			setter_type const type;
 			union
 			{
+				nullptr_t       np;
 				member_setter_t ms;
 				static_setter_t ss;
-				nullptr_t       np;
 			};
 
 		public:
+			constexpr setter_t (nullptr_t np) noexcept : type(none), np(np) { }
+
 			template<typename MemberSetter, std::enable_if_t<is_safely_castable_v<MemberSetter, member_setter_t>, int> = 0>
 			constexpr setter_t (MemberSetter ms) noexcept : type(member_function), ms(static_cast<member_setter_t>(ms)) { }
 
 			template<typename StaticSetter, std::enable_if_t<is_safely_castable_v<StaticSetter, static_setter_t>, int> = 0>
 			constexpr setter_t (StaticSetter ss) noexcept : type(static_function), ss(static_cast<static_setter_t>(ss)) { }
-
-			constexpr setter_t (nullptr_t np) noexcept : type(none), np(np) { }
 
 			bool try_set_from_string (object* obj, std::string_view str_in) const
 			{
