@@ -107,9 +107,6 @@ namespace edge
 	public:
 		virtual ~object() = default;
 
-		template<typename T>
-		bool is() const { return dynamic_cast<const T*>(this) != nullptr; }
-
 		property_changing_e::subscriber property_changing() { return property_changing_e::subscriber(this); }
 		property_changed_e::subscriber property_changed() { return property_changed_e::subscriber(this); }
 
