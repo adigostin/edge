@@ -657,7 +657,7 @@ public:
 		_text_editor = nullptr;
 	}
 
-	virtual bool try_change_property (const std::vector<object*>& objects, const value_property* prop, std::string_view new_value_str) override final
+	virtual bool try_change_property (const std::vector<object*>& objects, const value_property* prop, string_view new_value_str) override final
 	{
 		std::vector<std::string> old_values;
 		old_values.reserve(objects.size());

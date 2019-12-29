@@ -1,6 +1,6 @@
 
 #pragma once
-#include <typeindex>
+#include <typeinfo>
 #include <unordered_map>
 #include <array>
 
@@ -20,7 +20,7 @@ namespace edge
 		};
 
 		// TODO: Make this a pointer to save RAM.
-		std::unordered_multimap<std::type_index, handler> _events;
+		std::unordered_multimap<size_t, handler> _events;
 
 	protected:
 		template<typename event_t>
@@ -50,16 +50,16 @@ namespace edge
 
 			void add_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
-				auto type = std::type_index(typeid (event_t));
+				auto type = typeid(event_t).hash_code();
 				_em->_events.insert({ type, { callback, callback_arg } });
 			}
 
 			void remove_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
-				auto type = std::type_index(typeid (event_t));
+				auto type = typeid(event_t).hash_code();
 				auto range = _em->_events.equal_range(type);
 
-				auto it = std::find_if(range.first, range.second, [=](const std::pair<std::type_index, event_manager::handler>& p)
+				auto it = std::find_if(range.first, range.second, [=](const std::pair<size_t, event_manager::handler>& p)
 				{
 					return (p.second.callback == callback) && (p.second.callback_arg == callback_arg);
 				});
@@ -73,7 +73,7 @@ namespace edge
 	private:
 		friend class event_manager;
 
-		static void make_handler_list(std::type_index eventType, const event_manager* em, std::vector<event_manager::handler>& longList, std::array<event_manager::handler, 8>& shortList, size_t& shortListSizeOut)
+		static void make_handler_list(size_t eventType, const event_manager* em, std::vector<event_manager::handler>& longList, std::array<event_manager::handler, 8>& shortList, size_t& shortListSizeOut)
 		{
 			shortListSizeOut = 0;
 
@@ -104,7 +104,7 @@ namespace edge
 				: _em(em)
 			{ }
 
-			bool has_handlers() const { return _em->_events.find(std::type_index(typeid (event_t))) != _em->_events.end(); }
+			bool has_handlers() const { return _em->_events.find(typeid(event_t).hash_code()) != _em->_events.end(); }
 
 			void operator()(args_t... args)
 			{
@@ -114,7 +114,7 @@ namespace edge
 				std::array<event_manager::handler, 8> shortList;
 				size_t shortListSize;
 
-				make_handler_list(std::type_index(typeid (event_t)), _em, longList, shortList, shortListSize);
+				make_handler_list(typeid(event_t).hash_code(), _em, longList, shortList, shortListSize);
 
 				if (longList.empty())
 				{

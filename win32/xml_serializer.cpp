@@ -163,7 +163,7 @@ namespace edge
 			factory_param_strings.push_back(bstr_to_utf8(value.bstrVal));
 		}
 
-		std::vector<std::string_view> factory_params;
+		std::vector<string_view> factory_params;
 		for (auto& str : factory_param_strings)
 			factory_params.push_back(str);
 		auto obj = std::unique_ptr<object>(type->create({ factory_params.data(), factory_params.data() + factory_params.size() }));

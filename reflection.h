@@ -2,7 +2,6 @@
 #pragma once
 #include <stdint.h>
 #include "minstd.h"
-#include <string>
 
 namespace edge
 {
@@ -29,7 +28,7 @@ namespace edge
 
 	enum class ui_visible { no, yes };
 
-	struct property abstract
+	struct property
 	{
 		const char* const _name;
 		const property_group* const _group;
@@ -45,16 +44,20 @@ namespace edge
 		virtual property_editor_factory_t* custom_editor() const { return nullptr; }
 	};
 
-	using NVP = std::pair<const char*, int>;
+	struct NVP
+	{
+		const char* first;
+		int second;
+	};
 
 	struct value_property : property
 	{
 		using property::property;
-	
+
 		virtual const char* type_name() const = 0;
 		virtual bool has_setter() const = 0;
 		virtual std::string get_to_string (const object* obj) const = 0;
-		virtual bool try_set_from_string (object* obj, std::string_view str) const = 0;
+		virtual bool try_set_from_string (object* obj, string_view str) const = 0;
 		virtual const NVP* nvps() const = 0;
 		virtual bool equal (object* obj1, object* obj2) const = 0;
 		virtual bool changed_from_default(const object* obj) const = 0;
@@ -152,7 +155,7 @@ namespace edge
 			template<typename StaticSetter, enable_if_t<is_static_castable<StaticSetter, static_setter_t>::value, int> = 0>
 			constexpr setter_t (StaticSetter ss) noexcept : type(static_function), ss(static_cast<static_setter_t>(ss)) { }
 
-			bool try_set_from_string (object* obj, std::string_view str_in) const
+			bool try_set_from_string (object* obj, string_view str_in) const
 			{
 				value_t value;
 				bool ok = property_traits::from_string(str_in, value);
@@ -190,13 +193,13 @@ namespace edge
 
 		virtual std::string get_to_string (const object* obj) const override final { return property_traits::to_string(_getter.get(obj)); }
 
-		virtual bool try_set_from_string (object* obj, std::string_view str_in) const override final
+		virtual bool try_set_from_string (object* obj, string_view str_in) const override final
 		{
 			return _setter.try_set_from_string (obj, str_in);
 		}
 
 	private:
-		
+
 		// https://stackoverflow.com/a/17534399/451036
 
 		template <typename T, typename = void>
@@ -254,7 +257,7 @@ namespace edge
 			return unknown_str;
 		}
 
-		static bool from_string (std::string_view from, enum_t& to)
+		static bool from_string (string_view from, enum_t& to)
 		{
 			if (serialize_as_integer)
 			{
@@ -294,7 +297,7 @@ namespace edge
 		using param_t = bool;
 		using return_t = bool;
 		static std::string to_string (bool from) { return from ? "True" : "False"; }
-		static bool from_string (std::string_view from, bool& to);
+		static bool from_string (string_view from, bool& to);
 	};
 	using bool_p = typed_property<bool_property_traits>;
 
@@ -307,7 +310,7 @@ namespace edge
 		using param_t = t_;
 		using return_t = t_;
 		static std::string to_string (t_ from) { return std::to_string(from); }
-		static bool from_string (std::string_view from, t_& to);
+		static bool from_string (string_view from, t_& to);
 	};
 
 	static inline const char int32_type_name[] = "int32";
@@ -335,10 +338,10 @@ namespace edge
 	{
 		static constexpr const char* type_name = backed ? "backed_string" : "temp_string";
 		using value_t = std::string;
-		using param_t = std::string_view;
+		using param_t = string_view;
 		using return_t = std::conditional_t<backed, const std::string&, std::string>;
-		static std::string to_string (std::string_view from) { return std::string(from); }
-		static bool from_string (std::string_view from, std::string& to) { to = from; return true; }
+		static std::string to_string (string_view from) { return std::string(from); }
+		static bool from_string (string_view from, std::string& to) { to = from; return true; }
 	};
 	using temp_string_property_traits = string_property_traits<false>;
 	using temp_string_p = typed_property<temp_string_property_traits>;
@@ -422,7 +425,7 @@ namespace edge
 			auto raw_child = static_cast<child_t*>(child.release());
 			(typed_parent->*_insert_child)(index, std::unique_ptr<child_t>(raw_child));
 		}
-		
+
 		virtual std::unique_ptr<object> remove_child (object* parent, size_t index) const override
 		{
 			auto typed_parent = static_cast<parent_t*>(parent);
@@ -431,14 +434,14 @@ namespace edge
 			return std::unique_ptr<object>(raw_child);
 		}
 	};
-	
+
 	struct value_collection_property : collection_property
 	{
 		using collection_property::collection_property;
 
 		virtual std::string get_value (const object* obj, size_t index) const = 0;
-		virtual bool set_value (object* obj, size_t index, std::string_view value) const = 0;
-		virtual bool insert_value (object* obj, size_t index, std::string_view value) const = 0;
+		virtual bool set_value (object* obj, size_t index, string_view value) const = 0;
+		virtual bool insert_value (object* obj, size_t index, string_view value) const = 0;
 		virtual void remove_value (object* obj, size_t index) const = 0;
 		virtual bool changed (const object* obj) const = 0;
 	};
@@ -497,7 +500,7 @@ namespace edge
 			//
 			// If set_value is non-null, the object must pre-allocate the collection with default values,
 			// and the deserializer must call set_value to overwrite some values.
-			// 
+			//
 			// If insert_value is non-null, the object must not pre-allocate the collection,
 			// and the deserializer must call insert_value to append some values.
 			assert (set_value || insert_value);
@@ -523,7 +526,7 @@ namespace edge
 			return property_traits::to_string(value);
 		}
 
-		virtual bool set_value (object* obj, size_t index, std::string_view from) const override
+		virtual bool set_value (object* obj, size_t index, string_view from) const override
 		{
 			typename property_traits::value_t value;
 			bool converted = property_traits::from_string(from, value);
@@ -533,7 +536,7 @@ namespace edge
 			return true;
 		}
 
-		virtual bool insert_value (object* obj, size_t index, std::string_view from) const override
+		virtual bool insert_value (object* obj, size_t index, string_view from) const override
 		{
 			typename property_traits::value_t value;
 			bool converted = property_traits::from_string(from, value);

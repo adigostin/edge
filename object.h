@@ -23,7 +23,7 @@ namespace edge
 
 		virtual bool has_factory() const = 0;
 		virtual span<const value_property* const> factory_props() const = 0;
-		virtual object* create (const span<std::string_view>& string_values) const = 0;
+		virtual object* create (const span<string_view>& string_values) const = 0;
 	private:
 		void add_properties (std::vector<const property*>& properties) const;
 	};
@@ -55,7 +55,7 @@ namespace edge
 		virtual span<const value_property* const> factory_props() const override { return _factory_props; }
 		
 		template<std::size_t... I>
-		static std::tuple<typename factory_arg_props::value_t...> strings_to_values (const span<std::string_view>& string_values, std::index_sequence<I...>)
+		static std::tuple<typename factory_arg_props::value_t...> strings_to_values (const span<string_view>& string_values, std::index_sequence<I...>)
 		{
 			std::tuple<typename factory_arg_props::value_t...> result;
 			bool cast_ok = (true && ... && factory_arg_props::from_string(string_values[I], std::get<I>(result)));
@@ -63,7 +63,7 @@ namespace edge
 			return result;
 		}
 
-		virtual object* create (const span<std::string_view>& string_values) const override
+		virtual object* create (const span<string_view>& string_values) const override
 		{
 			assert (_factory != nullptr);
 			assert (string_values.size() == parameter_count);
@@ -101,6 +101,7 @@ namespace edge
 	struct property_changing_e : event<property_changing_e, object*, const property_change_args&> { };
 	struct property_changed_e  : event<property_changed_e , object*, const property_change_args&> { };
 
+	// TODO: make event_manager a member var, possibly a pointer
 	class object : public event_manager
 	{
 	public:
