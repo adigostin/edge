@@ -21,7 +21,6 @@ namespace edge
 		std::vector<const property*> make_property_list() const;
 		const property* find_property (const char* name) const;
 
-		virtual bool has_factory() const = 0;
 		virtual span<const value_property* const> factory_props() const = 0;
 		virtual object* create (const span<string_view>& string_values) const = 0;
 	private:
@@ -50,8 +49,6 @@ namespace edge
 		{ }
 
 	private:
-		virtual bool has_factory() const override { return _factory != nullptr; }
-
 		virtual span<const value_property* const> factory_props() const override { return _factory_props; }
 		
 		template<std::size_t... I>
