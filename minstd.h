@@ -66,6 +66,8 @@ namespace edge
 	template<class... _Types>
 	using void_t = void;
 
+	using nullptr_t = decltype(nullptr);
+
 	// ========================================================================
 
 	template<typename T, size_t Size>
