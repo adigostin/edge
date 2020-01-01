@@ -28,6 +28,8 @@ namespace edge
 
 	enum class ui_visible { no, yes };
 
+	enum class serializable { no, yes };
+
 	struct property
 	{
 		const char* const _name;

@@ -23,7 +23,8 @@ inline bool operator!= (const D2D1_COLOR_F& a, const D2D1_COLOR_F& b) { return m
 
 namespace edge
 {
-	bool point_in_rect(const D2D1_RECT_F& rect, D2D1_POINT_2F location);
+	bool point_in_rect (const D2D1_RECT_F& rect, D2D1_POINT_2F location);
+	bool point_in_rect (const RECT& rect, POINT pt);
 	bool point_in_polygon(const std::array<D2D1_POINT_2F, 4>& vertices, D2D1_POINT_2F point);
 	D2D1_RECT_F inflate (const D2D1_RECT_F& rect, float distance);
 	void inflate (D2D1_RECT_F* rect, float distance);

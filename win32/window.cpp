@@ -4,8 +4,6 @@
 
 using namespace edge;
 
-
-#pragma region window class
 void window::register_class (HINSTANCE hInstance, const wnd_class_params& class_params)
 {
 	WNDCLASSEX wcex;
@@ -100,6 +98,22 @@ LRESULT CALLBACK window::WindowProcStatic (HWND hwnd, UINT uMsg, WPARAM wParam, 
 
 std::optional<LRESULT> window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+	if (uMsg == WM_NCCREATE)
+	{
+
+		if (auto proc_addr = GetProcAddress(GetModuleHandleA("User32.dll"), "GetDpiForWindow"))
+		{
+			auto proc = reinterpret_cast<UINT(WINAPI*)(HWND)>(proc_addr);
+			_dpi = proc(hwnd);
+		}
+		else
+		{
+			HDC tempDC = GetDC(hwnd);
+			_dpi = GetDeviceCaps (tempDC, LOGPIXELSX);
+			ReleaseDC (hwnd, tempDC);
+		}
+	}
+
 	if (uMsg == WM_CREATE)
 	{
 		_clientSize.cx = ((CREATESTRUCT*)lParam)->cx;
@@ -107,15 +121,24 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, 
 		return 0;
 	}
 
-	if (uMsg == WM_DESTROY)
-	{
-		_clientSize = { 0, 0 };
-		return 0;
-	}
-
 	if (uMsg == WM_SIZE)
 	{
 		_clientSize = { LOWORD(lParam), HIWORD(lParam) };
+		return 0;
+	}
+
+	if (uMsg == 0x02E3) // WM_DPICHANGED_AFTERPARENT
+	{
+		auto proc_addr = GetProcAddress(GetModuleHandleA("User32.dll"), "GetDpiForWindow");
+		auto proc = reinterpret_cast<UINT(WINAPI*)(HWND)>(proc_addr);
+		_dpi = proc(hwnd);
+		::InvalidateRect (hwnd, nullptr, FALSE);
+		return 0;
+	}
+
+	if (uMsg == WM_DESTROY)
+	{
+		_clientSize = { 0, 0 };
 		return 0;
 	}
 
@@ -138,4 +161,3 @@ modifier_key window::GetModifierKeys()
 
 	return keys;
 }
-#pragma endregion

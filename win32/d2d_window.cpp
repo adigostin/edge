@@ -48,32 +48,19 @@ namespace edge
 
 		create_d2d_dc();
 
-		if (auto proc_addr = GetProcAddress(GetModuleHandleA("User32.dll"), "GetDpiForWindow"))
-		{
-			auto proc = reinterpret_cast<UINT(WINAPI*)(HWND)>(proc_addr);
-			_dpi = proc(hwnd());
-		}
-		else
-		{
-			HDC tempDC = GetDC(hwnd());
-			_dpi = GetDeviceCaps (tempDC, LOGPIXELSX);
-			ReleaseDC (hwnd(), tempDC);
-		}
-
-		_clientSizeDips.width = client_width_pixels() * 96.0f / _dpi;
-		_clientSizeDips.height = client_height_pixels() * 96.0f / _dpi;
+		_clientSizeDips.width = client_width_pixels() * 96.0f / dpi();
+		_clientSizeDips.height = client_height_pixels() * 96.0f / dpi();
 
 		QueryPerformanceFrequency(&_performanceCounterFrequency);
 
-		hr = dwrite_factory->CreateTextFormat (L"Courier New", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_CONDENSED, 11.0f * 96 / _dpi, L"en-US", &_debugTextFormat); assert(SUCCEEDED(hr));
+		hr = dwrite_factory->CreateTextFormat (L"Courier New", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_CONDENSED, 11.0f * 96 / dpi(), L"en-US", &_debugTextFormat); assert(SUCCEEDED(hr));
 
 		recalc_pixel_width_and_line_thickness();
 	}
 
 	void d2d_window::recalc_pixel_width_and_line_thickness()
 	{
-		_pixel_width = GetDipSizeFromPixelSize ({ 1, 0 }).width;
-		_line_thickness = roundf(line_thickness_not_aligned / _pixel_width) * _pixel_width;
+		_line_thickness = roundf(line_thickness_not_aligned / pixel_width()) * pixel_width();
 	}
 
 	void d2d_window::create_d2d_dc()
@@ -119,19 +106,16 @@ namespace edge
 				this->d2d_dc_recreated();
 			}
 
-			_clientSizeDips.width = client_width_pixels() * 96.0f / _dpi;
-			_clientSizeDips.height = client_height_pixels() * 96.0f / _dpi;
+			_clientSizeDips.width = client_width_pixels() * 96.0f / dpi();
+			_clientSizeDips.height = client_height_pixels() * 96.0f / dpi();
 
 			return 0;
 		}
 
 		if (uMsg == 0x02E3) // WM_DPICHANGED_AFTERPARENT
 		{
-			auto proc_addr = GetProcAddress(GetModuleHandleA("User32.dll"), "GetDpiForWindow");
-			auto proc = reinterpret_cast<UINT(WINAPI*)(HWND)>(proc_addr);
-			_dpi = proc(hwnd);
-			_clientSizeDips.width = client_width_pixels() * 96.0f / _dpi;
-			_clientSizeDips.height = client_height_pixels() * 96.0f / _dpi;
+			_clientSizeDips.width = client_width_pixels() * 96.0f / dpi();
+			_clientSizeDips.height = client_height_pixels() * 96.0f / dpi();
 			recalc_pixel_width_and_line_thickness();
 			::InvalidateRect (hwnd, nullptr, FALSE);
 			return 0;
@@ -444,23 +428,23 @@ namespace edge
 
 	D2D1_POINT_2F d2d_window::pointp_to_pointd (POINT p) const
 	{
-		return { p.x * 96.0f / _dpi, p.y * 96.0f / _dpi };
+		return { p.x * 96.0f / dpi(), p.y * 96.0f / dpi() };
 	}
 
 	D2D1_POINT_2F d2d_window::pointp_to_pointd (long xPixels, long yPixels) const
 	{
-		return { xPixels * 96.0f / _dpi, yPixels * 96.0f / _dpi };
+		return { xPixels * 96.0f / dpi(), yPixels * 96.0f / dpi() };
 	}
 
 	POINT d2d_window::pointd_to_pointp (float xDips, float yDips, int round_style) const
 	{
 		if (round_style < 0)
-			return { (int)std::floor(xDips / 96.0f * _dpi), (int)std::floor(yDips / 96.0f * _dpi) };
+			return { (int)std::floor(xDips / 96.0f * dpi()), (int)std::floor(yDips / 96.0f * dpi()) };
 
 		if (round_style > 0)
-			return { (int)std::ceil(xDips / 96.0f * _dpi), (int)std::ceil(yDips / 96.0f * _dpi) };
+			return { (int)std::ceil(xDips / 96.0f * dpi()), (int)std::ceil(yDips / 96.0f * dpi()) };
 
-		return { (int)std::round(xDips / 96.0f * _dpi), (int)std::round(yDips / 96.0f * _dpi) };
+		return { (int)std::round(xDips / 96.0f * dpi()), (int)std::round(yDips / 96.0f * dpi()) };
 	}
 
 	POINT d2d_window::pointd_to_pointp (D2D1_POINT_2F locationDips, int round_style) const
@@ -470,17 +454,17 @@ namespace edge
 
 	D2D1_SIZE_F d2d_window::GetDipSizeFromPixelSize(SIZE sz) const
 	{
-		return D2D1_SIZE_F{ sz.cx * 96.0f / _dpi, sz.cy * 96.0f / _dpi };
+		return D2D1_SIZE_F{ sz.cx * 96.0f / dpi(), sz.cy * 96.0f / dpi() };
 	}
 
 	SIZE d2d_window::GetPixelSizeFromDipSize(D2D1_SIZE_F sizeDips) const
 	{
-		return SIZE{ (int)(sizeDips.width / 96.0f * _dpi), (int)(sizeDips.height / 96.0f * _dpi) };
+		return SIZE{ (int)(sizeDips.width / 96.0f * dpi()), (int)(sizeDips.height / 96.0f * dpi()) };
 	}
 
 	D2D1::Matrix3x2F d2d_window::dpi_transform() const
 	{
-		return { (float)_dpi / 96, 0, 0, (float)_dpi / 96, 0, 0 };
+		return { (float)dpi() / 96, 0, 0, (float)dpi() / 96, 0, 0 };
 	}
 
 	void d2d_window::invalidate (const D2D1_RECT_F& rect)

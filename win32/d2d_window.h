@@ -25,8 +25,6 @@ namespace edge
 		bool _caret_blink_on = false;
 		std::pair<D2D1_RECT_F, D2D1_MATRIX_3X2_F> _caret_bounds;
 		D2D1_COLOR_F _caret_color;
-		uint32_t _dpi;
-		float _pixel_width;
 		float _line_thickness;
 		static constexpr float line_thickness_not_aligned = 0.6f;
 
@@ -85,8 +83,7 @@ namespace edge
 		void invalidate (const D2D1_RECT_F& rect);
 		using base::invalidate;
 
-		uint32_t dpi() const { return _dpi; }
-		float pixel_width() const { return _pixel_width; }
+		float pixel_width() const { return 96.0f / dpi(); }
 		float line_thickness() const { return _line_thickness; }
 
 	protected:

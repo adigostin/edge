@@ -16,9 +16,14 @@ bool operator!= (const D2D1_RECT_F& a, const D2D1_RECT_F& b)
 
 namespace edge
 {
-	bool point_in_rect(const D2D1_RECT_F& rect, D2D1_POINT_2F location)
+	bool point_in_rect(const D2D1_RECT_F& rect, D2D1_POINT_2F pt)
 	{
-		return (location.x >= rect.left) && (location.x < rect.right) && (location.y >= rect.top) && (location.y < rect.bottom);
+		return (pt.x >= rect.left) && (pt.x < rect.right) && (pt.y >= rect.top) && (pt.y < rect.bottom);
+	}
+
+	bool point_in_rect (const RECT& rect, POINT pt)
+	{
+		return (pt.x >= rect.left) && (pt.x < rect.right) && (pt.y >= rect.top) && (pt.y < rect.bottom);
 	}
 
 	bool point_in_polygon(const std::array<D2D1_POINT_2F, 4>& vertices, D2D1_POINT_2F point)

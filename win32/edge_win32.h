@@ -34,9 +34,8 @@ namespace edge
 
 		RECT client_rect_pixels() const;
 		SIZE client_size_pixels() const;
-		RECT GetRect() const;
 
-	public:
+		RECT GetRect() const;
 		LONG GetX() const { return GetRect().left; }
 		LONG GetY() const { return GetRect().top; }
 		POINT GetLocation() const;

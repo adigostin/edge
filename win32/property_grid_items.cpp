@@ -177,34 +177,44 @@ float group_item::content_height() const
 
 #pragma region root_item
 root_item::root_item (property_grid_i* grid, const char* heading, object* const* objects, size_t size)
-	: base(nullptr, objects, size), _grid(grid), _heading(heading)
+	: base(nullptr, objects, size), _grid(grid), _heading(heading ? heading : "")
 {
 	expand();
 }
 
 void root_item::create_text_layouts (IDWriteFactory* factory, IDWriteTextFormat* format, const item_layout_horz& l, float line_thickness)
 {
-	// TODO: padding
-	com_ptr<IDWriteTextFormat> tf;
-	auto hr = factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
-	                                     DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &tf);
-	float layout_width = std::max (0.0f, l.x_right -l.x_left - 2 * title_lr_padding);
-	_text_layout = text_layout_with_metrics (factory, tf, _heading, layout_width);
+	_text_layout = nullptr;
+	if (!_heading.empty())
+	{
+		// TODO: padding
+		com_ptr<IDWriteTextFormat> tf;
+		auto hr = factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
+											 DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &tf);
+		float layout_width = std::max (0.0f, l.x_right -l.x_left - 2 * title_lr_padding);
+		_text_layout = text_layout_with_metrics (factory, tf, _heading, layout_width);
+	}
 }
 
 void root_item::render (const render_context& rc, const item_layout& l, float line_thickness, bool selected, bool focused) const
 {
-	com_ptr<ID2D1SolidColorBrush> brush;
-	rc.dc->CreateSolidColorBrush (GetD2DSystemColor(COLOR_ACTIVECAPTION), &brush);
-	D2D1_RECT_F rect = { l.x_left, l.y_top, l.x_right, l.y_bottom };
-	rc.dc->FillRectangle (&rect, brush);
-	brush->SetColor (GetD2DSystemColor(COLOR_CAPTIONTEXT));
-	rc.dc->DrawTextLayout ({ l.x_left + title_lr_padding, l.y_top + title_ud_padding }, _text_layout, brush);
+	if (_text_layout)
+	{
+		com_ptr<ID2D1SolidColorBrush> brush;
+		rc.dc->CreateSolidColorBrush (GetD2DSystemColor(COLOR_ACTIVECAPTION), &brush);
+		D2D1_RECT_F rect = { l.x_left, l.y_top, l.x_right, l.y_bottom };
+		rc.dc->FillRectangle (&rect, brush);
+		brush->SetColor (GetD2DSystemColor(COLOR_CAPTIONTEXT));
+		rc.dc->DrawTextLayout ({ l.x_left + title_lr_padding, l.y_top + title_ud_padding }, _text_layout, brush);
+	}
 }
 
 float root_item::content_height() const
 {
-	return _text_layout.height() + 2 * title_ud_padding;
+	if (_text_layout)
+		return _text_layout.height() + 2 * title_ud_padding;
+	else
+		return 0;
 }
 #pragma endregion
 

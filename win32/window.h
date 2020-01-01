@@ -37,9 +37,12 @@ namespace edge
 
 		HWND hwnd() const { return _hwnd; }
 
+		LONG dpi() const { return _dpi; }
+
 	private:
 		HWND _hwnd = nullptr;
 		SIZE _clientSize;
+		LONG _dpi;
 
 		static LRESULT CALLBACK WindowProcStatic (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	};
