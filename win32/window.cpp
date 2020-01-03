@@ -100,7 +100,6 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, 
 {
 	if (uMsg == WM_NCCREATE)
 	{
-
 		if (auto proc_addr = GetProcAddress(GetModuleHandleA("User32.dll"), "GetDpiForWindow"))
 		{
 			auto proc = reinterpret_cast<UINT(WINAPI*)(HWND)>(proc_addr);
@@ -135,13 +134,7 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, 
 		::InvalidateRect (hwnd, nullptr, FALSE);
 		return 0;
 	}
-
-	if (uMsg == WM_DESTROY)
-	{
-		_clientSize = { 0, 0 };
-		return 0;
-	}
-
+	
 	return std::nullopt;
 }
 
