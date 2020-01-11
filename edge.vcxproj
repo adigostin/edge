@@ -23,7 +23,7 @@
     <ClInclude Include="collection.h" />
     <ClInclude Include="object.h" />
     <ClInclude Include="events.h" />
-    <ClInclude Include="minstd.h" />
+    <ClInclude Include="minspan.h" />
     <ClInclude Include="win32\edge_win32.h" />
     <ClInclude Include="win32\pch.h" />
     <ClInclude Include="reflection.h" />

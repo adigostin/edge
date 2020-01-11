@@ -3,10 +3,12 @@
 
 namespace edge
 {
+	struct collection_i
+	{
+	};
+
 	class owned_object : public object
 	{
-		friend struct collection_i;
-
 		template<typename child_type>
 		friend struct typed_collection_i;
 
@@ -15,32 +17,34 @@ namespace edge
 	public:
 		collection_i* parent() const { return _parent; }
 
+		#ifdef _WIN32
 		struct added_to_parent_event : public event<added_to_parent_event> { };
 		struct removing_from_parent_event : public event<removing_from_parent_event> { };
 
 		added_to_parent_event::subscriber added_to_collection() { return added_to_parent_event::subscriber(this); }
 		removing_from_parent_event::subscriber removing_from_collection() { return removing_from_parent_event::subscriber(this); }
+		#endif
 
 	protected:
 		virtual void on_added_to_parent()
 		{
+			#ifdef _WIN32
 			this->event_invoker<added_to_parent_event>()();
+			#endif
 		}
 
 		virtual void on_removing_from_parent()
 		{
+			#ifdef _WIN32
 			this->event_invoker<removing_from_parent_event>()();
+			#endif
 		}
 	};
 
-	struct collection_i
-	{
-	};
-
 	template<typename child_t>
-	struct __declspec(novtable) typed_collection_i : collection_i
+	struct typed_collection_i : collection_i
 	{
-		static_assert (std::is_base_of_v<owned_object, child_t>);
+		static_assert (std::is_base_of<owned_object, child_t>::value);
 
 	private:
 		virtual std::vector<std::unique_ptr<child_t>>& children_store() = 0;

@@ -1,28 +1,30 @@
 
 #pragma once
 #include "reflection.h"
+#ifdef _WIN32
 #include "events.h"
+#endif
+#include <vector>
+#include <array>
+#include <tuple>
 
 namespace edge
 {
 	struct type
 	{
-		static std::vector<const type*>* known_types;
-
 		const char* const name;
 		const type* const base_type;
-		span<const property* const> const props;
+		std::span<const property* const> const props;
 
-		type(const char* name, const type* base_type, span<const property* const> props);;
-		~type();
-
-		static const type* find_type (const char* name);
+		constexpr type(const char* name, const type* base_type, std::span<const property* const> props) noexcept
+			: name(name), base_type(base_type), props(props)
+		{ }
 
 		std::vector<const property*> make_property_list() const;
 		const property* find_property (const char* name) const;
 
-		virtual span<const value_property* const> factory_props() const = 0;
-		virtual object* create (const span<string_view>& string_values) const = 0;
+		virtual std::span<const value_property* const> factory_props() const = 0;
+		virtual std::unique_ptr<object> create (std::span<std::string_view> string_values) const = 0;
 	private:
 		void add_properties (std::vector<const property*>& properties) const;
 	};
@@ -32,41 +34,40 @@ namespace edge
 	{
 		static constexpr size_t parameter_count = sizeof...(factory_arg_props);
 
-		static_assert (std::conjunction_v<std::is_base_of<value_property, factory_arg_props>...>, "factory params must derive from value_property");
-		static_assert (std::is_convertible_v<object_type*, object*>);
+		static_assert (std::conjunction<std::is_base_of<value_property, factory_arg_props>...>::value, "factory params must derive from value_property");
+		static_assert (std::is_base_of<object, object_type>::value);
 
 		using factory_t = object_type*(*)(typename factory_arg_props::param_t... factory_args);
-		
+
 		factory_t const _factory;
-		array<const value_property*, parameter_count> const _factory_props;
+		std::array<const value_property*, parameter_count> const _factory_props;
 
 	public:
-		xtype (const char* name, const type* base, span<const property* const> props,
+		constexpr xtype (const char* name, const type* base, std::span<const property* const> props,
 			factory_t factory = nullptr, const factory_arg_props*... factory_props)
 			: type(name, base, props)
 			, _factory(factory)
-			, _factory_props(array<const value_property*, parameter_count>{ factory_props... })
+			, _factory_props(std::array<const value_property*, parameter_count>{ factory_props... })
 		{ }
 
 	private:
-		virtual span<const value_property* const> factory_props() const override { return _factory_props; }
-		
-		template<std::size_t... I>
-		static std::tuple<typename factory_arg_props::value_t...> strings_to_values (const span<string_view>& string_values, std::index_sequence<I...>)
+		virtual std::span<const value_property* const> factory_props() const override { return _factory_props; }
+
+		template<size_t... I>
+		std::unique_ptr<object> create_internal (std::span<std::string_view> string_values, std::tuple<typename factory_arg_props::value_t...>& values, std::index_sequence<I...>) const
 		{
-			std::tuple<typename factory_arg_props::value_t...> result;
-			bool cast_ok = (true && ... && factory_arg_props::from_string(string_values[I], std::get<I>(result)));
-			assert(cast_ok);
-			return result;
+			bool all_casts_ok = (true && ... && factory_arg_props::from_string(string_values[I], std::get<I>(values)));
+			if (!all_casts_ok)
+				return nullptr;
+			return std::unique_ptr<object>(_factory(std::get<I>(values)...));
 		}
 
-		virtual object* create (const span<string_view>& string_values) const override
+		virtual std::unique_ptr<object> create (std::span<std::string_view> string_values) const override
 		{
-			assert (_factory != nullptr);
+			assert (_factory);
 			assert (string_values.size() == parameter_count);
-			auto values = strings_to_values (string_values, std::make_index_sequence<parameter_count>());
-			object_type* obj = std::apply (_factory, values);
-			return static_cast<object*>(obj);
+			std::tuple<typename factory_arg_props::value_t...> values;
+			return create_internal(string_values, values, std::make_index_sequence<parameter_count>());
 		}
 	};
 
@@ -95,17 +96,23 @@ namespace edge
 		{ }
 	};
 
-	struct property_changing_e : event<property_changing_e, object*, const property_change_args&> { };
-	struct property_changed_e  : event<property_changed_e , object*, const property_change_args&> { };
-
 	// TODO: make event_manager a member var, possibly a pointer
+	#ifdef _WIN32
 	class object : public event_manager
+	#else
+	class object
+	#endif
 	{
 	public:
 		virtual ~object() = default;
 
+		#ifdef _WIN32
+		struct property_changing_e : event<property_changing_e, object*, const property_change_args&> { };
+		struct property_changed_e  : event<property_changed_e , object*, const property_change_args&> { };
+
 		property_changing_e::subscriber property_changing() { return property_changing_e::subscriber(this); }
 		property_changed_e::subscriber property_changed() { return property_changed_e::subscriber(this); }
+		#endif
 
 	protected:
 		virtual void on_property_changing (const property_change_args&);
@@ -113,6 +120,6 @@ namespace edge
 
 	public:
 		static const xtype<object> _type;
-		virtual const type* type() const { return &_type; }
+		virtual const struct type* type() const { return &_type; }
 	};
 }

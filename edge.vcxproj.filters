@@ -45,7 +45,7 @@
       <Filter>win32</Filter>
     </ClInclude>
     <ClInclude Include="collection.h" />
-    <ClInclude Include="minstd.h" />
+    <ClInclude Include="minspan.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="object.cpp" />

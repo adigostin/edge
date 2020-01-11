@@ -3,11 +3,26 @@
 
 extern volatile unsigned int assert_function_running;
 
+#undef assert
+
 #ifdef _MSC_VER
 	extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent(void);
 	extern __declspec(noinline) void __stdcall assert_function (const char* expression, const char* file, unsigned line);
-	#undef assert
 	#define assert(_Expression)       (void)( (!!(_Expression))   || (::IsDebuggerPresent() ? __debugbreak() : assert_function(#_Expression, __FILE__, __LINE__), 0) )
 #else
-	#error
+	#ifdef __cplusplus
+	extern "C" {
+	#endif
+
+	extern void __assert(const char *__filename, int __line);
+
+	#ifdef __cplusplus
+	}
+	#endif
+
+	#ifdef NDEBUG
+	#define assert(ignore) ((void)0)
+	#else
+	#define assert(e) ((e) ? (void)0 : __assert(__FILE__, __LINE__))
+	#endif
 #endif

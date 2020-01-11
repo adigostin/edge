@@ -1,7 +1,13 @@
 
 #pragma once
-#include <stdint.h>
-#include "minstd.h"
+#include <string>
+#include <string_view>
+#include <memory>
+#include <type_traits>
+#include <cstdint>
+#include <cstdio>
+#include <optional>
+#include "minspan.h"
 
 namespace edge
 {
@@ -16,7 +22,7 @@ namespace edge
 		virtual void cancel() = 0;
 	};
 
-	using property_editor_factory_t = std::unique_ptr<property_editor_i>(span<object* const> objects);
+	using property_editor_factory_t = std::unique_ptr<property_editor_i>(std::span<object* const> objects);
 
 	struct property_group
 	{
@@ -59,7 +65,7 @@ namespace edge
 		virtual const char* type_name() const = 0;
 		virtual bool has_setter() const = 0;
 		virtual std::string get_to_string (const object* obj) const = 0;
-		virtual bool try_set_from_string (object* obj, string_view str) const = 0;
+		virtual bool try_set_from_string (object* obj, std::string_view str) const = 0;
 		virtual const NVP* nvps() const = 0;
 		virtual bool equal (object* obj1, object* obj2) const = 0;
 		virtual bool changed_from_default(const object* obj) const = 0;
@@ -91,7 +97,7 @@ namespace edge
 		};
 
 		template <typename From, typename To>
-		struct is_static_castable<From, To, void_t<decltype(static_cast<To>(*(From*)(nullptr)))>>
+		struct is_static_castable<From, To, std::void_t<decltype(static_cast<To>(*(From*)(nullptr)))>>
 		{
 			static constexpr bool value = true;
 		};
@@ -103,19 +109,19 @@ namespace edge
 			getter_type const type;
 			union
 			{
-				nullptr_t       np;
+				std::nullptr_t  np;
 				member_getter_t mg;
 				static_getter_t sg;
 				member_var_t    mv;
 			};
 
 		public:
-			constexpr getter_t (nullptr_t np) noexcept : type(none), np(np) { }
+			constexpr getter_t (std::nullptr_t np) noexcept : type(none), np(np) { }
 
-			template<typename MemberGetter, enable_if_t<is_static_castable<MemberGetter, member_getter_t>::value, int> = 0>
+			template<typename MemberGetter, std::enable_if_t<is_static_castable<MemberGetter, member_getter_t>::value, int> = 0>
 			constexpr getter_t (MemberGetter mg) noexcept : type(member_function), mg(static_cast<member_getter_t>(mg)) { }
 
-			template<typename StaticGetter, enable_if_t<is_static_castable<StaticGetter, static_getter_t>::value, int> = 0>
+			template<typename StaticGetter, std::enable_if_t<is_static_castable<StaticGetter, static_getter_t>::value, int> = 0>
 			constexpr getter_t (StaticGetter sg) noexcept : type(static_function), sg(static_cast<static_getter_t>(sg)) { }
 
 			constexpr getter_t (member_var_t mv) noexcept : type(member_var), mv(mv) { }
@@ -143,21 +149,21 @@ namespace edge
 			setter_type const type;
 			union
 			{
-				nullptr_t       np;
+				std::nullptr_t  np;
 				member_setter_t ms;
 				static_setter_t ss;
 			};
 
 		public:
-			constexpr setter_t (nullptr_t np) noexcept : type(none), np(np) { }
+			constexpr setter_t (std::nullptr_t np) noexcept : type(none), np(np) { }
 
-			template<typename MemberSetter, enable_if_t<is_static_castable<MemberSetter, member_setter_t>::value, int> = 0>
+			template<typename MemberSetter, std::enable_if_t<is_static_castable<MemberSetter, member_setter_t>::value, int> = 0>
 			constexpr setter_t (MemberSetter ms) noexcept : type(member_function), ms(static_cast<member_setter_t>(ms)) { }
 
-			template<typename StaticSetter, enable_if_t<is_static_castable<StaticSetter, static_setter_t>::value, int> = 0>
+			template<typename StaticSetter, std::enable_if_t<is_static_castable<StaticSetter, static_setter_t>::value, int> = 0>
 			constexpr setter_t (StaticSetter ss) noexcept : type(static_function), ss(static_cast<static_setter_t>(ss)) { }
 
-			bool try_set_from_string (object* obj, string_view str_in) const
+			bool try_set_from_string (object* obj, std::string_view str_in) const
 			{
 				value_t value;
 				bool ok = property_traits::from_string(str_in, value);
@@ -179,9 +185,9 @@ namespace edge
 
 		getter_t const _getter;
 		setter_t const _setter;
-		optional<value_t> const _default_value;
+		std::optional<value_t> const _default_value;
 
-		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, optional<value_t>&& default_value = nullopt)
+		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t>&& default_value = std::nullopt)
 			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), _default_value(std::move(default_value))
 		{ }
 
@@ -195,7 +201,7 @@ namespace edge
 
 		virtual std::string get_to_string (const object* obj) const override final { return property_traits::to_string(_getter.get(obj)); }
 
-		virtual bool try_set_from_string (object* obj, string_view str_in) const override final
+		virtual bool try_set_from_string (object* obj, std::string_view str_in) const override final
 		{
 			return _setter.try_set_from_string (obj, str_in);
 		}
@@ -205,21 +211,19 @@ namespace edge
 		// https://stackoverflow.com/a/17534399/451036
 
 		template <typename T, typename = void>
-		struct has_nvps
-		{ static constexpr bool value = false; };
+		struct nvps_helper
+		{
+			static const NVP* nvps() { return nullptr; }
+		};
 
 		template <typename T>
-		struct has_nvps<T, typename enable_if<bool(sizeof(&T::nvps))>::type>
-		{ static constexpr bool value = true; };
+		struct nvps_helper<T, typename std::enable_if<bool(sizeof(&T::nvps))>::type>
+		{
+			static const NVP* nvps() { return T::nvps; }
+		};
 
 	public:
-		virtual const NVP* nvps() const override final
-		{
-			if constexpr (has_nvps<property_traits>::value)
-				return property_traits::nvps;
-
-			return nullptr;
-		}
+		virtual const NVP* nvps() const override final { return nvps_helper<property_traits>::nvps(); }
 
 		virtual bool equal (object* obj1, object* obj2) const override final
 		{
@@ -234,6 +238,68 @@ namespace edge
 			return get(obj) != _default_value.value();
 		}
 	};
+
+	// ===========================================
+
+	struct bool_property_traits
+	{
+		static const char type_name[];
+		using value_t = bool;
+		using param_t = bool;
+		using return_t = bool;
+		static std::string to_string (bool from) { return from ? "True" : "False"; }
+		static bool from_string (std::string_view from, bool& to);
+	};
+	using bool_p = typed_property<bool_property_traits>;
+
+	template<typename t_, const char* type_name_>
+	struct arithmetic_property_traits
+	{
+		//static_assert (std::is_arithmetic_v<t_>);
+		static constexpr const char* type_name = type_name_;
+		using value_t = t_;
+		using param_t = t_;
+		using return_t = t_;
+		static std::string to_string (t_ from);
+		static bool from_string (std::string_view from, t_& to);
+	};
+
+	static constexpr const char int32_type_name[] = "int32";
+	using int32_property_traits = arithmetic_property_traits<int32_t, int32_type_name>;
+	using int32_p = typed_property<int32_property_traits>;
+
+	static constexpr const char uint32_type_name[] = "uint32";
+	using uint32_property_traits = arithmetic_property_traits<uint32_t, uint32_type_name>;
+	using uint32_p = typed_property<uint32_property_traits>;
+
+	static constexpr const char uint64_type_name[] = "uint64";
+	using uint64_property_traits = arithmetic_property_traits<uint64_t, uint64_type_name>;
+	using uint64_p = typed_property<uint64_property_traits>;
+
+	static constexpr const char size_t_type_name[] = "size_t";
+	using size_t_property_traits = arithmetic_property_traits<size_t, size_t_type_name>;
+	using size_t_p = typed_property<size_t_property_traits>;
+
+	extern const char float_type_name[];
+	using float_property_traits = arithmetic_property_traits<float, float_type_name>;
+	using float_p = typed_property<float_property_traits>;
+
+	template<bool backed>
+	struct string_property_traits
+	{
+		static constexpr const char* type_name = backed ? "backed_string" : "temp_string";
+		using value_t = std::string;
+		using param_t = std::string_view;
+		using return_t = std::conditional_t<backed, const std::string&, std::string>;
+		static std::string to_string (std::string_view from) { return std::string(from); }
+		static bool from_string (std::string_view from, std::string& to) { to = from; return true; }
+	};
+	using temp_string_property_traits = string_property_traits<false>;
+	using temp_string_p = typed_property<temp_string_property_traits>;
+	using backed_string_property_traits = string_property_traits<true>;
+	using backed_string_p = typed_property<backed_string_property_traits>;
+
+	// ========================================================================
 
 	template<typename enum_t, const char* type_name_, const NVP* nvps_, bool serialize_as_integer, const char* unknown_str>
 	struct enum_property_traits
@@ -259,7 +325,7 @@ namespace edge
 			return unknown_str;
 		}
 
-		static bool from_string (string_view from, enum_t& to)
+		static bool from_string (std::string_view from, enum_t& to)
 		{
 			if (serialize_as_integer)
 			{
@@ -290,69 +356,11 @@ namespace edge
 	template<typename enum_t, const char* type_name, const NVP* nvps_, bool serialize_as_integer = false, const char* unknown_str = unknown_enum_value_str>
 	using enum_property = typed_property<enum_property_traits<enum_t, type_name, nvps_, serialize_as_integer, unknown_str>>;
 
-	// ===========================================
-
-	struct bool_property_traits
-	{
-		static constexpr char type_name[] = "bool";
-		using value_t = bool;
-		using param_t = bool;
-		using return_t = bool;
-		static std::string to_string (bool from) { return from ? "True" : "False"; }
-		static bool from_string (string_view from, bool& to);
-	};
-	using bool_p = typed_property<bool_property_traits>;
-
-	template<typename t_, const char* type_name_>
-	struct arithmetic_property_traits
-	{
-		static_assert (std::is_arithmetic_v<t_>);
-		static constexpr const char* type_name = type_name_;
-		using value_t = t_;
-		using param_t = t_;
-		using return_t = t_;
-		static std::string to_string (t_ from) { return std::to_string(from); }
-		static bool from_string (string_view from, t_& to);
-	};
-
-	static inline const char int32_type_name[] = "int32";
-	using int32_property_traits = arithmetic_property_traits<int32_t, int32_type_name>;
-	using int32_p = typed_property<int32_property_traits>;
-
-	static inline const char uint32_type_name[] = "uint32";
-	using uint32_property_traits = arithmetic_property_traits<uint32_t, uint32_type_name>;
-	using uint32_p = typed_property<uint32_property_traits>;
-
-	static inline const char uint64_type_name[] = "uint64";
-	using uint64_property_traits = arithmetic_property_traits<uint64_t, uint64_type_name>;
-	using uint64_p = typed_property<uint64_property_traits>;
-
-	static inline const char size_t_type_name[] = "size_t";
-	using size_t_property_traits = arithmetic_property_traits<size_t, size_t_type_name>;
-	using size_t_p = typed_property<size_t_property_traits>;
-
-	static inline const char float_type_name[] = "float";
-	using float_property_traits = arithmetic_property_traits<float_t, float_type_name>;
-	using float_p = typed_property<float_property_traits>;
-
-	template<bool backed>
-	struct string_property_traits
-	{
-		static constexpr const char* type_name = backed ? "backed_string" : "temp_string";
-		using value_t = std::string;
-		using param_t = string_view;
-		using return_t = std::conditional_t<backed, const std::string&, std::string>;
-		static std::string to_string (string_view from) { return std::string(from); }
-		static bool from_string (string_view from, std::string& to) { to = from; return true; }
-	};
-	using temp_string_property_traits = string_property_traits<false>;
-	using temp_string_p = typed_property<temp_string_property_traits>;
-	using backed_string_property_traits = string_property_traits<true>;
-	using backed_string_p = typed_property<backed_string_property_traits>;
+	// ========================================================================
 
 	enum class side { left, top, right, bottom };
-	static inline const char side_type_name[] = "side";
-	static inline constexpr NVP side_nvps[] = {
+	static constexpr const char side_type_name[] = "side";
+	static constexpr const NVP side_nvps[] = {
 		{ "Left",   (int) side::left },
 		{ "Top",    (int) side::top },
 		{ "Right",  (int) side::right },
@@ -383,8 +391,8 @@ namespace edge
 	{
 		using base = object_collection_property;
 
-		static_assert (std::is_base_of_v<object, child_t>);
-		static_assert (std::is_base_of_v<object, parent_t>);
+		static_assert (std::is_base_of<object, child_t>::value);
+		static_assert (std::is_base_of<object, parent_t>::value);
 
 		using get_child_count_t = size_t(parent_t::*)() const;
 		using get_child_t       = child_t*(parent_t::*)(size_t) const;
@@ -442,8 +450,8 @@ namespace edge
 		using collection_property::collection_property;
 
 		virtual std::string get_value (const object* obj, size_t index) const = 0;
-		virtual bool set_value (object* obj, size_t index, string_view value) const = 0;
-		virtual bool insert_value (object* obj, size_t index, string_view value) const = 0;
+		virtual bool set_value (object* obj, size_t index, std::string_view value) const = 0;
+		virtual bool insert_value (object* obj, size_t index, std::string_view value) const = 0;
 		virtual void remove_value (object* obj, size_t index) const = 0;
 		virtual bool changed (const object* obj) const = 0;
 	};
@@ -452,7 +460,7 @@ namespace edge
 	template<typename object_t, typename property_traits>
 	struct typed_value_collection_property : value_collection_property
 	{
-		static_assert (std::is_convertible_v<object_t*, object*>);
+		static_assert (std::is_base_of<object, object_t>::value);
 
 		using base = value_collection_property;
 
@@ -528,7 +536,7 @@ namespace edge
 			return property_traits::to_string(value);
 		}
 
-		virtual bool set_value (object* obj, size_t index, string_view from) const override
+		virtual bool set_value (object* obj, size_t index, std::string_view from) const override
 		{
 			typename property_traits::value_t value;
 			bool converted = property_traits::from_string(from, value);
@@ -538,7 +546,7 @@ namespace edge
 			return true;
 		}
 
-		virtual bool insert_value (object* obj, size_t index, string_view from) const override
+		virtual bool insert_value (object* obj, size_t index, std::string_view from) const override
 		{
 			typename property_traits::value_t value;
 			bool converted = property_traits::from_string(from, value);
