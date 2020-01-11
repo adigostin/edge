@@ -10,7 +10,7 @@ namespace edge
 	static const _bstr_t value_attr_name = "Value";
 	
 	static com_ptr<IXMLDOMElement> serialize_internal (IXMLDOMDocument* doc, const object* obj, bool force_serialize_unchanged, size_t index_attribute);
-	static void deserialize_to_internal (IXMLDOMElement* element, object* obj, bool ignore_index_attribute, std::span<const type*> known_types);
+	static void deserialize_to_internal (IXMLDOMElement* element, object* obj, bool ignore_index_attribute, std::span<const type* const> known_types);
 
 	static com_ptr<IXMLDOMElement> serialize_property (IXMLDOMDocument* doc, const object* obj, const object_collection_property* prop)
 	{
@@ -170,7 +170,7 @@ namespace edge
 		return obj;
 	}
 
-	static std::unique_ptr<object> deserialize (IXMLDOMElement* elem, std::span<const type*> known_types)
+	static std::unique_ptr<object> deserialize (IXMLDOMElement* elem, std::span<const type* const> known_types)
 	{
 		_bstr_t namebstr;
 		auto hr = elem->get_nodeName(namebstr.GetAddress()); assert(SUCCEEDED(hr));
@@ -183,7 +183,7 @@ namespace edge
 		return obj;
 	}
 
-	static void deserialize_to_new_object_collection (IXMLDOMElement* collection_elem, object* o, const object_collection_property* prop, std::span<const type*> known_types)
+	static void deserialize_to_new_object_collection (IXMLDOMElement* collection_elem, object* o, const object_collection_property* prop, std::span<const type* const> known_types)
 	{
 		size_t index = 0;
 		com_ptr<IXMLDOMNode> child_node;
@@ -207,7 +207,7 @@ namespace edge
 		}
 	}
 
-	static void deserialize_to_existing_object_collection (IXMLDOMElement* collection_elem, object* obj, const object_collection_property* prop, std::span<const type*> known_types)
+	static void deserialize_to_existing_object_collection (IXMLDOMElement* collection_elem, object* obj, const object_collection_property* prop, std::span<const type* const> known_types)
 	{
 		size_t child_node_index = 0;
 		com_ptr<IXMLDOMNode> child_node;
@@ -263,7 +263,7 @@ namespace edge
 		}
 	}
 
-	static void deserialize_to_internal (IXMLDOMElement* element, object* obj, bool ignore_index_attribute, std::span<const type*> known_types)
+	static void deserialize_to_internal (IXMLDOMElement* element, object* obj, bool ignore_index_attribute, std::span<const type* const> known_types)
 	{
 		auto deserializable = dynamic_cast<deserialize_i*>(obj);
 		if (deserializable != nullptr)
@@ -341,7 +341,7 @@ namespace edge
 			deserializable->on_deserialized();
 	}
 
-	void deserialize_to (IXMLDOMElement* element, object* obj, std::span<const type*> known_types)
+	void deserialize_to (IXMLDOMElement* element, object* obj, std::span<const type* const> known_types)
 	{
 		return deserialize_to_internal (element, obj, false, known_types);
 	}

@@ -6,7 +6,7 @@
 namespace edge
 {
 	com_ptr<IXMLDOMElement> serialize (IXMLDOMDocument* doc, const object* o, bool force_serialize_unchanged);
-	void deserialize_to (IXMLDOMElement* element, object* o, std::span<const type*> known_types);
+	void deserialize_to (IXMLDOMElement* element, object* o, std::span<const type* const> known_types);
 
 	struct deserialize_i
 	{

@@ -260,23 +260,23 @@ namespace edge
 		using value_t = t_;
 		using param_t = t_;
 		using return_t = t_;
-		static std::string to_string (t_ from);
-		static bool from_string (std::string_view from, t_& to);
+		static std::string to_string (t_ from); // needs specialization
+		static bool from_string (std::string_view from, t_& to); // needs specialization
 	};
 
-	static constexpr const char int32_type_name[] = "int32";
+	extern const char int32_type_name[];
 	using int32_property_traits = arithmetic_property_traits<int32_t, int32_type_name>;
 	using int32_p = typed_property<int32_property_traits>;
 
-	static constexpr const char uint32_type_name[] = "uint32";
+	extern const char uint32_type_name[];
 	using uint32_property_traits = arithmetic_property_traits<uint32_t, uint32_type_name>;
 	using uint32_p = typed_property<uint32_property_traits>;
 
-	static constexpr const char uint64_type_name[] = "uint64";
+	extern const char uint64_type_name[];
 	using uint64_property_traits = arithmetic_property_traits<uint64_t, uint64_type_name>;
 	using uint64_p = typed_property<uint64_property_traits>;
 
-	static constexpr const char size_t_type_name[] = "size_t";
+	extern const char size_t_type_name[];
 	using size_t_property_traits = arithmetic_property_traits<size_t, size_t_type_name>;
 	using size_t_p = typed_property<size_t_property_traits>;
 
