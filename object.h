@@ -29,15 +29,14 @@ namespace edge
 		void add_properties (std::vector<const property*>& properties) const;
 	};
 
-	template<typename object_type, typename... factory_arg_props>
+	template<typename... factory_arg_props>
 	class xtype : public type
 	{
 		static constexpr size_t parameter_count = sizeof...(factory_arg_props);
 
 		static_assert (std::conjunction<std::is_base_of<value_property, factory_arg_props>...>::value, "factory params must derive from value_property");
-		static_assert (std::is_base_of<object, object_type>::value);
 
-		using factory_t = object_type*(*)(typename factory_arg_props::param_t... factory_args);
+		using factory_t = std::unique_ptr<object>(*)(typename factory_arg_props::param_t... factory_args);
 
 		factory_t const _factory;
 		std::array<const value_property*, parameter_count> const _factory_props;
@@ -119,7 +118,7 @@ namespace edge
 		virtual void on_property_changed (const property_change_args&);
 
 	public:
-		static const xtype<object> _type;
+		static const xtype<> _type;
 		virtual const struct type* type() const { return &_type; }
 	};
 }
