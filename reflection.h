@@ -12,6 +12,7 @@
 namespace edge
 {
 	class object;
+	struct value_property;
 
 	using property_editor_parent = void*; // this is a platform-specific type; on Win32 it's a pointer to a edge::win32_window_i
 
@@ -50,6 +51,8 @@ namespace edge
 		property& operator= (const property&) = delete;
 
 		virtual property_editor_factory_t* custom_editor() const { return nullptr; }
+
+		virtual const value_property* as_value_property() const { return nullptr; }
 	};
 
 	struct NVP
@@ -58,14 +61,28 @@ namespace edge
 		int second;
 	};
 
+	struct out_stream_i
+	{
+		virtual void write (const void* data, size_t size) = 0;
+	};
+
+	struct in_stream_i
+	{
+		virtual void read (void* data, size_t size) = 0;
+	};
+
 	struct value_property : property
 	{
 		using property::property;
+
+		virtual const value_property* as_value_property() const override final { return this; }
 
 		virtual const char* type_name() const = 0;
 		virtual bool has_setter() const = 0;
 		virtual std::string get_to_string (const object* obj) const = 0;
 		virtual bool try_set_from_string (object* obj, std::string_view str) const = 0;
+		virtual void serialize (const object* obj, out_stream_i* out) const = 0;
+		virtual void deserialize (object* obj, in_stream_i* in) const = 0;
 		virtual const NVP* nvps() const = 0;
 		virtual bool equal (object* obj1, object* obj2) const = 0;
 		virtual bool changed_from_default(const object* obj) const = 0;
@@ -204,6 +221,17 @@ namespace edge
 		virtual bool try_set_from_string (object* obj, std::string_view str_in) const override final
 		{
 			return _setter.try_set_from_string (obj, str_in);
+		}
+
+		virtual void serialize (const object* obj, out_stream_i* out) const override final
+		{
+			value_t value = _getter.get(obj);
+			out->write (&value, sizeof(value));
+		}
+
+		virtual void deserialize (object* obj, in_stream_i* in) const override final
+		{
+			assert(false); // TODO
 		}
 
 	private:
