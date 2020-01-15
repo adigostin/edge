@@ -34,7 +34,9 @@ namespace edge
 	{
 		static constexpr size_t parameter_count = sizeof...(factory_arg_props);
 
-		static_assert (std::is_base_of<object, object_type>::value);
+		// Commented out because VC++ seems to have problems on this when compiling some inline constexpr xtype constructors.
+		// static_assert (std::is_base_of<object, object_type>::value);
+
 		static_assert (std::conjunction<std::is_base_of<value_property, factory_arg_props>...>::value, "factory params must derive from value_property");
 
 		using factory_t = std::unique_ptr<object_type>(*)(typename factory_arg_props::param_t... factory_args);
