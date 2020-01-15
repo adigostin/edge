@@ -50,6 +50,8 @@ namespace edge
 			, _factory_props(std::array<const value_property*, parameter_count>{ factory_props... })
 		{ }
 
+		factory_t factory() const { return _factory; }
+
 	private:
 		virtual std::span<const value_property* const> factory_props() const override { return _factory_props; }
 
