@@ -81,7 +81,6 @@ namespace edge
 		float GetAverageRenderDuration();
 
 		void invalidate (const D2D1_RECT_F& rect);
-		using base::invalidate;
 
 		float pixel_width() const { return 96.0f / dpi(); }
 		float line_thickness() const { return _line_thickness; }

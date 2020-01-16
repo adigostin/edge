@@ -41,17 +41,6 @@ namespace edge
 		LONG GetWidth() const;
 		LONG GetHeight() const;
 		SIZE GetSize() const;
-
-		void SetRect (const RECT& rect)
-		{
-			BOOL bRes = ::MoveWindow (hwnd(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
-			assert(bRes);
-		}
-
-		void invalidate()
-		{
-			::InvalidateRect (hwnd(), nullptr, FALSE);
-		}
 	};
 
 	struct zoomable_i : public win32_window_i
