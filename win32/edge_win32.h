@@ -1,6 +1,5 @@
 #pragma once
 #include "../events.h"
-#include "../minspan.h"
 
 namespace edge
 {

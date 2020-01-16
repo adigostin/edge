@@ -41,3 +41,8 @@
 #include <windowsx.h>
 
 #include "..\assert.h"
+
+#define TCB_SPAN_NAMESPACE_NAME std
+#include <iterator> // tcb/span.hpp needs this but doesn't include it
+#include <tuple> // tcb/span.hpp needs this but doesn't include it
+#include "../tcb/span.hpp"

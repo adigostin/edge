@@ -45,7 +45,9 @@
       <Filter>win32</Filter>
     </ClInclude>
     <ClInclude Include="collection.h" />
-    <ClInclude Include="minspan.h" />
+    <ClInclude Include="tcb\span.hpp">
+      <Filter>tcb</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="object.cpp" />
@@ -90,6 +92,9 @@
   <ItemGroup>
     <Filter Include="win32">
       <UniqueIdentifier>{ba74f75b-3911-400c-88f4-8f21798a0d65}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tcb">
+      <UniqueIdentifier>{a74793c5-7e09-4d2a-882d-bd968b9fdbf7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
