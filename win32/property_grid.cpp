@@ -105,9 +105,17 @@ public:
 			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
 			if ((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN))
+			{
+				if (msg == WM_LBUTTONDOWN)
+					::SetCapture(hwnd);
 				process_mouse_button_down (button, (modifier_key)wParam, pt, dip);
+			}
 			else
+			{
 				process_mouse_button_up (button, (modifier_key)wParam, pt, dip);
+				if (msg == WM_LBUTTONUP)
+					::ReleaseCapture();
+			}
 			return 0;
 		}
 
@@ -571,6 +579,11 @@ public:
 	void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
 	{
 		::SetFocus (hwnd());
+		if (::GetFocus() != hwnd())
+			return;
+
+		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), dip)))
+			return _text_editor->process_mouse_button_down(button, mks, pixel, dip);
 
 		if (_description_height > separator_height)
 		{
@@ -585,9 +598,6 @@ public:
 			if (dip.y >= ds_rect.bottom)
 				return;
 		}
-
-		if (_text_editor && point_in_rect(_text_editor->rect(), dip))
-			return _text_editor->process_mouse_button_down(button, mks, pixel, dip);
 
 		auto clicked_item = item_at(dip);
 
@@ -605,15 +615,15 @@ public:
 
 	void process_mouse_button_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
 	{
+		if (_text_editor && _text_editor->mouse_captured())
+			return _text_editor->process_mouse_button_up (button, mks, pixel, dip);
+
 		if (_description_resize_offset)
 		{
 			_description_resize_offset.reset();
 			event_invoker<description_height_changed_e>()(_description_height);
 			return;
 		}
-
-		if (_text_editor && point_in_rect(_text_editor->rect(), dip))
-			return _text_editor->process_mouse_button_up (button, mks, pixel, dip);
 
 		auto clicked_item = item_at(dip);
 		if (clicked_item.first != nullptr)
@@ -622,6 +632,9 @@ public:
 
 	void process_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
 	{
+		if (_text_editor && _text_editor->mouse_captured())
+			return _text_editor->process_mouse_move (mks, pixel, dip);
+
 		if (_description_resize_offset)
 		{
 			_description_height = client_height() - dip.y + _description_resize_offset.value();
@@ -629,9 +642,6 @@ public:
 			invalidate();
 			return;
 		}
-
-		if (_text_editor && point_in_rect(_text_editor->rect(), dip))
-			return _text_editor->process_mouse_move (mks, pixel, dip);
 	}
 
 	void try_commit_editor()

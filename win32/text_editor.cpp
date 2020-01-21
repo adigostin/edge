@@ -19,6 +19,7 @@ namespace edge
 		size_t _selection_origin_pos = 0;
 		size_t _caret_pos;
 		d2d_window* const _control;
+		bool _mouse_captured = false;
 
 	public:
 		text_editor (d2d_window* control, IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, uint32_t fill_argb, uint32_t text_argb, const D2D1_RECT_F& rect, float lr_padding, std::string_view text)
@@ -150,11 +151,14 @@ namespace edge
 
 				set_caret_pos (byte_index, keepSelectionOrigin);
 				set_caret_screen_location_from_caret_pos ();
+				_mouse_captured = true;
 			}
 		}
 
 		virtual void process_mouse_button_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
 		{
+			if (button == mouse_button::left)
+				_mouse_captured = false;
 		}
 
 		virtual void process_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
@@ -548,6 +552,8 @@ namespace edge
 		}
 
 		virtual const D2D1_RECT_F& rect() const override { return _editorBounds; }
+
+		virtual bool mouse_captured() const override { return _mouse_captured; }
 	};
 
 	text_editor_factory_t* const text_editor_factory =
