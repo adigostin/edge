@@ -115,8 +115,11 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, 
 
 	if (uMsg == WM_CREATE)
 	{
-		_clientSize.cx = ((CREATESTRUCT*)lParam)->cx;
-		_clientSize.cy = ((CREATESTRUCT*)lParam)->cy;
+		// ((CREATESTRUCT*)lParam)->cx/cy may contain CW_USEDEFAULT, so let's get the actual size instead.
+		RECT rect;
+		BOOL bRes = ::GetClientRect(hwnd, &rect); assert(bRes);
+		_clientSize.cx = rect.right;
+		_clientSize.cy = rect.bottom;
 		return 0;
 	}
 
