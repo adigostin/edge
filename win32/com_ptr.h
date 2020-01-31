@@ -9,20 +9,10 @@ namespace edge
 	public:
 		com_ptr() = default;
 
-		com_ptr (const com_ptr<I>& from)
-		{
-			static_assert(false); // use move constructor instead
-		}
-
-		com_ptr<I>& operator= (const com_ptr<I>& from)
-		{
-			static_assert(false); // use move-assignment instead
-		}
-
 		com_ptr (com_ptr<I>&& from) noexcept
 		{
 			static_assert (std::is_base_of_v<IUnknown, I>);
-			if (from._ptr != nullptr)
+			if (from._ptr)
 				std::swap (this->_ptr, from._ptr);
 		}
 
@@ -55,16 +45,51 @@ namespace edge
 				_ptr->AddRef();
 		}
 
-		template<typename IFrom>
+		// --------------------------------------------------------------------
+
+		// Copy constructor.
+		com_ptr<I> (const com_ptr<I>& from) noexcept
+		{
+			if (from)
+			{
+				_ptr = from->_ptr;
+				_ptr->AddRef();
+			}
+		}
+
+		// Template copy constructor.
+		template<typename IFrom, std::enable_if_t<!std::is_same_v<IFrom, I>, int> = 0>
 		com_ptr (const com_ptr<IFrom>& from)
 		{
-			if (from != nullptr)
+			if (from)
 			{
 				auto hr = from->QueryInterface(&_ptr);
 				if (FAILED(hr))
 					throw _com_error(hr);
 			}
 		}
+
+		// --------------------------------------------------------------------
+
+		// Move-assignment operator.
+		com_ptr<I>& operator= (const com_ptr<I>& from)
+		{
+			if (_ptr)
+				_ptr->Release();
+			_ptr = from._ptr;
+			if (_ptr)
+				_ptr->AddRef();
+			return *this;
+		}
+
+		// Template move-assignment operator.
+		template<typename IFrom, std::enable_if_t<!std::is_same_v<IFrom, I>, int> = 0>
+		com_ptr<I>& operator= (const com_ptr<IFrom>& from)
+		{
+			static_assert (false, "Not yet implemented");
+		}
+
+		// --------------------------------------------------------------------
 
 		com_ptr(nullptr_t np)
 		{ }

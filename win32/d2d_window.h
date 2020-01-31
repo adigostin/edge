@@ -95,7 +95,7 @@ namespace edge
 		virtual void d2d_dc_recreated() { }
 
 	private:
-		void recalc_pixel_width_and_line_thickness();
+		void recalc_pixel_width_and_line_thickness(); // TODO: move this to property_grid.cpp
 		void invalidate_caret();
 		void process_wm_blink();
 		void create_d2d_dc();

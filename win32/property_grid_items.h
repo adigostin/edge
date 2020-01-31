@@ -44,26 +44,28 @@ namespace edge
 		pgitem (const pgitem&) = delete;
 		pgitem& operator= (const pgitem&) = delete;
 
-		expandable_item* const _parent;
-
 	public:
-		pgitem (expandable_item* parent)
-			: _parent(parent)
-		{ }
-		virtual ~pgitem () { }
+		pgitem() = default;
+		virtual ~pgitem() = default;
 
-		expandable_item* parent() const { return _parent; }
+		static constexpr float text_lr_padding = 3;
+		static constexpr float title_lr_padding = 4;
+		static constexpr float title_ud_padding = 2;
 
 		virtual root_item* root();
+		const root_item* root() const { return const_cast<pgitem*>(this)->root(); }
 
-		virtual void create_text_layouts (IDWriteFactory* factory, IDWriteTextFormat* format, const item_layout_horz& l, float line_thickness) = 0;
-		virtual void recreate_value_text_layout() = 0;
-		virtual void render (const render_context& rc, const item_layout& l, float line_thickness, bool selected, bool focused) const = 0;
+		virtual expandable_item* parent() const = 0;
+		virtual void create_render_resources (const item_layout_horz& l) = 0;
+		// TODO: move line_thickness into render_context
+		virtual void render (const render_context& rc, const item_layout& l, bool selected, bool focused) const = 0;
 		virtual float content_height() const = 0;
 		virtual HCURSOR cursor() const { return nullptr; }
 		virtual bool selectable() const = 0;
 		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
 		virtual void process_mouse_button_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
+		virtual std::string description_title() const = 0;
+		virtual std::string description_text() const = 0;
 	};
 
 	class expandable_item : public pgitem
@@ -91,7 +93,7 @@ namespace edge
 		std::vector<object*> const _objects;
 
 	public:
-		object_item (expandable_item* parent, object* const* objects, size_t size);
+		object_item (object* const* objects, size_t size);
 		virtual ~object_item();
 
 		const std::vector<object*>& objects() const { return _objects; }
@@ -108,21 +110,22 @@ namespace edge
 	{
 		using base = expandable_item;
 
+		object_item* const _parent;
+		const property_group* const _group;
+
 		text_layout_with_metrics _layout;
 
 	public:
-		const property_group* const _group;
-
 		group_item (object_item* parent, const property_group* group);
-
-		object_item* parent() const { return static_cast<object_item*>(base::parent()); }
+		virtual object_item* parent() const { return _parent; }
 
 		virtual std::vector<std::unique_ptr<pgitem>> create_children() override;
-		virtual void create_text_layouts (IDWriteFactory* factory, IDWriteTextFormat* format, const item_layout_horz& l, float line_thickness) override;
-		virtual void recreate_value_text_layout() override { }
-		virtual void render (const render_context& rc, const item_layout& l, float line_thickness, bool selected, bool focused) const override;
+		virtual void create_render_resources (const item_layout_horz& l) override;
+		virtual void render (const render_context& rc, const item_layout& l, bool selected, bool focused) const override;
 		virtual float content_height() const override;
 		virtual bool selectable() const override { return false; }
+		virtual std::string description_title() const override final { return { }; }
+		virtual std::string description_text() const override final { return { }; }
 	};
 
 	class root_item : public object_item
@@ -137,46 +140,88 @@ namespace edge
 
 		root_item (property_grid_i* grid, const char* heading, object* const* objects, size_t size);
 
+		virtual expandable_item* parent() const override { assert(false); return nullptr; }
 		virtual root_item* root() override final { return this; }
-		virtual void create_text_layouts (IDWriteFactory* factory, IDWriteTextFormat* format, const item_layout_horz& l, float line_thickness) override final;
-		virtual void recreate_value_text_layout() override final { assert(false); }
-		virtual void render (const render_context& rc, const item_layout& l, float line_thickness, bool selected, bool focused) const override final;
+		virtual void create_render_resources (const item_layout_horz& l) override final;
+		virtual void render (const render_context& rc, const item_layout& l, bool selected, bool focused) const override final;
 		virtual float content_height() const override final;
 		virtual bool selectable() const override final { return false; }
+		virtual std::string description_title() const override final { assert(false); return { }; }
+		virtual std::string description_text() const override final { assert(false); return { }; }
 	};
 
 	// TODO: value from collection / value from pd
-	class value_pgitem : public pgitem
+
+	class value_item abstract : public pgitem
 	{
 		using base = pgitem;
 
 	public:
-		const value_property* const _prop;
+		group_item* const _parent;
 
-		value_pgitem (group_item* parent, const value_property* prop);
-
-		group_item* parent() const { return static_cast<group_item*>(base::parent()); }
-
-		virtual void recreate_value_text_layout() override final;
-	private:
-		virtual void create_text_layouts (IDWriteFactory* factory, IDWriteTextFormat* format, const item_layout_horz& l, float line_thickness) override final;
-		virtual void render (const render_context& rc, const item_layout& l, float line_thickness, bool selected, bool focused) const override;
-		virtual float content_height() const override;
-		virtual HCURSOR cursor() const override final;
-		virtual bool selectable() const override final { return true; }
-		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
-		virtual void process_mouse_button_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
-
-		void create_value_layout_internal (IDWriteFactory* factory, IDWriteTextFormat* format, float width);
-		bool multiple_values() const;
-		bool can_edit() const;
-
-		text_layout_with_metrics _name;
-
-		struct
+		struct value_layout
 		{
 			text_layout_with_metrics tl;
 			bool readable;
-		} _value;
+		};
+
+	private:
+		text_layout_with_metrics _name;
+		value_layout _value;
+
+	public:
+		value_item (group_item* parent)
+			: _parent(parent)
+		{ }
+
+		virtual const value_property* property() const = 0;
+		virtual void render_value (const render_context& rc, const item_layout& l, bool selected, bool focused) const = 0;
+
+		const text_layout_with_metrics& name() const { return _name; }
+		const value_layout& value() const { return _value; }
+		bool can_edit() const;
+		bool multiple_values() const;
+
+		virtual group_item* parent() const override final { return _parent; }
+		virtual bool selectable() const override final { return true; }
+		virtual void create_render_resources (const item_layout_horz& l) override;
+		virtual float content_height() const override final;
+		virtual void render (const render_context& rc, const item_layout& l, bool selected, bool focused) const override final;
+		virtual std::string description_title() const override final;
+		virtual std::string description_text() const override final;
+
+	private:
+		value_layout create_value_layout_internal (IDWriteFactory* factory, IDWriteTextFormat* format, float width) const;
+
+		friend class object_item;
+
+	protected:
+		virtual void on_value_changed();
+	};
+
+	class default_value_pgitem : public value_item
+	{
+		using base = value_item;
+		using base::base;
+
+		const value_property* const _property;
+
+	public:
+		default_value_pgitem (group_item* parent, const value_property* property)
+			: base(parent), _property(property)
+		{ }
+
+		virtual const value_property* property() const override final { return _property; }
+		virtual void render_value (const render_context& rc, const item_layout& l, bool selected, bool focused) const override final;
+
+	protected:
+		virtual HCURSOR cursor() const override final;
+		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
+		virtual void process_mouse_button_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
+	};
+
+	struct __declspec(novtable) editable_value_property_i
+	{
+		virtual std::unique_ptr<pgitem> create_item (group_item* parent) const = 0;
 	};
 }

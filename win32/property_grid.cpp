@@ -1,7 +1,6 @@
 
 #include "pch.h"
 #include "property_grid.h"
-#include "property_grid_items.h"
 #include "utility_functions.h"
 #include "d2d_window.h"
 
@@ -55,6 +54,8 @@ public:
 
 	virtual IDWriteTextFormat* text_format() const override final { return _textFormat; }
 
+	virtual ID2D1DeviceContext* dc() const override final { return base::d2d_dc(); }
+
 	virtual void invalidate() override final { ::InvalidateRect (hwnd(), nullptr, FALSE); }
 
 	virtual std::optional<LRESULT> window_proc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) override
@@ -75,7 +76,7 @@ public:
 			{
 				discard_editor();
 				for (auto& ri : _root_items)
-					create_text_layouts(ri.get());
+					create_render_resources(ri.get());
 			}
 
 			return 0;
@@ -87,7 +88,7 @@ public:
 			{
 				discard_editor();
 				for (auto& ri : _root_items)
-					create_text_layouts(ri.get());
+					create_render_resources(ri.get());
 			}
 			return 0;
 		}
@@ -267,7 +268,7 @@ public:
 		}
 	}
 
-	void create_text_layouts (root_item* ri)
+	void create_render_resources (root_item* ri)
 	{
 		auto vcx = value_column_x();
 		auto vcw = std::max (75.0f, client_width() - vcx);
@@ -282,7 +283,7 @@ public:
 			il.x_value = vcx;
 			il.x_right = std::max (client_width(), vcx + 75.0f);
 
-			item->create_text_layouts (dwrite_factory(), _textFormat, il, line_thickness());
+			item->create_render_resources (il);
 
 			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
 			{
@@ -331,7 +332,7 @@ public:
 		enum_items ([&, this](pgitem* item, const item_layout& layout, bool& cancel)
 		{
 			bool selected = (item == _selected_item);
-			item->render (rc, layout, line_thickness(), selected, focused);
+			item->render (rc, layout, selected, focused);
 
 			if (selected && _text_editor)
 				_text_editor->render(dc);
@@ -351,20 +352,16 @@ public:
 			com_ptr<ID2D1SolidColorBrush> brush;
 			dc->CreateSolidColorBrush (separator_color, &brush);
 			dc->FillRectangle(description_separator_rect(), brush);
-			if (auto value_item = dynamic_cast<value_pgitem*>(_selected_item))
+
+			if (_selected_item)
 			{
 				auto desc_rect = description_rect();
 				float lr_padding = 3;
-				std::stringstream ss;
-				ss << value_item->_prop->_name << " (" << value_item->_prop->type_name() << ")";
-				auto title_layout = text_layout_with_metrics (dwrite_factory(), _boldTextFormat, ss.str(), client_width() - 2 * lr_padding);
+				auto title_layout = text_layout_with_metrics (dwrite_factory(), _boldTextFormat, _selected_item->description_title(), client_width() - 2 * lr_padding);
 				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top }, title_layout, rc.fore_brush);
 
-				if (value_item->_prop->_description)
-				{
-					auto desc_layout = text_layout(dwrite_factory(), _textFormat, value_item->_prop->_description, client_width() - 2 * lr_padding);
-					dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top + title_layout.height() }, desc_layout, rc.fore_brush);
-				}
+				auto desc_layout = text_layout(dwrite_factory(), _textFormat, _selected_item->description_text(), client_width() - 2 * lr_padding);
+				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top + title_layout.height() }, desc_layout, rc.fore_brush);
 			}
 		}
 	}
@@ -385,13 +382,6 @@ public:
 		return separator;
 	}
 
-	float value_column_x() const
-	{
-		float w = client_width() * _name_column_factor;
-		w = roundf (w / pixel_width()) * pixel_width();
-		return std::max (75.0f, w);
-	}
-
 	void discard_editor()
 	{
 		if (_text_editor)
@@ -400,7 +390,7 @@ public:
 			_text_editor = nullptr;
 		}
 	}
-	
+
 	virtual void clear() override
 	{
 		discard_editor();
@@ -412,7 +402,7 @@ public:
 	virtual void add_section (const char* heading, object* const* objects, size_t size) override
 	{
 		_root_items.push_back (std::make_unique<root_item>(this, heading, objects, size));
-		create_text_layouts(_root_items.back().get());
+		create_render_resources(_root_items.back().get());
 		invalidate();
 	}
 
@@ -421,6 +411,8 @@ public:
 		_description_height = height;
 		invalidate();
 	}
+
+	virtual bool read_only() const override { return false; }
 
 	virtual property_changed_e::subscriber property_changed() override { return property_changed_e::subscriber(this); }
 
@@ -440,7 +432,7 @@ public:
 		discard_editor();
 		POINT ptScreen = pointd_to_pointp(dip, 0);
 		::ClientToScreen (hwnd(), &ptScreen);
-		
+
 		HINSTANCE hInstance = (HINSTANCE) GetWindowLongPtr (hwnd(), GWLP_HINSTANCE);
 
 		static constexpr wchar_t ClassName[] = L"GIGI-{655C4EA9-2A80-46D7-A7FB-D510A32DC6C6}";
@@ -575,7 +567,7 @@ public:
 
 		return result;
 	}
-	
+
 	void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
 	{
 		::SetFocus (hwnd());
@@ -652,11 +644,11 @@ public:
 		auto prop_item = dynamic_cast<value_pgitem*>(_selected_item); assert(prop_item);
 		auto text_utf16 = _text_editor->wstr();
 		auto text_utf8 = utf16_to_utf8(text_utf16);
-		bool changed = try_change_property (prop_item->parent()->parent()->objects(), prop_item->_prop, text_utf8);
+		bool changed = try_change_property (prop_item->parent()->parent()->objects(), prop_item->property(), text_utf8);
 		if (!changed)
 		{
 			std::wstringstream ss;
-			ss << _text_editor->wstr() << " is not a valid value for the " << prop_item->_prop->_name << " property.";
+			ss << _text_editor->wstr() << " is not a valid value for the " << prop_item->property()->_name << " property.";
 			::MessageBox (hwnd(), ss.str().c_str(), L"aaa", 0);
 			::SetFocus (hwnd());
 			_text_editor->select_all();
@@ -693,6 +685,15 @@ public:
 
 	virtual float line_thickness() const override { return base::line_thickness(); }
 
+	virtual float client_width() const override { return base::client_width(); }
+
+	virtual float value_column_x() const override
+	{
+		float w = client_width() * _name_column_factor;
+		w = roundf (w / pixel_width()) * pixel_width();
+		return std::max (75.0f, w);
+	}
+
 	handled process_virtual_key_down (UINT key, modifier_key mks)
 	{
 		if ((key == VK_RETURN) || (key == VK_UP) || (key == VK_DOWN))
@@ -710,7 +711,7 @@ public:
 
 			return handled::yes;
 		}
-		
+
 		if ((key == VK_ESCAPE) && _text_editor)
 		{
 			discard_editor();

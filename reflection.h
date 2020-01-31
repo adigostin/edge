@@ -19,17 +19,6 @@ namespace edge
 	class object;
 	struct value_property;
 
-	using property_editor_parent = void*; // this is a platform-specific type; on Win32 it's a pointer to a edge::win32_window_i
-
-	struct property_editor_i
-	{
-		virtual ~property_editor_i() { }
-		virtual bool show (property_editor_parent parent) = 0; // return IDOK, IDCANCEL, -1 (some error), 0 (hWndParent invalid or closed)
-		virtual void cancel() = 0;
-	};
-
-	using property_editor_factory_t = std::unique_ptr<property_editor_i>(std::span<object* const> objects);
-
 	struct property_group
 	{
 		int32_t prio;
@@ -39,8 +28,6 @@ namespace edge
 	extern const property_group misc_group;
 
 	enum class ui_visible { no, yes };
-
-	enum class serializable { no, yes };
 
 	struct property
 	{
@@ -54,10 +41,8 @@ namespace edge
 		{ }
 		property (const property&) = delete;
 		property& operator= (const property&) = delete;
-
-		virtual property_editor_factory_t* custom_editor() const { return nullptr; }
-
-		virtual const value_property* as_value_property() const { return nullptr; }
+		
+		virtual ~property() = default;
 	};
 
 	struct NVP
@@ -80,8 +65,6 @@ namespace edge
 	{
 		using property::property;
 
-		virtual const value_property* as_value_property() const override final { return this; }
-
 		virtual const char* type_name() const = 0;
 		virtual bool has_setter() const = 0;
 		virtual std::string get_to_string (const object* obj) const = 0;
@@ -95,7 +78,7 @@ namespace edge
 
 	// ========================================================================
 
-	template<typename property_traits, property_editor_factory_t* custom_editor_ = nullptr>
+	template<typename property_traits>
 	struct typed_property : value_property
 	{
 		using base = value_property;
@@ -216,8 +199,6 @@ namespace edge
 		virtual const char* type_name() const override final { return property_traits::type_name; }
 
 		virtual bool has_setter() const override final { return _setter.has_setter(); }
-
-		virtual property_editor_factory_t* custom_editor() const override final { return custom_editor_; }
 
 		return_t get (const object* obj) const { return _getter.get(obj); }
 
