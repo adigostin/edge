@@ -40,25 +40,31 @@ namespace edge
 		return { rect.left, rect.top };
 	}
 
-	LONG win32_window_i::GetWidth() const
+	LONG win32_window_i::width_pixels() const
 	{
 		RECT rect;
 		::GetWindowRect (hwnd(), &rect);
 		return rect.right - rect.left;
 	}
 
-	LONG win32_window_i::GetHeight() const
+	LONG win32_window_i::height_pixels() const
 	{
 		RECT rect;
 		::GetWindowRect (hwnd(), &rect);
 		return rect.bottom - rect.top;
 	}
 
-	SIZE win32_window_i::GetSize() const
+	SIZE win32_window_i::size_pixels() const
 	{
 		RECT rect;
 		::GetWindowRect (hwnd(), &rect);
 		return { rect.right - rect.left, rect.bottom - rect.top };
+	}
+
+	void win32_window_i::move_window (const RECT& rect)
+	{
+		BOOL bRes = ::MoveWindow (hwnd(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
+		assert(bRes);
 	}
 	#pragma endregion
 

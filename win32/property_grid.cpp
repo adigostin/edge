@@ -641,7 +641,7 @@ public:
 		if (_text_editor == nullptr)
 			return;
 
-		auto prop_item = dynamic_cast<value_pgitem*>(_selected_item); assert(prop_item);
+		auto prop_item = dynamic_cast<value_item*>(_selected_item); assert(prop_item);
 		auto text_utf16 = _text_editor->wstr();
 		auto text_utf8 = utf16_to_utf8(text_utf16);
 		bool changed = try_change_property (prop_item->parent()->parent()->objects(), prop_item->property(), text_utf8);

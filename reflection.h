@@ -41,8 +41,11 @@ namespace edge
 		{ }
 		property (const property&) = delete;
 		property& operator= (const property&) = delete;
-		
-		virtual ~property() = default;
+
+	private:
+		// We want this type to be polymorphic, and we can't make the destructor virtual
+		// cause we also want the type to be a literal type. That's why the dummy function.
+		virtual void dummy() { }
 	};
 
 	struct NVP

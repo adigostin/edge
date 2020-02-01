@@ -38,9 +38,10 @@ namespace edge
 		LONG GetX() const { return GetRect().left; }
 		LONG GetY() const { return GetRect().top; }
 		POINT GetLocation() const;
-		LONG GetWidth() const;
-		LONG GetHeight() const;
-		SIZE GetSize() const;
+		LONG width_pixels() const;
+		LONG height_pixels() const;
+		SIZE size_pixels() const;
+		void move_window (const RECT& rect);
 	};
 
 	struct zoomable_i : public win32_window_i

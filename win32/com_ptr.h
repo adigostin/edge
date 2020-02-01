@@ -86,7 +86,12 @@ namespace edge
 		template<typename IFrom, std::enable_if_t<!std::is_same_v<IFrom, I>, int> = 0>
 		com_ptr<I>& operator= (const com_ptr<IFrom>& from)
 		{
-			static_assert (false, "Not yet implemented");
+			if (_ptr)
+				_ptr->Release();
+			auto hr = from->QueryInterface(&_ptr);
+			if (FAILED(hr))
+				throw _com_error(hr);
+			return *this;
 		}
 
 		// --------------------------------------------------------------------
