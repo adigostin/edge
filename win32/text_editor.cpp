@@ -118,9 +118,9 @@ namespace edge
 		size_t GetPosAtDLocation (D2D1_POINT_2F dLocation, bool* isInside)
 		{
 			auto textOffset = get_text_location();
-	
+
 			auto locationInEditorCoords = dLocation - textOffset;
-	
+
 			BOOL trailing, insideText;
 			DWRITE_HIT_TEST_METRICS htm;
 			auto hr = _text_layout->HitTestPoint (locationInEditorCoords.width, locationInEditorCoords.height, &trailing, &insideText, &htm); assert(SUCCEEDED(hr));
@@ -139,7 +139,7 @@ namespace edge
 
 			return pos;
 		}
-	
+
 		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
 		{
 			if (button == mouse_button::left)
@@ -170,7 +170,7 @@ namespace edge
 				set_caret_screen_location_from_caret_pos();
 			}
 		}
-		
+
 		virtual handled process_virtual_key_down (uint32_t virtualKey, modifier_key mks) override
 		{
 			#pragma region Left
@@ -369,7 +369,7 @@ namespace edge
 		{
 			return handled::no;
 		}
-		
+
 		void insert_text_over_selection (const wchar_t* textToInsert, size_t textToInsertCharCount)
 		{
 			if (_selection_origin_pos != _caret_pos)
@@ -501,7 +501,7 @@ namespace edge
 				case VertAlignmentBaseline: y = _editorBounds.location.y + _editorBounds.size.y     - layout->GetBaseline();   break;
 				default: assert(false); y = 0;
 			}
-	
+
 			return { x, y };
 			*/
 		}
@@ -519,7 +519,7 @@ namespace edge
 			if (selectionEndIndex != selectionStartIndex)
 			{
 				auto layoutTextBefore = text_layout_with_metrics (_dwrite_factory, _format, { _text.data(), selectionStartIndex });
-				
+
 				auto layoutSelectedText = text_layout_with_metrics (_dwrite_factory, _format, { _text.data() + selectionStartIndex, selectionEndIndex - selectionStartIndex});
 
 				D2D1_RECT_F rect;
