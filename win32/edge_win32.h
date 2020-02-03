@@ -3,6 +3,7 @@
 
 namespace edge
 {
+	// TODO: get rid of this, use some bool& handled parameter
 	enum class handled { no = 0, yes = 1 };
 
 	enum class mouse_button { left, right, middle, };

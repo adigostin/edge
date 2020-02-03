@@ -68,7 +68,7 @@ namespace edge
 	float text_layout_with_metrics::width() const
 	{
 		assert(layout());
-		return _metrics.width;
+		return _metrics.widthIncludingTrailingWhitespace;
 	}
 
 	float text_layout_with_metrics::height() const

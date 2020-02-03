@@ -9,6 +9,8 @@ namespace edge
 
 	class owned_object : public object
 	{
+		using base = object;
+
 		template<typename child_type>
 		friend struct typed_collection_i;
 

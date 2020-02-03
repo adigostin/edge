@@ -172,5 +172,57 @@ namespace edge
 
 	// ========================================================================
 
+	void backed_string_property_traits::serialize (std::string_view from, out_stream_i* to)
+	{
+		if (from.size() < 254)
+		{
+			to->write((uint8_t)from.size());
+		}
+		else if (from.size() < 65536)
+		{
+			to->write((uint8_t)254);
+			to->write ((uint8_t)(from.size()));
+			to->write ((uint8_t)(from.size() >> 8));
+		}
+		else
+		{
+			to->write((uint8_t)255);
+			to->write ((uint8_t)(from.size()));
+			to->write ((uint8_t)(from.size() >> 8));
+			to->write ((uint8_t)(from.size() >> 16));
+			to->write ((uint8_t)(from.size() >> 24));
+		}
+		
+		to->write (from.data(), from.size());
+	}
+
+	std::string_view backed_string_property_traits::deserialize (binary_reader& from)
+	{
+		assert (from.ptr + 1 <= from.end);
+		size_t len = *from.ptr++;
+
+		if (len == 254)
+		{
+			assert (from.ptr + 2 <= from.end);
+			len = *from.ptr++;
+			len |= (*from.ptr++ << 8);
+		}
+		else if (len == 255)
+		{
+			assert (from.ptr + 4 <= from.end);
+			len = *from.ptr++;
+			len |= (*from.ptr++ << 8);
+			len |= (*from.ptr++ << 16);
+			len |= (*from.ptr++ << 24);
+		}
+
+		assert (from.ptr + len <= from.end);
+		auto res = std::string_view ((const char*)from.ptr, len);
+		from.ptr += len;
+		return res;
+	}
+
+	// ========================================================================
+
 	const char unknown_enum_value_str[] = "(unknown)";
 }

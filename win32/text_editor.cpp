@@ -399,7 +399,7 @@ namespace edge
 		{
 			if (ch >= 0x20)
 			{
-				if (ch >= 0x80)
+				if (ch > 0xFFFF)
 					assert(false); // not implemented
 
 				wchar_t c = (wchar_t) ch;

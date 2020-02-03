@@ -57,11 +57,14 @@ namespace edge
 	struct out_stream_i
 	{
 		virtual void write (const void* data, size_t size) = 0;
+
+		void write (uint8_t data) { write(&data, sizeof(data)); }
 	};
 
-	struct in_stream_i
+	struct binary_reader
 	{
-		virtual void read (void* data, size_t size) = 0;
+		const uint8_t* ptr;
+		const uint8_t* const end;
 	};
 
 	struct value_property : property
@@ -72,8 +75,8 @@ namespace edge
 		virtual bool has_setter() const = 0;
 		virtual std::string get_to_string (const object* obj) const = 0;
 		virtual bool try_set_from_string (object* obj, std::string_view str) const = 0;
-		virtual void serialize (const object* obj, out_stream_i* out) const = 0;
-		virtual void deserialize (object* obj, in_stream_i* in) const = 0;
+		virtual void serialize (const object* from, out_stream_i* to) const = 0;
+		virtual void deserialize (binary_reader& from, object* to) const = 0;
 		virtual const NVP* nvps() const = 0;
 		virtual bool equal (object* obj1, object* obj2) const = 0;
 		virtual bool changed_from_default(const object* obj) const = 0;
@@ -145,8 +148,7 @@ namespace edge
 				if (type == member_var)
 					return obj->*mv;
 
-				assert(false);
-				return { };
+				throw nullptr;
 			}
 		};
 
@@ -170,6 +172,12 @@ namespace edge
 
 			template<typename StaticSetter, std::enable_if_t<is_static_castable<StaticSetter, static_setter_t>::value, int> = 0>
 			constexpr setter_t (StaticSetter ss) noexcept : type(static_function), ss(static_cast<static_setter_t>(ss)) { }
+
+			void set (binary_reader& from, object* to) const
+			{
+				property_traits::deserialize(from);
+				assert(false); // not implemented
+			}
 
 			bool try_set_from_string (object* obj, std::string_view str_in) const
 			{
@@ -203,8 +211,6 @@ namespace edge
 
 		virtual bool has_setter() const override final { return _setter.has_setter(); }
 
-		return_t get (const object* obj) const { return _getter.get(obj); }
-
 		virtual std::string get_to_string (const object* obj) const override final { return property_traits::to_string(_getter.get(obj)); }
 
 		virtual bool try_set_from_string (object* obj, std::string_view str_in) const override final
@@ -212,15 +218,14 @@ namespace edge
 			return _setter.try_set_from_string (obj, str_in);
 		}
 
-		virtual void serialize (const object* obj, out_stream_i* out) const override final
-		{
-			value_t value = _getter.get(obj);
-			out->write (&value, sizeof(value));
-		}
+		virtual void serialize (const object* from, out_stream_i* to) const override final { property_traits::serialize (_getter.get(from), to); }
 
-		virtual void deserialize (object* obj, in_stream_i* in) const override final
+		virtual void deserialize (binary_reader& from, object* to) const override final
 		{
-			assert(false); // TODO
+			if (to)
+				_setter.set (from, to);
+			else
+				property_traits::deserialize (from);
 		}
 
 	private:
@@ -244,7 +249,7 @@ namespace edge
 
 		virtual bool equal (object* obj1, object* obj2) const override final
 		{
-			return get(obj1) == get(obj2);
+			return _getter.get(obj1) == _getter.get(obj2);
 		}
 
 		virtual bool changed_from_default(const object* obj) const override
@@ -252,7 +257,7 @@ namespace edge
 			if (!_default_value.has_value())
 				return true;
 
-			return get(obj) != _default_value.value();
+			return _getter.get(obj) != _default_value.value();
 		}
 	};
 
@@ -266,6 +271,8 @@ namespace edge
 		using return_t = bool;
 		static std::string to_string (bool from) { return from ? "True" : "False"; }
 		static bool from_string (std::string_view from, bool& to);
+		static void serialize (param_t from, out_stream_i* to) { assert(false); }
+		static return_t deserialize (binary_reader& from) { assert(false); }
 	};
 	using bool_p = typed_property<bool_property_traits>;
 
@@ -279,6 +286,8 @@ namespace edge
 		using return_t = t_;
 		static std::string to_string (t_ from); // needs specialization
 		static bool from_string (std::string_view from, t_& to); // needs specialization
+		static void serialize (param_t from, out_stream_i* to) { assert(false); }
+		static return_t deserialize (binary_reader& from) { assert(false); }
 	};
 
 	extern const char int32_type_name[];
@@ -307,9 +316,11 @@ namespace edge
 		static constexpr const char* type_name = backed ? "backed_string" : "temp_string";
 		using value_t = std::string;
 		using param_t = std::string_view;
-		using return_t = std::conditional_t<backed, const std::string&, std::string>;
+		using return_t = std::conditional_t<backed, std::string_view, std::string>;
 		static std::string to_string (std::string_view from) { return std::string(from); }
 		static bool from_string (std::string_view from, std::string& to) { to = from; return true; }
+		static void serialize (param_t from, out_stream_i* to);
+		static return_t deserialize (binary_reader& from);
 	};
 	using temp_string_property_traits = string_property_traits<false>;
 	using temp_string_p = typed_property<temp_string_property_traits>;
@@ -366,6 +377,9 @@ namespace edge
 
 			return false;
 		}
+
+		static void serialize (param_t from, out_stream_i* to) { assert(false); }
+		static return_t deserialize (binary_reader& from) { assert(false); }
 	};
 
 	extern const char unknown_enum_value_str[];
