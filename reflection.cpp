@@ -6,6 +6,16 @@ namespace edge
 {
 	extern const property_group misc_group = { 0, "Misc" };
 
+	std::string make_convert_exception (std::string_view str, const char* type_name)
+	{
+		auto res = std::string("Cannot convert \"");
+		res += str;
+		res += "\" to type \"";
+		res += type_name;
+		res += "\".";
+		return res;
+	}
+
 	// ========================================================================
 
 	const char bool_property_traits::type_name[] = "bool";
@@ -15,28 +25,28 @@ namespace edge
 		return from ? "true" : "false";
 	}
 
-	bool bool_property_traits::from_string (std::string_view from, bool& to)
+	void bool_property_traits::from_string (std::string_view from, bool& to)
 	{
 		if ((from.size() == 4) && (tolower(from[0]) == 't') && (tolower(from[1]) == 'r') && (tolower(from[2]) == 'u') && (tolower(from[3]) == 'e'))
 		{
 			to = true;
-			return true;
+			return;
 		}
 
 		if ((from.size() == 5) && (tolower(from[0]) == 'f') && (tolower(from[1]) == 'a') && (tolower(from[2]) == 'l') && (tolower(from[3]) == 's') && (tolower(from[4]) == 'e'))
 		{
 			to = false;
-			return true;
+			return;
 		}
 
-		return false;
+		throw make_convert_exception(from, type_name);
 	}
 
 	// ========================================================================
 
 	extern const char int32_type_name[] = "int32";
 
-	template<> std::string int32_property_traits::to_string (int32_t from)
+	template<> void int32_property_traits::to_string (param_t from, std::string& to)
 	{
 		char buffer[16];
 		#ifdef _MSC_VER
@@ -44,29 +54,28 @@ namespace edge
 		#else
 			sprintf (buffer, "%d", from);
 		#endif
-		return buffer;
+		to = buffer;
 	}
 
-	template<> bool int32_property_traits::from_string (std::string_view from, int32_t& to)
+	template<> void int32_property_traits::from_string (std::string_view from, int32_t& to)
 	{
 		if (from.empty())
-			return false;
+			throw make_convert_exception(from, type_name);
 
 		char* endPtr;
 		long value = strtol (from.data(), &endPtr, 10);
 
 		if (endPtr != from.data() + from.size())
-			return false;
+			throw make_convert_exception(from, type_name);
 
 		to = value;
-		return true;
 	}
 
 	// ========================================================================
 
 	extern const char uint32_type_name[] = "uint32";
 
-	template<> std::string uint32_property_traits::to_string (uint32_t from)
+	template<> void uint32_property_traits::to_string (param_t from, std::string& to)
 	{
 		char buffer[16];
 		#ifdef _MSC_VER
@@ -74,29 +83,28 @@ namespace edge
 		#else
 		sprintf (buffer, "%u", from);
 		#endif
-		return buffer;
+		to = buffer;
 	}
 
-	template<> bool uint32_property_traits::from_string (std::string_view from, uint32_t& to)
+	template<> void uint32_property_traits::from_string (std::string_view from, uint32_t& to)
 	{
 		if (from.empty())
-			return false;
+			throw make_convert_exception(from, type_name);
 
 		char* endPtr;
 		unsigned long value = std::strtoul (from.data(), &endPtr, 10);
 
 		if (endPtr != from.data() + from.size())
-			return false;
+			throw make_convert_exception(from, type_name);
 
 		to = value;
-		return true;
 	}
 
 	// ========================================================================
 
 	extern const char uint64_type_name[] = "uint64";
 
-	template<> std::string uint64_property_traits::to_string (uint64_t from)
+	template<> void uint64_property_traits::to_string (param_t from, std::string& to)
 	{
 		char buffer[32];
 		#ifdef _MSC_VER
@@ -104,47 +112,44 @@ namespace edge
 		#else
 		sprintf (buffer, "%llu", from);
 		#endif
-		return buffer;
+		to = buffer;
 	}
 
-	template<> bool uint64_property_traits::from_string (std::string_view from, uint64_t& to)
+	template<> void uint64_property_traits::from_string (std::string_view from, uint64_t& to)
 	{
 		if (from.empty())
-			return false;
+			throw make_convert_exception(from, type_name);
 
 		char* endPtr;
 		unsigned long long value = std::strtoull (from.data(), &endPtr, 10);
 
 		if (endPtr != from.data() + from.size())
-			return false;
+			throw make_convert_exception(from, type_name);
 
 		to = value;
-		return true;
 	}
 
 	// ========================================================================
 
 	extern const char size_t_type_name[] = "size_t";
 
-	template<> std::string size_t_property_traits::to_string (size_t from)
+	template<> void size_t_property_traits::to_string (param_t from, std::string& to)
 	{
-		return uint32_property_traits::to_string((uint32_t)from);
+		uint32_property_traits::to_string((uint32_t)from, to);
 	}
 
-	template<> bool size_t_property_traits::from_string (std::string_view from, size_t&to)
+	template<> void size_t_property_traits::from_string (std::string_view from, size_t&to)
 	{
 		uint32_t val;
-		bool res = uint32_property_traits::from_string (from, val);
-		if (res)
-			to = val;
-		return res;
+		uint32_property_traits::from_string (from, val);
+		to = val;
 	}
 
 	// ========================================================================
 
 	extern const char float_type_name[] = "float";
 
-	template<> std::string float_property_traits::to_string (float from)
+	template<> void float_property_traits::to_string (param_t from, std::string& to)
 	{
 		char buffer[32];
 		#ifdef _MSC_VER
@@ -152,22 +157,21 @@ namespace edge
 		#else
 			sprintf (buffer, "%f", from);
 		#endif
-		return buffer;
+		to = buffer;
 	}
 
-	template<> bool float_property_traits::from_string (std::string_view from, float& to)
+	template<> void float_property_traits::from_string (std::string_view from, float& to)
 	{
 		if (from.empty())
-			return false;
+			throw make_convert_exception(from, type_name);
 
 		char* end_ptr;
 		float value = strtof (from.data(), &end_ptr);
 
 		if (end_ptr != from.data() + from.size())
-			return false;
+			throw make_convert_exception(from, type_name);
 
 		to = value;
-		return true;
 	}
 
 	// ========================================================================

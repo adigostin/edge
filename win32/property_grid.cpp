@@ -668,11 +668,14 @@ public:
 
 		for (size_t i = 0; i < objects.size(); i++)
 		{
-			bool set_ok = prop->try_set_from_string(objects[i], new_value_str);
-			if (!set_ok)
+			try
+			{
+				prop->set_from_string (new_value_str, objects[i]);
+			}
+			catch (const std::exception&)
 			{
 				for (size_t j = 0; j < i; j++)
-					prop->try_set_from_string(objects[j], old_values[j]);
+					prop->set_from_string(old_values[j], objects[j]);
 
 				return false;
 			}

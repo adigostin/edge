@@ -8,7 +8,7 @@ namespace edge
 	static const _bstr_t entry_elem_name = "Entry";
 	static const _bstr_t index_attr_name = "index";
 	static const _bstr_t value_attr_name = "Value";
-	
+
 	static com_ptr<IXMLDOMElement> serialize_internal (IXMLDOMDocument* doc, const object* obj, bool force_serialize_unchanged, size_t index_attribute);
 	static void deserialize_to_internal (IXMLDOMElement* element, object* obj, bool ignore_index_attribute, std::span<const type* const> known_types);
 
@@ -63,7 +63,7 @@ namespace edge
 		size_t size = prop->size(obj);
 		if (size == 0)
 			return nullptr;
-		
+
 		if (!prop->changed(obj))
 			return nullptr;
 
@@ -99,7 +99,7 @@ namespace edge
 				}
 			}
 		};
-		
+
 		if (force_serialize_unchanged)
 			ensure_object_element_created();
 
@@ -219,10 +219,7 @@ namespace edge
 			_variant_t index_attr_value;
 			hr = child_elem->getAttribute(index_attr_name, index_attr_value.GetAddress());
 			if (hr == S_OK)
-			{
-				bool converted = size_t_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index);
-				assert(converted);
-			}
+				size_t_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index);
 
 			auto child = prop->child_at(obj, index);
 			deserialize_to_internal (child_elem, child, true, known_types);
@@ -242,11 +239,11 @@ namespace edge
 			_variant_t index_attr_value;
 			hr = entry_elem->getAttribute(index_attr_name, index_attr_value.GetAddress()); assert(SUCCEEDED(hr));
 			size_t index;
-			bool converted = size_t_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index); assert(converted);
+			size_t_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index);
 
 			_variant_t value_attr_value;
 			hr = entry_elem->getAttribute(value_attr_name, value_attr_value.GetAddress()); assert(SUCCEEDED(hr));
-			
+
 			auto value_utf8 = bstr_to_utf8(value_attr_value.bstrVal);
 			if (prop->can_insert_remove())
 			{
@@ -302,9 +299,7 @@ namespace edge
 			auto value_prop = dynamic_cast<const value_property*>(prop);
 			if (value_prop == nullptr)
 				assert(false); // error handling for this not implemented
-			bool set_successful = value_prop->try_set_from_string(obj, value.c_str());
-			if (!set_successful)
-				assert(false); // error handling for this not implemented
+			value_prop->set_from_string(value, obj);
 		}
 
 		com_ptr<IXMLDOMNode> child_node;
@@ -315,7 +310,7 @@ namespace edge
 			_bstr_t namebstr;
 			hr = child_elem->get_nodeName(namebstr.GetAddress()); assert(SUCCEEDED(hr));
 			auto name = bstr_to_utf8(namebstr);
-			
+
 			auto prop = obj->type()->find_property(name.c_str());
 			if (prop == nullptr)
 				assert(false); // error handling for this not implemented

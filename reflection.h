@@ -29,6 +29,17 @@ namespace edge
 
 	enum class ui_visible { no, yes };
 
+	class string_convert_exception : public std::exception
+	{
+		std::string const _message;
+
+		string_convert_exception (std::string&& message)
+			: _message(std::move(message))
+		{ }
+
+		virtual char const* what() const override { return _message.c_str(); }
+	};
+
 	struct property
 	{
 		const char* const _name;
@@ -73,13 +84,20 @@ namespace edge
 
 		virtual const char* type_name() const = 0;
 		virtual bool has_setter() const = 0;
-		virtual std::string get_to_string (const object* obj) const = 0;
-		virtual bool try_set_from_string (object* obj, std::string_view str) const = 0;
+		virtual void get_to_string (const object* from, std::string& to) const = 0;
+		virtual void set_from_string (std::string_view from, object* to) const = 0;
 		virtual void serialize (const object* from, out_stream_i* to) const = 0;
 		virtual void deserialize (binary_reader& from, object* to) const = 0;
 		virtual const NVP* nvps() const = 0;
 		virtual bool equal (object* obj1, object* obj2) const = 0;
 		virtual bool changed_from_default(const object* obj) const = 0;
+
+		std::string get_to_string (const object* from) const
+		{
+			std::string to;
+			get_to_string (from, to);
+			return to;
+		}
 	};
 
 	// ========================================================================
@@ -92,8 +110,6 @@ namespace edge
 		using value_t  = typename property_traits::value_t;
 		using param_t  = typename property_traits::param_t;
 		using return_t = typename property_traits::return_t;
-
-		static constexpr auto from_string = &property_traits::from_string;
 
 		using member_getter_t = return_t (object::*)() const;
 		using member_setter_t = void (object::*)(param_t);
@@ -179,21 +195,17 @@ namespace edge
 				assert(false); // not implemented
 			}
 
-			bool try_set_from_string (object* obj, std::string_view str_in) const
+			void set_from_string (std::string_view from, object* to) const
 			{
 				value_t value;
-				bool ok = property_traits::from_string(str_in, value);
-				if (ok)
-				{
-					if (type == member_function)
-						(obj->*ms)(value);
-					else if (type == static_function)
-						ss(obj, value);
-					else
-						assert(false);
-				}
+				property_traits::from_string(from, value);
 
-				return ok;
+				if (type == member_function)
+					(to->*ms)(value);
+				else if (type == static_function)
+					ss(to, value);
+				else
+					assert(false);
 			}
 
 			bool has_setter() const { return type != none; }
@@ -211,14 +223,20 @@ namespace edge
 
 		virtual bool has_setter() const override final { return _setter.has_setter(); }
 
-		virtual std::string get_to_string (const object* obj) const override final { return property_traits::to_string(_getter.get(obj)); }
-
-		virtual bool try_set_from_string (object* obj, std::string_view str_in) const override final
+		virtual void get_to_string (const object* from, std::string& to) const override final
 		{
-			return _setter.try_set_from_string (obj, str_in);
+			property_traits::to_string(_getter.get(from), to);
 		}
 
-		virtual void serialize (const object* from, out_stream_i* to) const override final { property_traits::serialize (_getter.get(from), to); }
+		virtual void set_from_string (std::string_view from, object* to) const override final
+		{
+			return _setter.set_from_string (from, to);
+		}
+
+		virtual void serialize (const object* from, out_stream_i* to) const override final
+		{
+			property_traits::serialize (_getter.get(from), to);
+		}
 
 		virtual void deserialize (binary_reader& from, object* to) const override final
 		{
@@ -269,8 +287,8 @@ namespace edge
 		using value_t = bool;
 		using param_t = bool;
 		using return_t = bool;
-		static std::string to_string (bool from) { return from ? "True" : "False"; }
-		static bool from_string (std::string_view from, bool& to);
+		static void to_string (param_t from, std::string& to) { to = from ? "True" : "False"; }
+		static void from_string (std::string_view from, bool& to);
 		static void serialize (param_t from, out_stream_i* to) { assert(false); }
 		static return_t deserialize (binary_reader& from) { assert(false); }
 	};
@@ -284,10 +302,10 @@ namespace edge
 		using value_t = t_;
 		using param_t = t_;
 		using return_t = t_;
-		static std::string to_string (t_ from); // needs specialization
-		static bool from_string (std::string_view from, t_& to); // needs specialization
-		static void serialize (param_t from, out_stream_i* to) { assert(false); }
-		static return_t deserialize (binary_reader& from) { assert(false); }
+		static void to_string (param_t from, std::string& to); // needs specialization
+		static void from_string (std::string_view from, t_& to); // needs specialization
+		static void serialize (param_t from, out_stream_i* to); // needs specialization
+		static return_t deserialize (binary_reader& from); // needs specialization
 	};
 
 	extern const char int32_type_name[];
@@ -317,8 +335,8 @@ namespace edge
 		using value_t = std::string;
 		using param_t = std::string_view;
 		using return_t = std::conditional_t<backed, std::string_view, std::string>;
-		static std::string to_string (std::string_view from) { return std::string(from); }
-		static bool from_string (std::string_view from, std::string& to) { to = from; return true; }
+		static void to_string (param_t from, std::string& to) { to = from; }
+		static bool from_string (std::string_view from, std::string& to) { to = from; }
 		static void serialize (param_t from, out_stream_i* to);
 		static return_t deserialize (binary_reader& from);
 	};
