@@ -47,7 +47,7 @@ namespace edge
 		virtual void invalidate() = 0;
 		virtual text_editor_i* show_text_editor (const D2D1_RECT_F& rect, float lr_padding, std::string_view str) = 0;
 		virtual int show_enum_editor (D2D1_POINT_2F dip, const NVP* nvps) = 0;
-		virtual bool try_change_property (const std::vector<object*>& objects, const value_property* prop, std::string_view new_value_str) = 0;
+		virtual void change_property (const std::vector<object*>& objects, const value_property* prop, std::string_view new_value_str) = 0;
 		virtual float line_thickness() const = 0;
 		virtual float client_width() const = 0;
 		virtual float value_column_x() const = 0;

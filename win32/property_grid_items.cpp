@@ -375,7 +375,18 @@ float root_item::content_height() const
 				auto changed = [new_value_str, prop=property()](object* o) { return prop->get_to_string(o) != new_value_str; };
 				auto& objects = parent()->parent()->objects();
 				if (std::any_of(objects.begin(), objects.end(), changed))
-					root()->_grid->try_change_property (objects, property(), new_value_str);
+				{
+					try
+					{
+						root()->_grid->change_property (objects, property(), new_value_str);
+					}
+					catch (const std::exception& ex)
+					{
+						auto message = utf8_to_utf16(ex.what());
+						::MessageBox (root()->_grid->hwnd(), message.c_str(), L"Error setting property", 0);
+					}
+				}
+
 			}
 		}
 		else

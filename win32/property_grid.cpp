@@ -644,12 +644,14 @@ public:
 		auto prop_item = dynamic_cast<value_item*>(_selected_item); assert(prop_item);
 		auto text_utf16 = _text_editor->wstr();
 		auto text_utf8 = utf16_to_utf8(text_utf16);
-		bool changed = try_change_property (prop_item->parent()->parent()->objects(), prop_item->property(), text_utf8);
-		if (!changed)
+		try
 		{
-			std::wstringstream ss;
-			ss << _text_editor->wstr() << " is not a valid value for the " << prop_item->property()->_name << " property.";
-			::MessageBox (hwnd(), ss.str().c_str(), L"aaa", 0);
+			change_property (prop_item->parent()->parent()->objects(), prop_item->property(), text_utf8);
+		}
+		catch (const std::exception& ex)
+		{
+			auto message = utf8_to_utf16(ex.what());
+			::MessageBox (hwnd(), message.c_str(), L"Error setting property", 0);
 			::SetFocus (hwnd());
 			_text_editor->select_all();
 			return;
@@ -659,7 +661,7 @@ public:
 		_text_editor = nullptr;
 	}
 
-	virtual bool try_change_property (const std::vector<object*>& objects, const value_property* prop, std::string_view new_value_str) override final
+	virtual void change_property (const std::vector<object*>& objects, const value_property* prop, std::string_view new_value_str) override final
 	{
 		std::vector<std::string> old_values;
 		old_values.reserve(objects.size());
@@ -677,13 +679,12 @@ public:
 				for (size_t j = 0; j < i; j++)
 					prop->set_from_string(old_values[j], objects[j]);
 
-				return false;
+				throw;
 			}
 		}
 
 		property_changed_args args = { objects, std::move(old_values), std::string(new_value_str) };
 		this->event_invoker<property_changed_e>()(std::move(args));
-		return true;
 	}
 
 	virtual float line_thickness() const override { return base::line_thickness(); }
