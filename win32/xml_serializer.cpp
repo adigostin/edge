@@ -69,9 +69,10 @@ namespace edge
 
 		com_ptr<IXMLDOMElement> collection_element;
 		auto hr = doc->createElement (_bstr_t(prop->_name), &collection_element); assert(SUCCEEDED(hr));
+		std::string value;
 		for (size_t i = 0; i < size; i++)
 		{
-			auto value = prop->get_value(obj, i);
+			prop->get_value(obj, i, value);
 			com_ptr<IXMLDOMElement> entry_element;
 			hr = doc->createElement (entry_elem_name, &entry_element); assert(SUCCEEDED(hr));
 			hr = entry_element->setAttribute (index_attr_name, _variant_t(i)); assert(SUCCEEDED(hr));
@@ -246,15 +247,9 @@ namespace edge
 
 			auto value_utf8 = bstr_to_utf8(value_attr_value.bstrVal);
 			if (prop->can_insert_remove())
-			{
-				bool converted = prop->insert_value (obj, index, value_utf8);
-				assert(converted);
-			}
+				prop->insert_value (value_utf8, obj, index);
 			else
-			{
-				bool converted = prop->set_value(obj, index, value_utf8);
-				assert(converted);
-			}
+				prop->set_value (value_utf8, obj, index);
 
 			hr = entry_node->get_nextSibling(&entry_node); assert(SUCCEEDED(hr));
 		}

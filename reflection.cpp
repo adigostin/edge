@@ -6,7 +6,8 @@ namespace edge
 {
 	extern const property_group misc_group = { 0, "Misc" };
 
-	std::string make_convert_exception (std::string_view str, const char* type_name)
+	//static
+	std::string string_convert_exception::make_string (std::string_view str, const char* type_name)
 	{
 		auto res = std::string("Cannot convert \"");
 		res += str;
@@ -16,16 +17,24 @@ namespace edge
 		return res;
 	}
 
+	string_convert_exception::string_convert_exception (const char* str)
+		: _message(str)
+	{ }
+
+	string_convert_exception::string_convert_exception (std::string_view str, const char* type_name)
+		: _message(make_string(str, type_name))
+	{ }
+
 	// ========================================================================
 
 	const char bool_property_traits::type_name[] = "bool";
 
-	std::string bool_to_string (bool from)
+	void bool_property_traits::to_string (param_t from, std::string& to)
 	{
-		return from ? "true" : "false";
+		to = from ? "True" : "False";
 	}
 
-	void bool_property_traits::from_string (std::string_view from, bool& to)
+	void bool_property_traits::from_string (std::string_view from, value_t& to)
 	{
 		if ((from.size() == 4) && (tolower(from[0]) == 't') && (tolower(from[1]) == 'r') && (tolower(from[2]) == 'u') && (tolower(from[3]) == 'e'))
 		{
@@ -39,7 +48,7 @@ namespace edge
 			return;
 		}
 
-		throw make_convert_exception(from, type_name);
+		throw string_convert_exception(from, type_name);
 	}
 
 	// ========================================================================
@@ -60,15 +69,25 @@ namespace edge
 	template<> void int32_property_traits::from_string (std::string_view from, int32_t& to)
 	{
 		if (from.empty())
-			throw make_convert_exception(from, type_name);
+			throw string_convert_exception(from, type_name);
 
 		char* endPtr;
 		long value = strtol (from.data(), &endPtr, 10);
 
 		if (endPtr != from.data() + from.size())
-			throw make_convert_exception(from, type_name);
+			throw string_convert_exception(from, type_name);
 
 		to = value;
+	}
+
+	template<> void int32_property_traits::serialize (param_t from, out_stream_i* to)
+	{
+		assert(false); // not implemented
+	}
+
+	template<> void int32_property_traits::deserialize (binary_reader& from, value_t& to)
+	{
+		assert(false); // not implemented
 	}
 
 	// ========================================================================
@@ -89,15 +108,25 @@ namespace edge
 	template<> void uint32_property_traits::from_string (std::string_view from, uint32_t& to)
 	{
 		if (from.empty())
-			throw make_convert_exception(from, type_name);
+			throw string_convert_exception(from, type_name);
 
 		char* endPtr;
 		unsigned long value = std::strtoul (from.data(), &endPtr, 10);
 
 		if (endPtr != from.data() + from.size())
-			throw make_convert_exception(from, type_name);
+			throw string_convert_exception(from, type_name);
 
 		to = value;
+	}
+
+	template<> void uint32_property_traits::serialize (param_t from, out_stream_i* to)
+	{
+		assert(false); // not implemented
+	}
+
+	template<> void uint32_property_traits::deserialize (binary_reader& from, value_t& to)
+	{
+		assert(false); // not implemented
 	}
 
 	// ========================================================================
@@ -118,15 +147,25 @@ namespace edge
 	template<> void uint64_property_traits::from_string (std::string_view from, uint64_t& to)
 	{
 		if (from.empty())
-			throw make_convert_exception(from, type_name);
+			throw string_convert_exception(from, type_name);
 
 		char* endPtr;
 		unsigned long long value = std::strtoull (from.data(), &endPtr, 10);
 
 		if (endPtr != from.data() + from.size())
-			throw make_convert_exception(from, type_name);
+			throw string_convert_exception(from, type_name);
 
 		to = value;
+	}
+
+	template<> void uint64_property_traits::serialize (param_t from, out_stream_i* to)
+	{
+		assert(false); // not implemented
+	}
+
+	template<> void uint64_property_traits::deserialize (binary_reader& from, value_t& to)
+	{
+		assert(false); // not implemented
 	}
 
 	// ========================================================================
@@ -143,6 +182,16 @@ namespace edge
 		uint32_t val;
 		uint32_property_traits::from_string (from, val);
 		to = val;
+	}
+
+	template<> void size_t_property_traits::serialize (param_t from, out_stream_i* to)
+	{
+		assert(false); // not implemented
+	}
+
+	template<> void size_t_property_traits::deserialize (binary_reader& from, value_t& to)
+	{
+		assert(false); // not implemented
 	}
 
 	// ========================================================================
@@ -163,20 +212,32 @@ namespace edge
 	template<> void float_property_traits::from_string (std::string_view from, float& to)
 	{
 		if (from.empty())
-			throw make_convert_exception(from, type_name);
+			throw string_convert_exception(from, type_name);
 
 		char* end_ptr;
 		float value = strtof (from.data(), &end_ptr);
 
 		if (end_ptr != from.data() + from.size())
-			throw make_convert_exception(from, type_name);
+			throw string_convert_exception(from, type_name);
 
 		to = value;
 	}
 
+	template<> void float_property_traits::serialize (param_t from, out_stream_i* to)
+	{
+		assert(false); // not implemented
+	}
+
+	template<> void float_property_traits::deserialize (binary_reader& from, value_t& to)
+	{
+		assert(false); // not implemented
+	}
+
 	// ========================================================================
 
-	void backed_string_property_traits::serialize (std::string_view from, out_stream_i* to)
+	const char backed_string_property_traits::type_name[] = "backed_string";
+
+	void backed_string_property_traits::serialize (param_t from, out_stream_i* to)
 	{
 		if (from.size() < 254)
 		{
@@ -196,11 +257,11 @@ namespace edge
 			to->write ((uint8_t)(from.size() >> 16));
 			to->write ((uint8_t)(from.size() >> 24));
 		}
-		
+
 		to->write (from.data(), from.size());
 	}
 
-	std::string_view backed_string_property_traits::deserialize (binary_reader& from)
+	void backed_string_property_traits::deserialize (binary_reader& from, value_t& to)
 	{
 		assert (from.ptr + 1 <= from.end);
 		size_t len = *from.ptr++;
@@ -221,9 +282,22 @@ namespace edge
 		}
 
 		assert (from.ptr + len <= from.end);
-		auto res = std::string_view ((const char*)from.ptr, len);
+		to = std::string_view((const char*)from.ptr, len);
 		from.ptr += len;
-		return res;
+	}
+
+	// ========================================================================
+
+	const char temp_string_property_traits::type_name[] = "temp_string";
+
+	void temp_string_property_traits::serialize (param_t from, out_stream_i* to)
+	{
+		assert(false); // not implemented
+	}
+
+	void temp_string_property_traits::deserialize (binary_reader& from, value_t& to)
+	{
+		assert(false); // not implemented
 	}
 
 	// ========================================================================
