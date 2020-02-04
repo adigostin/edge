@@ -37,7 +37,7 @@ namespace edge
 		// Commented out because VC++ seems to have problems on this when compiling some inline constexpr xtype constructors.
 		// static_assert (std::is_base_of<object, object_type>::value);
 
-		using factory_t = std::unique_ptr<object_type>(*)(typename factory_arg_property_traits::param_t... factory_args);
+		using factory_t = std::unique_ptr<object_type>(*)(typename factory_arg_property_traits::value_t... factory_args);
 
 		factory_t const _factory;
 		std::array<const value_property*, parameter_count> const _factory_props;

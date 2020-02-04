@@ -29,7 +29,7 @@ namespace edge
 
 	const char bool_property_traits::type_name[] = "bool";
 
-	void bool_property_traits::to_string (param_t from, std::string& to)
+	void bool_property_traits::to_string (value_t from, std::string& to)
 	{
 		to = from ? "True" : "False";
 	}
@@ -55,7 +55,7 @@ namespace edge
 
 	extern const char int32_type_name[] = "int32";
 
-	template<> void int32_property_traits::to_string (param_t from, std::string& to)
+	template<> void int32_property_traits::to_string (value_t from, std::string& to)
 	{
 		char buffer[16];
 		#ifdef _MSC_VER
@@ -80,7 +80,7 @@ namespace edge
 		to = value;
 	}
 
-	template<> void int32_property_traits::serialize (param_t from, out_stream_i* to)
+	template<> void int32_property_traits::serialize (value_t from, out_stream_i* to)
 	{
 		assert(false); // not implemented
 	}
@@ -94,7 +94,7 @@ namespace edge
 
 	extern const char uint32_type_name[] = "uint32";
 
-	template<> void uint32_property_traits::to_string (param_t from, std::string& to)
+	template<> void uint32_property_traits::to_string (value_t from, std::string& to)
 	{
 		char buffer[16];
 		#ifdef _MSC_VER
@@ -119,7 +119,7 @@ namespace edge
 		to = value;
 	}
 
-	template<> void uint32_property_traits::serialize (param_t from, out_stream_i* to)
+	template<> void uint32_property_traits::serialize (value_t from, out_stream_i* to)
 	{
 		assert(false); // not implemented
 	}
@@ -133,7 +133,7 @@ namespace edge
 
 	extern const char uint64_type_name[] = "uint64";
 
-	template<> void uint64_property_traits::to_string (param_t from, std::string& to)
+	template<> void uint64_property_traits::to_string (value_t from, std::string& to)
 	{
 		char buffer[32];
 		#ifdef _MSC_VER
@@ -158,7 +158,7 @@ namespace edge
 		to = value;
 	}
 
-	template<> void uint64_property_traits::serialize (param_t from, out_stream_i* to)
+	template<> void uint64_property_traits::serialize (value_t from, out_stream_i* to)
 	{
 		assert(false); // not implemented
 	}
@@ -172,7 +172,7 @@ namespace edge
 
 	extern const char size_t_type_name[] = "size_t";
 
-	template<> void size_t_property_traits::to_string (param_t from, std::string& to)
+	template<> void size_t_property_traits::to_string (value_t from, std::string& to)
 	{
 		uint32_property_traits::to_string((uint32_t)from, to);
 	}
@@ -184,7 +184,7 @@ namespace edge
 		to = val;
 	}
 
-	template<> void size_t_property_traits::serialize (param_t from, out_stream_i* to)
+	template<> void size_t_property_traits::serialize (value_t from, out_stream_i* to)
 	{
 		assert(false); // not implemented
 	}
@@ -198,7 +198,7 @@ namespace edge
 
 	extern const char float_type_name[] = "float";
 
-	template<> void float_property_traits::to_string (param_t from, std::string& to)
+	template<> void float_property_traits::to_string (value_t from, std::string& to)
 	{
 		char buffer[32];
 		#ifdef _MSC_VER
@@ -223,7 +223,7 @@ namespace edge
 		to = value;
 	}
 
-	template<> void float_property_traits::serialize (param_t from, out_stream_i* to)
+	template<> void float_property_traits::serialize (value_t from, out_stream_i* to)
 	{
 		assert(false); // not implemented
 	}
@@ -237,7 +237,7 @@ namespace edge
 
 	const char backed_string_property_traits::type_name[] = "backed_string";
 
-	void backed_string_property_traits::serialize (param_t from, out_stream_i* to)
+	void backed_string_property_traits::serialize (value_t from, out_stream_i* to)
 	{
 		if (from.size() < 254)
 		{
@@ -290,7 +290,7 @@ namespace edge
 
 	const char temp_string_property_traits::type_name[] = "temp_string";
 
-	void temp_string_property_traits::serialize (param_t from, out_stream_i* to)
+	void temp_string_property_traits::serialize (value_t from, out_stream_i* to)
 	{
 		assert(false); // not implemented
 	}
