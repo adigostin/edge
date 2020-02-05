@@ -108,6 +108,7 @@ namespace edge
 	{
 		using base = value_property;
 
+		using traits_t = property_traits;
 		using value_t  = typename property_traits::value_t;
 
 		using member_getter_t = value_t (object::*)() const;
