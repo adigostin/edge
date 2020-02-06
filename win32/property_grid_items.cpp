@@ -244,8 +244,17 @@ float root_item::content_height() const
 		return !root()->_grid->read_only() && _value.readable && (dynamic_cast<const custom_editor_property_i*>(property()) || property()->has_setter());
 	}
 
-	value_item::value_layout value_item::create_value_layout_internal (IDWriteFactory* factory, IDWriteTextFormat* format, float width) const
+	value_item::value_layout value_item::create_value_layout_internal() const
 	{
+		auto grid = root()->_grid;
+		auto factory = grid->dwrite_factory();
+
+		float width = std::max (0.0f, grid->client_width() - grid->value_column_x() - grid->line_thickness() - 2 * text_lr_padding);
+
+		auto& objs = parent()->parent()->objects();
+		bool changed = std::any_of(objs.begin(), objs.end(), [prop=property()](object* o) { return prop->changed_from_default(o); });
+		auto format = changed ? grid->bold_text_format() : grid->text_format();
+
 		text_layout_with_metrics tl;
 		bool readable;
 		try
@@ -272,8 +281,7 @@ float root_item::content_height() const
 		auto format = grid->text_format();
 		auto line_thickness = grid->line_thickness();
 		_name = text_layout_with_metrics (factory, format, property()->_name, l.x_value - l.x_name - line_thickness - 2 * text_lr_padding);
-		float value_layout_width = std::max (0.0f, l.x_right - l.x_value - line_thickness - 2 * text_lr_padding);
-		_value = create_value_layout_internal (factory, format, value_layout_width);
+		_value = create_value_layout_internal();
 	}
 
 	float value_item::content_height() const
@@ -315,10 +323,8 @@ float root_item::content_height() const
 
 	void value_item::on_value_changed()
 	{
-		auto grid = root()->_grid;
-		float value_layout_width = std::max (0.0f, grid->client_width() - grid->value_column_x() - grid->line_thickness() - 2 * text_lr_padding);
-		_value = create_value_layout_internal(grid->dwrite_factory(), grid->text_format(), value_layout_width);
-		grid->invalidate();
+		_value = create_value_layout_internal();
+		root()->_grid->invalidate();
 	}
 	#pragma endregion
 

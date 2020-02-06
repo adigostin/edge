@@ -21,8 +21,8 @@ class edge::property_grid : public d2d_window, public property_grid_i
 {
 	using base = d2d_window;
 
-	com_ptr<IDWriteTextFormat> _textFormat;
-	com_ptr<IDWriteTextFormat> _boldTextFormat;
+	com_ptr<IDWriteTextFormat> _text_format;
+	com_ptr<IDWriteTextFormat> _bold_text_format;
 	com_ptr<IDWriteTextFormat> _wingdings;
 	std::unique_ptr<text_editor_i> _text_editor;
 	float _name_column_factor = 0.6f;
@@ -41,10 +41,10 @@ public:
 		: base (hInstance, exStyle, WS_CHILD | WS_VISIBLE, rect, hWndParent, 0, d3d_dc, dwrite_factory)
 	{
 		auto hr = dwrite_factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-												   DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_textFormat); assert(SUCCEEDED(hr));
+												   DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_text_format); assert(SUCCEEDED(hr));
 
 		hr = dwrite_factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
-											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_boldTextFormat); assert(SUCCEEDED(hr));
+											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_bold_text_format); assert(SUCCEEDED(hr));
 
 		hr = dwrite_factory->CreateTextFormat (L"Wingdings", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
 											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_wingdings); assert(SUCCEEDED(hr));
@@ -52,7 +52,9 @@ public:
 
 	virtual IDWriteFactory* dwrite_factory() const override final { return base::dwrite_factory(); }
 
-	virtual IDWriteTextFormat* text_format() const override final { return _textFormat; }
+	virtual IDWriteTextFormat* text_format() const override final { return _text_format; }
+
+	virtual IDWriteTextFormat* bold_text_format() const override final { return _bold_text_format; }
 
 	virtual ID2D1DeviceContext* dc() const override final { return base::d2d_dc(); }
 
@@ -308,7 +310,7 @@ public:
 
 		if (_root_items.empty())
 		{
-			auto tl = text_layout_with_metrics (dwrite_factory(), _textFormat, "(no selection)");
+			auto tl = text_layout_with_metrics (dwrite_factory(), _text_format, "(no selection)");
 			D2D1_POINT_2F p = { client_width() / 2 - tl.width() / 2, client_height() / 2 - tl.height() / 2};
 			com_ptr<ID2D1SolidColorBrush> brush;
 			dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &brush);
@@ -357,10 +359,10 @@ public:
 			{
 				auto desc_rect = description_rect();
 				float lr_padding = 3;
-				auto title_layout = text_layout_with_metrics (dwrite_factory(), _boldTextFormat, _selected_item->description_title(), client_width() - 2 * lr_padding);
+				auto title_layout = text_layout_with_metrics (dwrite_factory(), _bold_text_format, _selected_item->description_title(), client_width() - 2 * lr_padding);
 				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top }, title_layout, rc.fore_brush);
 
-				auto desc_layout = text_layout(dwrite_factory(), _textFormat, _selected_item->description_text(), client_width() - 2 * lr_padding);
+				auto desc_layout = text_layout(dwrite_factory(), _text_format, _selected_item->description_text(), client_width() - 2 * lr_padding);
 				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top + title_layout.height() }, desc_layout, rc.fore_brush);
 			}
 		}
@@ -423,7 +425,7 @@ public:
 		discard_editor();
 		uint32_t fill_argb = 0xFF00'0000u | GetSysColor(COLOR_WINDOW);
 		uint32_t text_argb = 0xFF00'0000u | GetSysColor(COLOR_WINDOWTEXT);
-		_text_editor = text_editor_factory (this, dwrite_factory(), _textFormat, fill_argb, text_argb, rect, lr_padding, str);
+		_text_editor = text_editor_factory (this, dwrite_factory(), _text_format, fill_argb, text_argb, rect, lr_padding, str);
 		return _text_editor.get();
 	}
 

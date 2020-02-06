@@ -191,7 +191,7 @@ namespace edge
 		virtual std::string description_text() const override final;
 
 	private:
-		value_layout create_value_layout_internal (IDWriteFactory* factory, IDWriteTextFormat* format, float width) const;
+		value_layout create_value_layout_internal() const;
 
 		friend class object_item;
 

@@ -43,6 +43,7 @@ namespace edge
 		// TODO: make these internal to property_grid.cpp / property_grid_items.cpp
 		virtual IDWriteFactory* dwrite_factory() const = 0;
 		virtual IDWriteTextFormat* text_format() const = 0;
+		virtual IDWriteTextFormat* bold_text_format() const = 0;
 		virtual ID2D1DeviceContext* dc() const = 0;
 		virtual void invalidate() = 0;
 		virtual text_editor_i* show_text_editor (const D2D1_RECT_F& rect, float lr_padding, std::string_view str) = 0;
