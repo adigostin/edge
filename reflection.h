@@ -204,10 +204,10 @@ namespace edge
 
 		getter_t const _getter;
 		setter_t const _setter;
-		std::optional<value_t> const _default_value;
+		std::optional<value_t> const default_value;
 
 		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t>&& default_value = std::nullopt)
-			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), _default_value(std::move(default_value))
+			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), default_value(std::move(default_value))
 		{ }
 
 		virtual const char* type_name() const override final { return property_traits::type_name; }
@@ -265,10 +265,10 @@ namespace edge
 
 		virtual bool changed_from_default(const object* obj) const override
 		{
-			if (!_default_value.has_value())
+			if (!default_value.has_value())
 				return true;
 
-			return _getter.get(obj) != _default_value.value();
+			return _getter.get(obj) != default_value.value();
 		}
 	};
 
