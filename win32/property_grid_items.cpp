@@ -244,6 +244,17 @@ float root_item::content_height() const
 		return !root()->_grid->read_only() && _value.readable && (dynamic_cast<const custom_editor_property_i*>(property()) || property()->has_setter());
 	}
 
+	bool value_item::changed_from_default() const
+	{
+		for (auto o : parent()->parent()->objects())
+		{
+			if (property()->changed_from_default(o))
+				return true;
+		}
+
+		return false;
+	}
+
 	value_item::value_layout value_item::create_value_layout_internal() const
 	{
 		auto grid = root()->_grid;
@@ -251,9 +262,7 @@ float root_item::content_height() const
 
 		float width = std::max (0.0f, grid->client_width() - grid->value_column_x() - grid->line_thickness() - 2 * text_lr_padding);
 
-		auto& objs = parent()->parent()->objects();
-		bool changed = std::any_of(objs.begin(), objs.end(), [prop=property()](object* o) { return prop->changed_from_default(o); });
-		auto format = changed ? grid->bold_text_format() : grid->text_format();
+		auto format = changed_from_default() ? grid->bold_text_format() : grid->text_format();
 
 		text_layout_with_metrics tl;
 		bool readable;
@@ -399,7 +408,8 @@ float root_item::content_height() const
 		{
 			auto lt = root()->_grid->line_thickness();
 			D2D1_RECT_F editor_rect = { layout.x_value + lt, layout.y_top, layout.x_right, layout.y_bottom };
-			auto editor = root()->_grid->show_text_editor (editor_rect, text_lr_padding, multiple_values() ? "" : property()->get_to_string(parent()->parent()->objects().front()));
+			bool bold = changed_from_default();
+			auto editor = root()->_grid->show_text_editor (editor_rect, bold, text_lr_padding, multiple_values() ? "" : property()->get_to_string(parent()->parent()->objects().front()));
 			editor->process_mouse_button_down (button, mks, pt, dip);
 		}
 	}

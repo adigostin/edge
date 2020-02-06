@@ -190,6 +190,8 @@ namespace edge
 		virtual std::string description_title() const override final;
 		virtual std::string description_text() const override final;
 
+		bool changed_from_default() const;
+
 	private:
 		value_layout create_value_layout_internal() const;
 

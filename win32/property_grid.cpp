@@ -420,12 +420,12 @@ public:
 
 	virtual description_height_changed_e::subscriber description_height_changed() override { return description_height_changed_e::subscriber(this); }
 
-	virtual text_editor_i* show_text_editor (const D2D1_RECT_F& rect, float lr_padding, std::string_view str) override final
+	virtual text_editor_i* show_text_editor (const D2D1_RECT_F& rect, bool bold, float lr_padding, std::string_view str) override final
 	{
 		discard_editor();
 		uint32_t fill_argb = 0xFF00'0000u | GetSysColor(COLOR_WINDOW);
 		uint32_t text_argb = 0xFF00'0000u | GetSysColor(COLOR_WINDOWTEXT);
-		_text_editor = text_editor_factory (this, dwrite_factory(), _text_format, fill_argb, text_argb, rect, lr_padding, str);
+		_text_editor = text_editor_factory (this, dwrite_factory(), bold ? _bold_text_format : _text_format, fill_argb, text_argb, rect, lr_padding, str);
 		return _text_editor.get();
 	}
 
