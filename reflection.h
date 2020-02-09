@@ -104,7 +104,7 @@ namespace edge
 		virtual void set_from_string (std::string_view from, object* to) const = 0;
 		virtual void serialize (const object* from, out_stream_i* to) const = 0;
 		virtual void deserialize (binary_reader& from, object* to) const = 0;
-		virtual const nvp* nvps() const = 0; // TODO: return span
+		virtual const nvp* nvps() const = 0;
 		virtual bool equal (const object* obj1, const object* obj2) const = 0;
 		virtual bool changed_from_default(const object* obj) const = 0;
 		virtual void reset_to_default(object* obj) const = 0;
