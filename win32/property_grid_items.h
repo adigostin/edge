@@ -222,8 +222,8 @@ namespace edge
 		virtual void process_mouse_button_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
 	};
 
-	struct __declspec(novtable) editable_value_property_i
+	struct __declspec(novtable) pgitem_factory_i : property_editor_factory_i
 	{
-		virtual std::unique_ptr<pgitem> create_item (group_item* parent) const = 0;
+		virtual std::unique_ptr<pgitem> create_item (group_item* parent, const property* prop) const = 0;
 	};
 }

@@ -429,7 +429,7 @@ public:
 		return _text_editor.get();
 	}
 
-	virtual int show_enum_editor (D2D1_POINT_2F dip, const NVP* nameValuePairs) override final
+	virtual int show_enum_editor (D2D1_POINT_2F dip, const nvp* nameValuePairs) override final
 	{
 		discard_editor();
 		POINT ptScreen = pointd_to_pointp(dip, 0);
@@ -488,10 +488,10 @@ public:
 		auto hdc = ::GetDC(hwnd);
 		auto oldFont = ::SelectObject (hdc, font.get());
 		size_t count;
-		for (count = 0; nameValuePairs[count].first != nullptr; count++)
+		for (count = 0; nameValuePairs[count].name != nullptr; count++)
 		{
 			RECT rc = { };
-			DrawTextA (hdc, nameValuePairs[count].first, -1, &rc, DT_CALCRECT);
+			DrawTextA (hdc, nameValuePairs[count].name, -1, &rc, DT_CALCRECT);
 			maxTextWidth = std::max (maxTextWidth, rc.right);
 			maxTextHeight = std::max (maxTextHeight, rc.bottom);
 		}
@@ -506,13 +506,13 @@ public:
 		int margin = 4 * dpi() / 96;
 		int spacing = 2 * dpi() / 96;
 		int y = margin;
-		for (size_t nvp_index = 0; nameValuePairs[nvp_index].first != nullptr;)
+		for (size_t nvp_index = 0; nameValuePairs[nvp_index].name != nullptr;)
 		{
 			constexpr DWORD dwStyle = WS_CHILD | WS_VISIBLE | BS_NOTIFY | BS_FLAT;
-			auto button = CreateWindowExA (0, "Button", nameValuePairs[nvp_index].first, dwStyle, margin, y, buttonWidth, buttonHeight, hwnd, (HMENU) nvp_index, hInstance, nullptr);
+			auto button = CreateWindowExA (0, "Button", nameValuePairs[nvp_index].name, dwStyle, margin, y, buttonWidth, buttonHeight, hwnd, (HMENU) nvp_index, hInstance, nullptr);
 			::SendMessage (button, WM_SETFONT, (WPARAM) font.get(), FALSE);
 			nvp_index++;
-			y += buttonHeight + (nameValuePairs[nvp_index].first ? spacing : margin);
+			y += buttonHeight + (nameValuePairs[nvp_index].name ? spacing : margin);
 		}
 		RECT wr = { 0, 0, margin + buttonWidth + margin, y };
 		::AdjustWindowRectEx (&wr, (DWORD) GetWindowLongPtr(hwnd, GWL_STYLE), FALSE, (DWORD) GetWindowLongPtr(hwnd, GWL_EXSTYLE));

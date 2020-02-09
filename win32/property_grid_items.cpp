@@ -139,12 +139,16 @@ namespace edge
 				{
 					std::unique_ptr<pgitem> item;
 
-					if (auto value_prop = dynamic_cast<const value_property*>(prop))
+					auto factories = prop->editor_factories();
+					auto it = std::find_if (factories.begin(), factories.end(), [](auto f) { return dynamic_cast<const pgitem_factory_i*>(f) != nullptr; });
+					if (it != factories.end())
 					{
-						if (auto evp = dynamic_cast<const editable_value_property_i*>(prop))
-							item = evp->create_item (this);
-						else
-							item = std::make_unique<default_value_pgitem>(this, value_prop);
+						auto f = static_cast<const pgitem_factory_i*>(*it);
+						item = f->create_item(this, prop);
+					}
+					else if (auto value_prop = dynamic_cast<const value_property*>(prop))
+					{
+						item = std::make_unique<default_value_pgitem>(this, value_prop);
 					}
 					else
 					{
@@ -241,7 +245,7 @@ float root_item::content_height() const
 
 	bool value_item::can_edit() const
 	{
-		return !root()->_grid->read_only() && _value.readable && (dynamic_cast<const custom_editor_property_i*>(property()) || property()->has_setter());
+		return !root()->_grid->read_only() && _value.readable && (dynamic_cast<const custom_editor_property_i*>(property()) || !property()->read_only());
 	}
 
 	bool value_item::changed_from_default() const
@@ -359,7 +363,7 @@ float root_item::content_height() const
 		return ::LoadCursor (nullptr, IDC_IBEAM);
 	}
 
-	static const NVP bool_nvps[] = {
+	static const nvp bool_nvps[] = {
 		{ "False", 0 },
 		{ "True", 1 },
 		{ nullptr, -1 },
@@ -377,7 +381,7 @@ float root_item::content_height() const
 			return;
 		}
 
-		if (!property()->has_setter())
+		if (property()->read_only())
 			return;
 
 		if (property()->nvps() || dynamic_cast<const edge::bool_p*>(property()))
@@ -386,7 +390,7 @@ float root_item::content_height() const
 			int selected_nvp_index = root()->_grid->show_enum_editor(dip, nvps);
 			if (selected_nvp_index >= 0)
 			{
-				auto new_value_str = nvps[selected_nvp_index].first;
+				auto new_value_str = nvps[selected_nvp_index].name;
 				auto changed = [new_value_str, prop=property()](object* o) { return prop->get_to_string(o) != new_value_str; };
 				auto& objects = parent()->parent()->objects();
 				if (std::any_of(objects.begin(), objects.end(), changed))

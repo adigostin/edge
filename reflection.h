@@ -17,7 +17,9 @@
 namespace edge
 {
 	class object;
-	struct value_property;
+	struct type;
+	struct concrete_type;
+	template<typename object_type, typename... factory_arg_property_traits> struct xtype;
 
 	struct property_group
 	{
@@ -41,6 +43,17 @@ namespace edge
 		virtual char const* what() const override { return _message.c_str(); }
 	};
 
+	class not_implemented_exception : public std::runtime_error
+	{
+	public:
+		not_implemented_exception() : std::runtime_error("Not implemented") { }
+	};
+
+	struct __declspec(novtable) property_editor_factory_i
+	{
+		virtual ~property_editor_factory_i() = default;
+	};
+
 	struct property
 	{
 		const char* const _name;
@@ -54,16 +67,18 @@ namespace edge
 		property (const property&) = delete;
 		property& operator= (const property&) = delete;
 
+		virtual std::span<const property_editor_factory_i* const> editor_factories() const { return { }; }
+
 	private:
 		// We want this type to be polymorphic, and we can't make the destructor virtual
 		// cause we also want the type to be a literal type. That's why the dummy function.
 		virtual void dummy() { }
 	};
 
-	struct NVP
+	struct nvp
 	{
-		const char* first;
-		int second;
+		const char* name;
+		int value;
 	};
 
 	struct out_stream_i
@@ -84,14 +99,15 @@ namespace edge
 		using property::property;
 
 		virtual const char* type_name() const = 0;
-		virtual bool has_setter() const = 0;
+		virtual bool read_only() const = 0;
 		virtual void get_to_string (const object* from, std::string& to) const = 0;
 		virtual void set_from_string (std::string_view from, object* to) const = 0;
 		virtual void serialize (const object* from, out_stream_i* to) const = 0;
 		virtual void deserialize (binary_reader& from, object* to) const = 0;
-		virtual const NVP* nvps() const = 0;
-		virtual bool equal (object* obj1, object* obj2) const = 0;
+		virtual const nvp* nvps() const = 0; // TODO: return span
+		virtual bool equal (const object* obj1, const object* obj2) const = 0;
 		virtual bool changed_from_default(const object* obj) const = 0;
+		virtual void reset_to_default(object* obj) const = 0;
 
 		std::string get_to_string (const object* from) const
 		{
@@ -104,11 +120,89 @@ namespace edge
 	// ========================================================================
 
 	template<typename property_traits>
-	struct typed_property : value_property
+	struct typed_value_property_base : value_property
 	{
 		using base = value_property;
+		using base::base;
 
 		using traits_t = property_traits;
+		using value_t  = typename property_traits::value_t;
+
+	private:
+		// https://stackoverflow.com/a/17534399/451036
+		template <typename T, typename = void>
+		struct nvps_helper
+		{
+			static const nvp* nvps() { return nullptr; }
+		};
+
+		template <typename T>
+		struct nvps_helper<T, typename std::enable_if<bool(sizeof(&T::nvps))>::type>
+		{
+			static const nvp* nvps() { return T::nvps; }
+		};
+
+		template <typename T, typename = void>
+		struct editors_helper
+		{
+			static std::span<const property_editor_factory_i* const> editor_factories() { return { }; }
+		};
+
+		template <typename T>
+		struct editors_helper<T, typename std::enable_if<bool(sizeof(&T::editor_factories))>::type>
+		{
+			static std::span<const property_editor_factory_i* const> editor_factories() { return T::editor_factories; }
+		};
+
+	public:
+		virtual const char* type_name() const override final { return property_traits::type_name; }
+
+		virtual const nvp* nvps() const override final { return nvps_helper<property_traits>::nvps(); }
+
+		virtual std::span<const property_editor_factory_i* const> editor_factories() const override final { return editors_helper<property_traits>::editor_factories(); }
+
+		virtual value_t get (const object* from) const = 0;
+
+		virtual void set (value_t from, object* to) const = 0;
+
+		virtual void get_to_string (const object* from, std::string& to) const override final
+		{
+			property_traits::to_string(this->get(from), to);
+		}
+
+		virtual void set_from_string (std::string_view from, object* to) const override final
+		{
+			value_t value;
+			property_traits::from_string (from, value);
+			this->set(value, to);
+		}
+
+		virtual void serialize (const object* from, out_stream_i* to) const override final
+		{
+			property_traits::serialize (this->get(from), to);
+		}
+
+		virtual void deserialize (binary_reader& from, object* to) const override final
+		{
+			value_t value;
+			property_traits::deserialize(from, value);
+			if (to)
+				this->set (value, to);
+		}
+
+		virtual bool equal (const object* obj1, const object* obj2) const override final
+		{
+			return this->get(obj1) == this->get(obj2);
+		}
+	};
+
+	// ========================================================================
+
+	template<typename property_traits>
+	struct typed_property : typed_value_property_base<property_traits>
+	{
+		using base = typed_value_property_base<property_traits>;
+
 		using value_t  = typename property_traits::value_t;
 
 		using member_getter_t = value_t (object::*)() const;
@@ -199,76 +293,31 @@ namespace edge
 					assert(false);
 			}
 
-			bool has_setter() const { return type != none; }
+			bool read_only() const { return type == none; }
 		};
 
 		getter_t const _getter;
 		setter_t const _setter;
 		std::optional<value_t> const default_value;
 
-		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t>&& default_value = std::nullopt)
+		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t>&& default_value)
 			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), default_value(std::move(default_value))
 		{ }
 
-		virtual const char* type_name() const override final { return property_traits::type_name; }
+		virtual bool read_only() const override final { return _setter.read_only(); }
 
-		virtual bool has_setter() const override final { return _setter.has_setter(); }
+		virtual value_t get (const object* from) const override final { return _getter.get(from); }
 
-		virtual void get_to_string (const object* from, std::string& to) const override final
+		virtual void set (value_t from, object* to) const override final { _setter.set(from, to); }
+
+		virtual bool changed_from_default (const object* obj) const override
 		{
-			property_traits::to_string(_getter.get(from), to);
+			return !default_value || (_getter.get(obj) != default_value.value());
 		}
 
-		virtual void set_from_string (std::string_view from, object* to) const override final
+		virtual void reset_to_default(object* obj) const override
 		{
-			value_t value;
-			property_traits::from_string (from, value);
-			_setter.set(value, to);
-		}
-
-		virtual void serialize (const object* from, out_stream_i* to) const override final
-		{
-			property_traits::serialize (_getter.get(from), to);
-		}
-
-		virtual void deserialize (binary_reader& from, object* to) const override final
-		{
-			value_t value;
-			property_traits::deserialize(from, value);
-			if (to)
-				_setter.set (value, to);
-		}
-
-	private:
-
-		// https://stackoverflow.com/a/17534399/451036
-
-		template <typename T, typename = void>
-		struct nvps_helper
-		{
-			static const NVP* nvps() { return nullptr; }
-		};
-
-		template <typename T>
-		struct nvps_helper<T, typename std::enable_if<bool(sizeof(&T::nvps))>::type>
-		{
-			static const NVP* nvps() { return T::nvps; }
-		};
-
-	public:
-		virtual const NVP* nvps() const override final { return nvps_helper<property_traits>::nvps(); }
-
-		virtual bool equal (object* obj1, object* obj2) const override final
-		{
-			return _getter.get(obj1) == _getter.get(obj2);
-		}
-
-		virtual bool changed_from_default(const object* obj) const override
-		{
-			if (!default_value.has_value())
-				return true;
-
-			return _getter.get(obj) != default_value.value();
+			_setter.set(default_value.value(), obj);
 		}
 	};
 
@@ -341,13 +390,13 @@ namespace edge
 
 	// ========================================================================
 
-	template<typename enum_t, const char* type_name_, const NVP* nvps_, bool serialize_as_integer, const char* unknown_str>
+	template<typename enum_t, const char* type_name_, const nvp* nvps_, bool serialize_as_integer, const char* unknown_str>
 	struct enum_property_traits
 	{
 		static constexpr const char* type_name = type_name_;
 		using value_t = enum_t;
 
-		static constexpr const NVP* nvps = nvps_;
+		static constexpr const nvp* nvps = nvps_;
 
 		static void to_string (enum_t from, std::string& to)
 		{
@@ -359,7 +408,7 @@ namespace edge
 
 			for (auto nvp = nvps_; nvp->first != nullptr; nvp++)
 			{
-				if (nvp->second == (int)from)
+				if (nvp->value == (int)from)
 				{
 					to = nvp->first;
 					return;
@@ -389,7 +438,7 @@ namespace edge
 			{
 				if (from == nvp->first)
 				{
-					to = static_cast<enum_t>(nvp->second);
+					to = static_cast<enum_t>(nvp->value);
 					return;
 				}
 			}
@@ -403,14 +452,14 @@ namespace edge
 
 	extern const char unknown_enum_value_str[];
 
-	template<typename enum_t, const char* type_name, const NVP* nvps_, bool serialize_as_integer = false, const char* unknown_str = unknown_enum_value_str>
+	template<typename enum_t, const char* type_name, const nvp* nvps_, bool serialize_as_integer = false, const char* unknown_str = unknown_enum_value_str>
 	using enum_property = typed_property<enum_property_traits<enum_t, type_name, nvps_, serialize_as_integer, unknown_str>>;
 
 	// ========================================================================
 
 	enum class side { left, top, right, bottom };
 	static constexpr const char side_type_name[] = "side";
-	static constexpr const NVP side_nvps[] = {
+	static constexpr const nvp side_nvps[] = {
 		{ "Left",   (int) side::left },
 		{ "Top",    (int) side::top },
 		{ "Right",  (int) side::right },

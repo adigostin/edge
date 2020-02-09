@@ -22,15 +22,21 @@ namespace edge
 
 		std::vector<const property*> make_property_list() const;
 		const property* find_property (const char* name) const;
+		bool is_derived_from (const type* t) const;
 
-		virtual std::span<const value_property* const> factory_props() const = 0;
-		virtual std::unique_ptr<object> create (std::span<std::string_view> string_values) const = 0;
 	private:
 		void add_properties (std::vector<const property*>& properties) const;
 	};
 
+	struct concrete_type : type
+	{
+		using type::type;
+		virtual std::span<const value_property* const> factory_props() const = 0;
+		virtual std::unique_ptr<object> create (std::span<std::string_view> string_values) const = 0;
+	};
+
 	template<typename object_type, typename... factory_arg_property_traits>
-	class xtype : public type
+	struct xtype : concrete_type
 	{
 		static constexpr size_t parameter_count = sizeof...(factory_arg_property_traits);
 
@@ -45,16 +51,21 @@ namespace edge
 	public:
 		constexpr xtype (const char* name, const type* base, std::span<const property* const> props,
 			factory_t factory = nullptr, const typed_property<factory_arg_property_traits>*... factory_props)
-			: type(name, base, props)
+			: concrete_type(name, base, props)
 			, _factory(factory)
 			, _factory_props(std::array<const value_property*, parameter_count>{ factory_props... })
 		{ }
 
 		factory_t factory() const { return _factory; }
 
-	private:
 		virtual std::span<const value_property* const> factory_props() const override { return _factory_props; }
 
+		std::unique_ptr<object_type> create (typename factory_arg_property_traits::value_t... factory_args) const
+		{
+			return std::unique_ptr<object_type>(_factory(factory_args...));
+		}
+
+	private:
 		template<size_t... I>
 		std::unique_ptr<object> create_internal (std::span<std::string_view> string_values, std::tuple<typename factory_arg_property_traits::value_t...>& values, std::index_sequence<I...>) const
 		{
@@ -62,6 +73,7 @@ namespace edge
 			return std::unique_ptr<object>(_factory(std::get<I>(values)...));
 		}
 
+	public:
 		virtual std::unique_ptr<object> create (std::span<std::string_view> string_values) const override
 		{
 			assert (_factory);
@@ -120,6 +132,6 @@ namespace edge
 
 	public:
 		static const xtype<object> _type;
-		virtual const struct type* type() const { return &_type; }
+		virtual const concrete_type* type() const { return &_type; }
 	};
 }
