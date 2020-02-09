@@ -300,7 +300,7 @@ namespace edge
 		setter_t const _setter;
 		std::optional<value_t> const default_value;
 
-		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t>&& default_value)
+		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t>&& default_value = std::nullopt)
 			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), default_value(std::move(default_value))
 		{ }
 
@@ -406,11 +406,11 @@ namespace edge
 				return;
 			}
 
-			for (auto nvp = nvps_; nvp->first != nullptr; nvp++)
+			for (auto nvp = nvps_; nvp->name != nullptr; nvp++)
 			{
 				if (nvp->value == (int)from)
 				{
-					to = nvp->first;
+					to = nvp->name;
 					return;
 				}
 			}
@@ -434,9 +434,9 @@ namespace edge
 				}
 			}
 
-			for (auto nvp = nvps_; nvp->first != nullptr; nvp++)
+			for (auto nvp = nvps_; nvp->name != nullptr; nvp++)
 			{
-				if (from == nvp->first)
+				if (from == nvp->name)
 				{
 					to = static_cast<enum_t>(nvp->value);
 					return;

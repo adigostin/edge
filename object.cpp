@@ -52,6 +52,5 @@ namespace edge
 		#endif
 	}
 
-	const xtype<object> object::_type = { "object", nullptr, { }, [] { return std::make_unique<object>(); }, };
-
+	const type object::_type = { "object", nullptr, { } };
 }

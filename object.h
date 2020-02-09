@@ -130,8 +130,8 @@ namespace edge
 		virtual void on_property_changing (const property_change_args&);
 		virtual void on_property_changed (const property_change_args&);
 
+		static const type _type;
 	public:
-		static const xtype<object> _type;
-		virtual const concrete_type* type() const { return &_type; }
+		virtual const concrete_type* type() const = 0;
 	};
 }
