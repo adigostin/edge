@@ -1,4 +1,7 @@
 
+// This file is part of the "edge" library, available at https://github.com/adigostin/edge
+// Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
+
 #include "pch.h"
 #include "utility_functions.h"
 
@@ -112,7 +115,7 @@ namespace edge
 	D2D1_RECT_F polygon_bounds (const std::array<D2D1_POINT_2F, 4>& points)
 	{
 		D2D1_RECT_F r = { points[0].x, points[0].y, points[0].x, points[0].y };
-		
+
 		for (size_t i = 1; i < 4; i++)
 		{
 			r.left   = std::min (r.left  , points[i].x);

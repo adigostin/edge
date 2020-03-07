@@ -1,4 +1,7 @@
 
+// This file is part of the "edge" library, available at https://github.com/adigostin/edge
+// Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
+
 #pragma once
 
 inline D2D1_SIZE_F operator- (D2D1_POINT_2F p0, D2D1_POINT_2F p1) { return { p0.x - p1.x, p0.y - p1.y }; }

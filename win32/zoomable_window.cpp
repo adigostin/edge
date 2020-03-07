@@ -1,4 +1,7 @@
 
+// This file is part of the "edge" library, available at https://github.com/adigostin/edge
+// Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
+
 #include "pch.h"
 #include "zoomable_window.h"
 
@@ -182,7 +185,7 @@ namespace edge
 			auto dipLocation = pointp_to_pointd(point.x, point.y);
 
 			_aimpoint += (_panningLastMouseLocation - dipLocation) / _zoom;
-			
+
 			_panningLastMouseLocation = dipLocation;
 
 			_zoomed_to_rect.reset();
@@ -223,7 +226,7 @@ namespace edge
 		float new_aimpoint_y = 2 * wlocation.y - o.y / _zoom - o.y / newZoom - _aimpoint.y;
 
 		set_zoom_and_aimpoint_internal (newZoom, { new_aimpoint_x, new_aimpoint_y }, true);
-		
+
 		_zoomed_to_rect.reset();
 	}
 

@@ -1,4 +1,7 @@
 
+// This file is part of the "edge" library, available at https://github.com/adigostin/edge
+// Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
+
 #include "pch.h"
 #include "window.h"
 
@@ -34,7 +37,7 @@ window::window (HINSTANCE hInstance, const wnd_class_params& class_params, DWORD
 	assert (hwnd == _hwnd);
 }
 
-static const wnd_class_params child_wnd_class_params = 
+static const wnd_class_params child_wnd_class_params =
 {
 	L"window-{0F45B203-6AE9-49B0-968A-4006176EDA40}", // lpszClassName
 	CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW, // style
@@ -137,7 +140,7 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, 
 		::InvalidateRect (hwnd, nullptr, FALSE);
 		return 0;
 	}
-	
+
 	return std::nullopt;
 }
 

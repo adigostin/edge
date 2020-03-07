@@ -1,4 +1,7 @@
 
+// This file is part of the "edge" library, available at https://github.com/adigostin/edge
+// Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
+
 #include "pch.h"
 #include "d2d_window.h"
 #include "utility_functions.h"
@@ -170,7 +173,7 @@ namespace edge
 
 		LARGE_INTEGER startTime;
 		BOOL bRes = QueryPerformanceCounter(&startTime); assert(bRes);
-	
+
 		D2D1_RECT_F frameDurationAndFpsRect;
 		frameDurationAndFpsRect.left   = round (_clientSizeDips.width - 75) + 0.5f;
 		frameDurationAndFpsRect.top    = round (_clientSizeDips.height - 28) + 0.5f;
@@ -251,7 +254,7 @@ namespace edge
 				_updateRects.push_back(ri);
 			}
 		}
-		#pragma endregion 
+		#pragma endregion
 		bool updateEntireClientArea = ((_updateRects.size() == 1) && (_updateRects[0] == _clientRect));
 		*/
 		// -------------------------------------------------
@@ -373,7 +376,7 @@ namespace edge
 		hr = _swapChain->Present1(0, 0, &pp); assert(SUCCEEDED(hr));
 
 		::EndPaint(hwnd(), &ps); // this will show the caret in case BeginPaint above hid it.
-	
+
 		#pragma region Calculate performance data.
 		LARGE_INTEGER timeNow;
 		bRes = QueryPerformanceCounter(&timeNow);
@@ -387,7 +390,7 @@ namespace edge
 		if (perfInfoQueue.size() > 16)
 			perfInfoQueue.pop_front();
 		#pragma endregion
-	
+
 		this->release_render_resources (_d2dDeviceContext);
 
 		assert(_painting);

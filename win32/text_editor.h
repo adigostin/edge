@@ -1,10 +1,13 @@
 
+// This file is part of the "edge" library, available at https://github.com/adigostin/edge
+// Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
+
 #pragma once
 #include "com_ptr.h"
 #include "d2d_window.h"
 
 namespace edge
-{ 
+{
 	struct __declspec(novtable) text_editor_i
 	{
 		virtual ~text_editor_i() { }
