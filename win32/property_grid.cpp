@@ -36,9 +36,6 @@ class edge::property_grid : public d2d_window, public property_grid_i
 
 	std::queue<std::function<void()>> _workQueue;
 
-	static constexpr UINT WM_CLOSE_POPUP = base::WM_NEXT + 0;
-	static constexpr UINT WM_WORK        = base::WM_NEXT + 1;
-
 public:
 	property_grid (HINSTANCE hInstance, DWORD exStyle, const RECT& rect, HWND hWndParent, ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory)
 		: base (hInstance, exStyle, WS_CHILD | WS_VISIBLE, rect, hWndParent, 0, d3d_dc, dwrite_factory)
@@ -192,13 +189,6 @@ public:
 			}
 
 			return std::nullopt;
-		}
-
-		if (msg == WM_WORK)
-		{
-			_workQueue.front()();
-			_workQueue.pop();
-			return 0;
 		}
 
 		return resultBaseClass;
@@ -441,6 +431,8 @@ public:
 		HINSTANCE hInstance = (HINSTANCE) GetWindowLongPtr (hwnd(), GWLP_HINSTANCE);
 
 		static constexpr wchar_t ClassName[] = L"GIGI-{655C4EA9-2A80-46D7-A7FB-D510A32DC6C6}";
+		static constexpr UINT WM_CLOSE_POPUP = WM_APP;
+
 		static ATOM atom = 0;
 		if (atom == 0)
 		{
