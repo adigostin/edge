@@ -7,7 +7,7 @@
 
 namespace edge
 {
-	class zoomable_window abstract : public d2d_window, public zoomable_i
+	class zoomable_window abstract : public d2d_window, public virtual zoomable_i
 	{
 		using base = d2d_window;
 
@@ -38,28 +38,16 @@ namespace edge
 		};
 		std::optional<zoomed_to_rect> _zoomed_to_rect;
 
-		D2D1_SIZE_F pixel_aligned_window_center() const;
-
 	public:
 		using base::base;
 
-		float zoom() const { return _zoom; }
-		D2D1_POINT_2F aimpoint() const { return _aimpoint; }
 		void zoom_to (D2D1_POINT_2F aimpoint, float zoom, bool smooth);
 
-		using base::invalidate;
-		using zoomable_i::pointw_to_pointd;
-
 		// zoomable_i
-		virtual D2D1::Matrix3x2F zoom_transform() const override;
-		virtual D2D1_POINT_2F pointd_to_pointw (D2D1_POINT_2F dlocation) const override;
-		virtual void pointw_to_pointd (std::span<D2D1_POINT_2F> locations) const override;
-		virtual float lengthw_to_lengthd (float wLength) const override { return wLength * _zoom; }
+		virtual D2D1_POINT_2F aimpoint() const override { return _aimpoint; }
+		virtual float zoom() const override { return _zoom; }
 		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() override { return zoom_transform_changed_e::subscriber(this); }
 		virtual void zoom_to (const D2D1_RECT_F& rect, float min_margin, float min_zoom, float max_zoom, bool smooth) override;
-
-		// win32_window_i
-		virtual HWND hwnd() const override { return base::hwnd(); }
 
 	protected:
 		virtual std::optional<LRESULT> window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;

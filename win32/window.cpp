@@ -15,13 +15,13 @@ void window::register_class (HINSTANCE hInstance, const wnd_class_params& class_
 	{
 		wcex.cbSize = sizeof(wcex);
 		wcex.style = class_params.style;
-		wcex.lpfnWndProc = &WindowProcStatic;
+		wcex.lpfnWndProc = &window_proc_static;
 		wcex.cbClsExtra = 0;
 		wcex.cbWndExtra = 0;
 		wcex.hInstance = hInstance;
 		wcex.hIcon = class_params.lpIconName ? ::LoadIcon(hInstance, class_params.lpIconName) : nullptr;
 		wcex.hCursor = LoadCursor (nullptr, IDC_ARROW);
-		wcex.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
+		wcex.hbrBackground = nullptr;
 		wcex.lpszMenuName = class_params.lpszMenuName;
 		wcex.lpszClassName = class_params.lpszClassName;
 		wcex.hIconSm = class_params.lpIconSmName ? ::LoadIcon(hInstance, class_params.lpIconSmName) : nullptr;
@@ -60,7 +60,7 @@ window::~window()
 
 // From http://blogs.msdn.com/b/oldnewthing/archive/2005/04/22/410773.aspx
 //static
-LRESULT CALLBACK window::WindowProcStatic (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK window::window_proc_static (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	if (assert_function_running)
 	{
@@ -99,46 +99,128 @@ LRESULT CALLBACK window::WindowProcStatic (HWND hwnd, UINT uMsg, WPARAM wParam, 
 	return ::DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
-std::optional<LRESULT> window::window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+std::optional<LRESULT> window::window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (uMsg == WM_NCCREATE)
+	if (msg == WM_NCCREATE)
 	{
 		if (auto proc_addr = GetProcAddress(GetModuleHandleA("User32.dll"), "GetDpiForWindow"))
 		{
 			auto proc = reinterpret_cast<UINT(WINAPI*)(HWND)>(proc_addr);
-			_dpi = proc(hwnd);
+			_dpi = (uint32_t)proc(hwnd);
 		}
 		else
 		{
 			HDC tempDC = GetDC(hwnd);
-			_dpi = GetDeviceCaps (tempDC, LOGPIXELSX);
+			_dpi = (uint32_t)GetDeviceCaps (tempDC, LOGPIXELSX);
 			ReleaseDC (hwnd, tempDC);
 		}
 	}
 
-	if (uMsg == WM_CREATE)
+	if (msg == WM_SIZE)
 	{
-		// ((CREATESTRUCT*)lParam)->cx/cy may contain CW_USEDEFAULT, so let's get the actual size instead.
-		RECT rect;
-		BOOL bRes = ::GetClientRect(hwnd, &rect); assert(bRes);
-		_clientSize.cx = rect.right;
-		_clientSize.cy = rect.bottom;
+		SIZE client_size_pixels = { LOWORD(lParam), HIWORD(lParam) };
+		D2D1_SIZE_F client_size_dips = sizep_to_sized(client_size_pixels);
+		this->on_client_size_changed(client_size_pixels, client_size_dips);
 		return 0;
 	}
 
-	if (uMsg == WM_SIZE)
-	{
-		_clientSize = { LOWORD(lParam), HIWORD(lParam) };
-		return 0;
-	}
-
-	if (uMsg == 0x02E3) // WM_DPICHANGED_AFTERPARENT
+	if (msg == 0x02E3) // WM_DPICHANGED_AFTERPARENT
 	{
 		auto proc_addr = GetProcAddress(GetModuleHandleA("User32.dll"), "GetDpiForWindow");
 		auto proc = reinterpret_cast<UINT(WINAPI*)(HWND)>(proc_addr);
-		_dpi = proc(hwnd);
+		_dpi = (uint32_t)proc(hwnd);
+		this->on_dpi_changed(_dpi);
 		::InvalidateRect (hwnd, nullptr, FALSE);
 		return 0;
+	}
+
+	if (msg == WM_SETCURSOR)
+	{
+		if (((HWND)wParam == hwnd) && (LOWORD(lParam) == HTCLIENT))
+		{
+			POINT pt;
+			if (::GetCursorPos(&pt) && ::ScreenToClient (hwnd, &pt))
+			{
+				if (auto cursor = this->cursor_at(pt, pointp_to_pointd(pt)))
+				{
+					::SetCursor(cursor);
+					return TRUE;
+				}
+			}
+		}
+
+		return std::nullopt;
+	}
+
+	if ((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN) || (msg == WM_MBUTTONDOWN))
+	{
+		::SetFocus(hwnd);
+		if (::GetFocus() != hwnd)
+			// Another window probably stole the focus back right away.
+			return 0;
+
+		if (::GetCapture() != hwnd)
+			::SetCapture(hwnd);
+
+		auto button = (msg == WM_LBUTTONDOWN) ? mouse_button::left : ((msg == WM_RBUTTONDOWN) ? mouse_button::right : mouse_button::middle);
+		auto mks = (modifier_key)(UINT)wParam | ((::GetKeyState(VK_MENU) < 0) ? modifier_key::alt : modifier_key::none);
+		auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+		auto dip = pointp_to_pointd(pt);
+		bool handled = this->on_mouse_down(button, mks, pt, dip);
+		if (handled)
+			return 0;
+		return std::nullopt;
+	}
+
+	if ((msg == WM_LBUTTONUP) || (msg == WM_RBUTTONUP) || (msg == WM_MBUTTONUP))
+	{
+		auto mks = (modifier_key)(UINT)wParam | ((::GetKeyState(VK_MENU) < 0) ? modifier_key::alt : modifier_key::none);
+
+		if ((::GetCapture() == hwnd) &&((mks & (modifier_key::lbutton | modifier_key::rbutton | modifier_key::mbutton)) == 0))
+			::ReleaseCapture();
+
+		auto button = (msg == WM_LBUTTONUP) ? mouse_button::left : ((msg == WM_RBUTTONUP) ? mouse_button::right : mouse_button::middle);
+		auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+		auto dip = pointp_to_pointd(pt);
+		bool handled = this->on_mouse_up(button, mks, pt, dip);
+		if (handled)
+			return 0;
+		return std::nullopt;
+	}
+
+	if (msg == WM_MOUSEMOVE)
+	{
+		auto mks = (modifier_key)(UINT)wParam | ((::GetKeyState(VK_MENU) < 0) ? modifier_key::alt : modifier_key::none);
+		auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+		auto dip = pointp_to_pointd(pt);
+		this->on_mouse_move(mks, pt, dip);
+		return 0;
+	}
+
+	if ((msg == WM_KEYDOWN) || (msg == WM_SYSKEYDOWN))
+	{
+		auto mks = GetModifierKeys();
+		bool handled = this->on_virtual_key_down ((UINT) wParam, mks);
+		if (handled)
+			return 0;
+		return std::nullopt;
+	}
+
+	if ((msg == WM_KEYUP) || (msg == WM_SYSKEYUP))
+	{
+		auto mks = GetModifierKeys();
+		bool handled = this->on_virtual_key_up ((UINT) wParam, mks);
+		if (handled)
+			return 0;
+		return std::nullopt;
+	}
+
+	if (msg == WM_CHAR)
+	{
+		bool handled = this->on_char_key((uint32_t)wParam);
+		if (handled)
+			return 0;
+		return std::nullopt;
 	}
 
 	return std::nullopt;

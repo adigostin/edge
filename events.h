@@ -3,7 +3,7 @@
 // Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
 
 #pragma once
-#include <typeinfo>
+#include <typeindex>
 #include <unordered_map>
 #include <array>
 
@@ -23,11 +23,16 @@ namespace edge
 		};
 
 		// TODO: Make this a pointer to save RAM.
-		std::unordered_multimap<size_t, handler> _events;
+		std::unordered_multimap<std::type_index, handler> _events;
 
 	protected:
+		~event_manager()
+		{
+			assert(_events.empty());
+		}
+
 		template<typename event_t>
-		typename event_t::invoker event_invoker()
+		typename event_t::invoker event_invoker() const
 		{
 			return typename event_t::invoker(this);
 		}
@@ -53,85 +58,113 @@ namespace edge
 
 			void add_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
-				auto type = typeid(event_t).hash_code();
+				auto type = std::type_index(typeid(event_t));
 				_em->_events.insert({ type, { callback, callback_arg } });
 			}
 
 			void remove_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
-				auto type = typeid(event_t).hash_code();
+				auto type = std::type_index(typeid(event_t));
 				auto range = _em->_events.equal_range(type);
 
-				auto it = std::find_if(range.first, range.second, [=](const std::pair<size_t, event_manager::handler>& p)
-				{
-					return (p.second.callback == callback) && (p.second.callback_arg == callback_arg);
-				});
+				auto it = std::find_if(range.first, range.second, [=](const std::pair<std::type_index, event_manager::handler>& p)
+					{
+						return (p.second.callback == callback) && (p.second.callback_arg == callback_arg);
+					});
 
 				assert(it != range.second); // handler to remove not found
 
 				_em->_events.erase(it);
+			}
+
+		private:
+			template<typename T>
+			struct extract_class;
+
+			template<typename R, typename C, class... A>
+			struct extract_class<R(C::*)(A...)>
+			{
+				using class_type = C;
+			};
+
+			template<typename R, typename C, class... A>
+			struct extract_class<R(C::*)(A...) const>
+			{
+				using class_type = C;
+			};
+
+			template<auto member_callback>
+			static void proxy (void* arg, args_t... args)
+			{
+				using member_callback_t = decltype(member_callback);
+				using class_type = typename extract_class<member_callback_t>::class_type;
+				auto c = static_cast<class_type*>(arg);
+				(c->*member_callback)(args...);
+			}
+
+		public:
+			template<auto member_callback>
+			std::enable_if_t<std::is_member_function_pointer_v<decltype(member_callback)>>
+			add_handler (typename extract_class<decltype(member_callback)>::class_type* target)
+			{
+				add_handler (&subscriber::proxy<member_callback>, target);
+			}
+
+			template<auto member_callback>
+			std::enable_if_t<std::is_member_function_pointer_v<decltype(member_callback)>>
+			remove_handler (typename extract_class<decltype(member_callback)>::class_type* target)
+			{
+				remove_handler (&subscriber::proxy<member_callback>, target);
 			}
 		};
 
 	private:
 		friend class event_manager;
 
-		static void make_handler_list(size_t eventType, const event_manager* em, std::vector<event_manager::handler>& longList, std::array<event_manager::handler, 8>& shortList, size_t& shortListSizeOut)
-		{
-			shortListSizeOut = 0;
-
-			const size_t count = em->_events.count(eventType);
-			if (count == 0)
-				return;
-
-			auto range = em->_events.equal_range(eventType);
-
-			if (count <= shortList.size())
-			{
-				for (auto it = range.first; it != range.second; it++)
-					shortList[shortListSizeOut++] = it->second;
-			}
-			else
-			{
-				for (auto it = range.first; it != range.second; it++)
-					longList.push_back(it->second);
-			}
-		}
-
 		class invoker
 		{
-			event_manager* const _em;
+			const event_manager* const _em;
 
 		public:
-			invoker (event_manager* em)
+			invoker (const event_manager* em)
 				: _em(em)
 			{ }
 
-			bool has_handlers() const { return _em->_events.find(typeid(event_t).hash_code()) != _em->_events.end(); }
+			bool has_handlers() const { return _em->_events.find(std::type_index(typeid(event_t))) != _em->_events.end(); }
 
 			void operator()(args_t... args)
 			{
-				// Note that this function must be reentrant (one event handler can invoke another event).
-				// We use one of two lists: one in the stack in case we have a few handlers, the other in the heap for many handlers.
-				std::vector<event_manager::handler> longList;
-				std::array<event_manager::handler, 8> shortList;
-				size_t shortListSize;
-
-				make_handler_list(typeid(event_t).hash_code(), _em, longList, shortList, shortListSize);
-
-				if (longList.empty())
+				const size_t count = _em->_events.count(std::type_index(typeid(event_t)));
+				if (count)
 				{
-					for (size_t i = 0; i < shortListSize; i++)
+					auto range = _em->_events.equal_range(std::type_index(typeid(event_t)));
+
+					// Note that this function must be reentrant (one event handler can invoke another event).
+					// We use one of two lists: one in the stack in case we have a few handlers, the other in the heap for many handlers.
+					std::vector<event_manager::handler> long_list;
+					event_manager::handler short_list[8];
+					size_t short_list_size = 0;
+
+					std::span<const event_manager::handler> handlers;
+					if (count <= std::size(short_list))
 					{
-						auto callback = (callback_t)shortList[i].callback;
-						auto arg = shortList[i].callback_arg;
+						for (auto it = range.first; it != range.second; it++)
+							short_list[short_list_size++] = it->second;
+						handlers = { &short_list[0], &short_list[short_list_size] };
+					}
+					else
+					{
+						for (auto it = range.first; it != range.second; it++)
+							long_list.push_back(it->second);
+						handlers = long_list;
+					}
+
+					for (auto& h : handlers)
+					{
+						auto callback = (callback_t)h.callback;
+						auto arg = h.callback_arg;
 						callback (arg, std::forward<args_t>(args)...);
 					}
-				}
-				else
-				{
-					for (auto h : longList)
-						((callback_t)h.callback) (h.callback_arg, std::forward<args_t>(args)...);
 				}
 			}
 		};

@@ -22,11 +22,11 @@ namespace edge
 		text_layout_with_metrics _text_layout;
 		size_t _selection_origin_pos = 0;
 		size_t _caret_pos;
-		d2d_window* const _control;
+		d2d_window_i* const _control;
 		bool _mouse_captured = false;
 
 	public:
-		text_editor (d2d_window* control, IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, uint32_t fill_argb, uint32_t text_argb, const D2D1_RECT_F& rect, float lr_padding, std::string_view text)
+		text_editor (d2d_window_i* control, IDWriteFactory* dwrite_factory, IDWriteTextFormat* format, uint32_t fill_argb, uint32_t text_argb, const D2D1_RECT_F& rect, float lr_padding, std::string_view text)
 			: _control(control)
 			, _dwrite_factory(dwrite_factory)
 			, _format(format)
@@ -59,6 +59,7 @@ namespace edge
 		~text_editor()
 		{
 			//_control->GetZoomOrOriginChanged().RemoveHandler (&TextEditor::OnZoomOrOriginChanged, this);
+			_control->invalidate(_editorBounds);
 			_control->hide_caret();
 		}
 
@@ -144,7 +145,7 @@ namespace edge
 			return pos;
 		}
 
-		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
+		virtual handled process_mouse_button_down (mouse_button button, modifier_key mks, D2D1_POINT_2F dip) override
 		{
 			if (button == mouse_button::left)
 			{
@@ -156,16 +157,24 @@ namespace edge
 				set_caret_pos (byte_index, keepSelectionOrigin);
 				set_caret_screen_location_from_caret_pos ();
 				_mouse_captured = true;
+				return handled(true);
 			}
+
+			return handled(false);
 		}
 
-		virtual void process_mouse_button_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
+		virtual handled process_mouse_button_up (mouse_button button, modifier_key mks, D2D1_POINT_2F dip) override
 		{
 			if (button == mouse_button::left)
+			{
 				_mouse_captured = false;
+				return handled(true);
+			}
+
+			return handled(false);
 		}
 
-		virtual void process_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override
+		virtual void process_mouse_move (modifier_key mks, D2D1_POINT_2F dip) override
 		{
 			if ((mks & modifier_key::lbutton) != 0)
 			{
@@ -185,7 +194,7 @@ namespace edge
 					bool keepSelectionOrigin = (mks == modifier_key::shift);
 					set_caret_pos ((_caret_pos > 0) ? (_caret_pos - 1) : 0, keepSelectionOrigin);
 					set_caret_screen_location_from_caret_pos ();
-					return handled::yes;
+					return handled(true);
 				}
 			}
 			#pragma endregion
@@ -197,7 +206,7 @@ namespace edge
 					bool keepSelectionOrigin = (mks == modifier_key::shift);
 					set_caret_pos ((_caret_pos < _text.length()) ? (_caret_pos + 1) : _text.length(), keepSelectionOrigin);
 					set_caret_screen_location_from_caret_pos ();
-					return handled::yes;
+					return handled(true);
 				}
 			}
 			#pragma endregion
@@ -205,7 +214,7 @@ namespace edge
 			else if ((mks == modifier_key::control) && (virtualKey == 'A'))
 			{
 				select_all();
-				return handled::yes;
+				return handled(true);
 			}
 			#pragma endregion
 			#pragma region Home
@@ -216,7 +225,7 @@ namespace edge
 					bool keepSelectionOrigin = (mks == modifier_key::shift);
 					set_caret_pos (0, keepSelectionOrigin);
 					set_caret_screen_location_from_caret_pos ();
-					return handled::yes;
+					return handled(true);
 				}
 			}
 			#pragma endregion
@@ -228,7 +237,7 @@ namespace edge
 					bool keepSelectionOrigin = (mks == modifier_key::shift);
 					set_caret_pos (_text.length(), keepSelectionOrigin);
 					set_caret_screen_location_from_caret_pos ();
-					return handled::yes;
+					return handled(true);
 				}
 			}
 			#pragma endregion
@@ -261,7 +270,7 @@ namespace edge
 					invalidate();
 				}
 
-				return handled::yes;
+				return handled(true);
 			}
 			#pragma endregion
 			#pragma region Back
@@ -293,7 +302,7 @@ namespace edge
 					invalidate();
 				}
 
-				return handled::yes;
+				return handled(true);
 			}
 			#pragma endregion
 			#pragma region Control + X / Shift + Del (Cut)   OR   Control + C / Control + Ins (Copy)
@@ -339,7 +348,7 @@ namespace edge
 					}
 				}
 
-				return handled::yes;
+				return handled(true);
 			}
 			#pragma endregion
 			#pragma region Control + V / Shift + Ins (Paste)
@@ -362,16 +371,16 @@ namespace edge
 					::CloseClipboard();
 				}
 
-				return handled::yes;
+				return handled(true);
 			}
 			#pragma endregion
 
-			return handled::no;
+			return handled(false);
 		}
 
 		virtual handled process_virtual_key_up (uint32_t key, modifier_key mks) override
 		{
-			return handled::no;
+			return handled(false);
 		}
 
 		void insert_text_over_selection (const wchar_t* textToInsert, size_t textToInsertCharCount)
@@ -408,10 +417,10 @@ namespace edge
 
 				wchar_t c = (wchar_t) ch;
 				insert_text_over_selection (&c, 1);
-				return handled::yes;
+				return handled(true);
 			}
 
-			return handled::no;
+			return handled(false);
 		}
 
 		void invalidate()

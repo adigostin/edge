@@ -16,13 +16,17 @@ namespace edge
 		LPCWSTR lpIconSmName;
 	};
 
-	class window : public event_manager, public win32_window_i
+	class window : public event_manager, public virtual dpi_aware_window_i
 	{
 		void register_class (HINSTANCE hInstance, const wnd_class_params& class_params);
 
 	public:
 		window (HINSTANCE hInstance, DWORD exStyle, DWORD style, const RECT& rect, HWND hWndParent, int child_control_id);
 		window (HINSTANCE hInstance, const wnd_class_params& class_params, DWORD exStyle, DWORD style, int x, int y, int width, int height, HWND hWndParent, HMENU hMenu);
+
+		window (const window&) = delete;
+		window& operator= (const window&) = delete;
+
 	protected:
 		virtual ~window();
 
@@ -32,27 +36,27 @@ namespace edge
 
 		static constexpr UINT WM_NEXT = WM_APP;
 
+		virtual void on_client_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips) { }
+		virtual void on_dpi_changed (UINT dpi) { }
+		virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) { return false; }
+		virtual handled on_mouse_up   (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) { return false; }
+		virtual void on_mouse_move (modifier_key mks, POINT pp, D2D1_POINT_2F pd) { }
+		virtual handled on_virtual_key_down (uint32_t vkey, modifier_key mks) { return false; }
+		virtual handled on_virtual_key_up   (uint32_t virtual_key, modifier_key mks) { return false; }
+		virtual handled on_char_key (uint32_t key) { return false; }
+		virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const { return nullptr; }
+
 	public:
-		SIZE client_size_pixels() const { return _clientSize; }
-		LONG client_width_pixels() const { return _clientSize.cx; }
-		LONG client_height_pixels() const { return _clientSize.cy; }
-		RECT client_rect_pixels() const { return { 0, 0, _clientSize.cx, _clientSize.cy }; }
+		// win32_window_i
+		virtual HWND hwnd() const override { return _hwnd; }
 
-		HWND hwnd() const { return _hwnd; }
-
-		LONG dpi() const { return _dpi; }
+		// dpi_aware_window_i
+		virtual uint32_t dpi() const override { return _dpi; }
 
 	private:
 		HWND _hwnd = nullptr;
-		SIZE _clientSize;
-		LONG _dpi;
+		uint32_t _dpi;
 
-		static LRESULT CALLBACK WindowProcStatic (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+		static LRESULT CALLBACK window_proc_static (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	};
-
-	struct GdiObjectDeleter
-	{
-		void operator() (HGDIOBJ object) { ::DeleteObject(object); }
-	};
-	typedef std::unique_ptr<std::remove_pointer<HFONT>::type, GdiObjectDeleter> HFONT_unique_ptr;
 }

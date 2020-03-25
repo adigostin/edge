@@ -9,10 +9,11 @@
 
 namespace edge
 {
-	class d2d_window abstract : public window
+	#pragma warning(disable: 4250) // disable "inherits via dominance" warning
+
+	class d2d_window abstract : public window, public virtual d2d_window_i
 	{
 		using base = window;
-		D2D1_SIZE_F _clientSizeDips;
 		bool _painting = false;
 		bool _forceFullPresentation;
 		com_ptr<IDWriteFactory> const _dwrite_factory;
@@ -28,8 +29,6 @@ namespace edge
 		bool _caret_blink_on = false;
 		std::pair<D2D1_RECT_F, D2D1_MATRIX_3X2_F> _caret_bounds;
 		D2D1_COLOR_F _caret_color;
-		float _line_thickness;
-		static constexpr float line_thickness_not_aligned = 0.6f;
 
 		struct RenderPerfInfo
 		{
@@ -61,44 +60,30 @@ namespace edge
 				   const RECT& rect, HWND hWndParent, int child_control_id,
 				   ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory);
 
-		D2D1_SIZE_F client_size() const { return _clientSizeDips; }
-		float client_width() const { return _clientSizeDips.width; }
-		float client_height() const { return _clientSizeDips.height; }
-		D2D1_POINT_2F pointp_to_pointd (POINT locationPixels) const;
-		D2D1_POINT_2F pointp_to_pointd (long xPixels, long yPixels) const;
-		POINT pointd_to_pointp (float xDips, float yDips, int round_style) const;
-		POINT pointd_to_pointp (D2D1_POINT_2F locationDips, int round_style) const;
-		D2D1_SIZE_F GetDipSizeFromPixelSize(SIZE sizePixels) const;
-		SIZE GetPixelSizeFromDipSize(D2D1_SIZE_F sizeDips) const;
-		D2D1::Matrix3x2F dpi_transform() const;
-
 		ID3D11DeviceContext1* d3d_dc() const { return _d3d_dc; }
-		ID2D1DeviceContext* d2d_dc() const { return _d2dDeviceContext; }
 		ID2D1Factory1* d2d_factory() const { return _d2dFactory; }
-		IDWriteFactory* dwrite_factory() const { return _dwrite_factory; }
 
-		void show_caret (const D2D1_RECT_F& bounds, D2D1_COLOR_F color, const D2D1_MATRIX_3X2_F* transform = nullptr);
-		void hide_caret();
+		// d2d_window_i
+		virtual ID2D1DeviceContext* dc() const { return _d2dDeviceContext; }
+		virtual IDWriteFactory* dwrite_factory() const override { return _dwrite_factory; }
+		virtual void show_caret (const D2D1_RECT_F& bounds, D2D1_COLOR_F color, const D2D1_MATRIX_3X2_F* transform = nullptr) override;
+		virtual void hide_caret() override;
 
 		float GetFPS();
 		float GetAverageRenderDuration();
 
-		void invalidate (const D2D1_RECT_F& rect);
-
-		float pixel_width() const { return 96.0f / dpi(); }
-		float line_thickness() const { return _line_thickness; }
-
 	protected:
 		virtual std::optional<LRESULT> window_proc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 		virtual void create_render_resources (ID2D1DeviceContext* dc) { }
-		virtual void render (ID2D1DeviceContext* dc) const = 0;
+		virtual void render (ID2D1DeviceContext* dc) const;
 		virtual void release_render_resources (ID2D1DeviceContext* dc) { }
 
 		virtual void d2d_dc_releasing() { }
 		virtual void d2d_dc_recreated() { }
 
+		virtual void on_client_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips) override;
+
 	private:
-		void recalc_pixel_width_and_line_thickness(); // TODO: move this to property_grid.cpp
 		void invalidate_caret();
 		void process_wm_blink();
 		void create_d2d_dc();

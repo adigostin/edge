@@ -267,7 +267,7 @@ float root_item::content_height() const
 		auto grid = root()->_grid;
 		auto factory = grid->dwrite_factory();
 
-		float width = std::max (0.0f, grid->client_width() - grid->value_column_x() - grid->line_thickness() - 2 * text_lr_padding);
+		float width = std::max (0.0f, grid->width() - grid->value_column_x() - grid->line_thickness() - 2 * text_lr_padding);
 
 		auto format = changed_from_default() ? grid->bold_text_format() : grid->text_format();
 
@@ -380,7 +380,7 @@ float root_item::content_height() const
 		if (auto cep = dynamic_cast<const custom_editor_property_i*>(property()))
 		{
 			auto editor = cep->create_editor(parent()->parent()->objects());
-			editor->show(static_cast<win32_window_i*>(root()->_grid));
+			editor->show(root()->_grid->window());
 			return;
 		}
 
@@ -405,7 +405,7 @@ float root_item::content_height() const
 					catch (const std::exception& ex)
 					{
 						auto message = utf8_to_utf16(ex.what());
-						::MessageBox (root()->_grid->hwnd(), message.c_str(), L"Error setting property", 0);
+						::MessageBox (root()->_grid->window()->hwnd(), message.c_str(), L"Error setting property", 0);
 					}
 				}
 
@@ -417,7 +417,7 @@ float root_item::content_height() const
 			D2D1_RECT_F editor_rect = { layout.x_value + lt, layout.y_top, layout.x_right, layout.y_bottom };
 			bool bold = changed_from_default();
 			auto editor = root()->_grid->show_text_editor (editor_rect, bold, text_lr_padding, multiple_values() ? "" : property()->get_to_string(parent()->parent()->objects().front()));
-			editor->process_mouse_button_down (button, mks, pt, dip);
+			editor->process_mouse_button_down (button, mks, dip);
 		}
 	}
 

@@ -51,19 +51,9 @@ namespace edge
 
 		create_d2d_dc();
 
-		_clientSizeDips.width = client_width_pixels() * 96.0f / dpi();
-		_clientSizeDips.height = client_height_pixels() * 96.0f / dpi();
-
 		QueryPerformanceFrequency(&_performanceCounterFrequency);
 
 		hr = dwrite_factory->CreateTextFormat (L"Courier New", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_CONDENSED, 11.0f * 96 / dpi(), L"en-US", &_debugTextFormat); assert(SUCCEEDED(hr));
-
-		recalc_pixel_width_and_line_thickness();
-	}
-
-	void d2d_window::recalc_pixel_width_and_line_thickness()
-	{
-		_line_thickness = roundf(line_thickness_not_aligned / pixel_width()) * pixel_width();
 	}
 
 	void d2d_window::create_d2d_dc()
@@ -94,37 +84,50 @@ namespace edge
 		_d2dFactory = nullptr;
 	}
 
-	std::optional<LRESULT> d2d_window::window_proc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+	void d2d_window::render (ID2D1DeviceContext* dc) const
 	{
-		auto resultBaseClass = base::window_proc(hwnd, uMsg, wParam, lParam);
+		static constexpr D2D1_COLOR_F white = { 1, 1, 1, 1 };
+		dc->Clear(&white);
 
-		if (uMsg == WM_SIZE)
+		dc->SetTransform(dpi_transform());
+
+		com_ptr<ID2D1SolidColorBrush> brush;
+		static constexpr D2D1_COLOR_F red = { 1, 0, 0, 1 };
+		dc->CreateSolidColorBrush (&red, nullptr, &brush);
+
+		auto pw = pixel_width();
+
+		auto rect = inflate(client_rect(), -pw);
+		dc->DrawRectangle (&rect, brush, 2 * pw);
+		dc->DrawLine ({ rect.left, rect.top }, { rect.right, rect.bottom }, brush, 2 * pw);
+		dc->DrawLine ({ rect.left, rect.bottom }, { rect.right, rect.top }, brush, 2 * pw);
+	}
+
+	void d2d_window::on_client_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips)
+	{
+		base::on_client_size_changed(client_size_pixels, client_size_dips);
+
+		if (_swapChain != nullptr)
 		{
-			if (_swapChain != nullptr)
+			// Direct2D extends this to 8x8 and gives a warning. Let's extend it ourselves to avoid getting the warning.
+			UINT width = std::max (8u, (UINT)client_size_pixels.cx);
+			UINT height = std::max (8u, (UINT)client_size_pixels.cy);
+			DXGI_SWAP_CHAIN_DESC1 desc1;
+			_swapChain->GetDesc1(&desc1);
+			if ((desc1.Width != width) || (desc1.Height != height))
 			{
 				this->d2d_dc_releasing();
 				release_d2d_dc();
-				auto width = std::max (8l, client_width_pixels());
-				auto height = std::max (8l, client_height_pixels());
 				auto hr = _swapChain->ResizeBuffers (0, width, height, DXGI_FORMAT_UNKNOWN, 0); assert(SUCCEEDED(hr));
 				create_d2d_dc();
 				this->d2d_dc_recreated();
 			}
-
-			_clientSizeDips.width = client_width_pixels() * 96.0f / dpi();
-			_clientSizeDips.height = client_height_pixels() * 96.0f / dpi();
-
-			return 0;
 		}
+	}
 
-		if (uMsg == 0x02E3) // WM_DPICHANGED_AFTERPARENT
-		{
-			_clientSizeDips.width = client_width_pixels() * 96.0f / dpi();
-			_clientSizeDips.height = client_height_pixels() * 96.0f / dpi();
-			recalc_pixel_width_and_line_thickness();
-			::InvalidateRect (hwnd, nullptr, FALSE);
-			return 0;
-		}
+	std::optional<LRESULT> d2d_window::window_proc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+	{
+		auto resultBaseClass = base::window_proc(hwnd, uMsg, wParam, lParam);
 
 		if (uMsg == WM_ERASEBKGND)
 			return 0; // 0 means the window remains marked for erasing, so the fErase member of the PAINTSTRUCT structure will be TRUE.
@@ -153,7 +156,7 @@ namespace edge
 			return 0;
 		}
 
-		return std::nullopt;
+		return resultBaseClass;
 	}
 
 	void d2d_window::process_wm_paint()
@@ -175,6 +178,7 @@ namespace edge
 		BOOL bRes = QueryPerformanceCounter(&startTime); assert(bRes);
 
 		D2D1_RECT_F frameDurationAndFpsRect;
+		auto _clientSizeDips = client_size();
 		frameDurationAndFpsRect.left   = round (_clientSizeDips.width - 75) + 0.5f;
 		frameDurationAndFpsRect.top    = round (_clientSizeDips.height - 28) + 0.5f;
 		frameDurationAndFpsRect.right  = _clientSizeDips.width - 0.5f;
@@ -397,7 +401,6 @@ namespace edge
 		_painting = false;
 	}
 
-
 	float d2d_window::GetFPS ()
 	{
 		if (perfInfoQueue.empty())
@@ -429,55 +432,6 @@ namespace edge
 		float avg = sum / perfInfoQueue.size();
 
 		return avg;
-	}
-
-	D2D1_POINT_2F d2d_window::pointp_to_pointd (POINT p) const
-	{
-		return { p.x * 96.0f / dpi(), p.y * 96.0f / dpi() };
-	}
-
-	D2D1_POINT_2F d2d_window::pointp_to_pointd (long xPixels, long yPixels) const
-	{
-		return { xPixels * 96.0f / dpi(), yPixels * 96.0f / dpi() };
-	}
-
-	POINT d2d_window::pointd_to_pointp (float xDips, float yDips, int round_style) const
-	{
-		if (round_style < 0)
-			return { (int)std::floor(xDips / 96.0f * dpi()), (int)std::floor(yDips / 96.0f * dpi()) };
-
-		if (round_style > 0)
-			return { (int)std::ceil(xDips / 96.0f * dpi()), (int)std::ceil(yDips / 96.0f * dpi()) };
-
-		return { (int)std::round(xDips / 96.0f * dpi()), (int)std::round(yDips / 96.0f * dpi()) };
-	}
-
-	POINT d2d_window::pointd_to_pointp (D2D1_POINT_2F locationDips, int round_style) const
-	{
-		return pointd_to_pointp(locationDips.x, locationDips.y, round_style);
-	}
-
-	D2D1_SIZE_F d2d_window::GetDipSizeFromPixelSize(SIZE sz) const
-	{
-		return D2D1_SIZE_F{ sz.cx * 96.0f / dpi(), sz.cy * 96.0f / dpi() };
-	}
-
-	SIZE d2d_window::GetPixelSizeFromDipSize(D2D1_SIZE_F sizeDips) const
-	{
-		return SIZE{ (int)(sizeDips.width / 96.0f * dpi()), (int)(sizeDips.height / 96.0f * dpi()) };
-	}
-
-	D2D1::Matrix3x2F d2d_window::dpi_transform() const
-	{
-		return { (float)dpi() / 96, 0, 0, (float)dpi() / 96, 0, 0 };
-	}
-
-	void d2d_window::invalidate (const D2D1_RECT_F& rect)
-	{
-		auto tl = this->pointd_to_pointp (rect.left, rect.top, -1);
-		auto br = this->pointd_to_pointp (rect.right, rect.bottom, 1);
-		RECT rc = { tl.x, tl.y, br.x, br.y };
-		::InvalidateRect (hwnd(), &rc, FALSE);
 	}
 
 	#pragma region Caret methods

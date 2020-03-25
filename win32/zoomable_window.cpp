@@ -78,26 +78,6 @@ namespace edge
 		}
 	}
 
-	// We align the aimpoint to a pixel corner. We guarantee this alignment
-	// to users of this class so their graphics looks better at integer zoom factors.
-	D2D1_SIZE_F zoomable_window::pixel_aligned_window_center() const
-	{
-		float pw = pixel_width();
-
-		float center_x = client_width() / 2;
-		center_x = roundf(center_x / pw) * pw;
-
-		float center_y = client_height() / 2;
-		center_y = roundf(center_y / pw) * pw;
-
-		return { center_x, center_y };
-	}
-
-	Matrix3x2F zoomable_window::zoom_transform() const
-	{
-		return Matrix3x2F::Translation(-_aimpoint.x, -_aimpoint.y) * Matrix3x2F::Scale(_zoom, _zoom) * Matrix3x2F::Translation(pixel_aligned_window_center());
-	}
-
 	void zoomable_window::process_wm_size(WPARAM wparam, LPARAM lparam)
 	{
 		if (_zoomed_to_rect)
@@ -122,7 +102,7 @@ namespace edge
 	{
 		assert((rect.right > rect.left) && (rect.bottom > rect.top));
 
-		auto clientSizeDips = base::client_size();
+		auto clientSizeDips = client_size();
 
 		float horzZoom = (clientSizeDips.width - 2 * min_margin) / (rect.right - rect.left);
 		float vertZoom = (clientSizeDips.height - 2 * min_margin) / (rect.bottom - rect.top);
@@ -269,23 +249,5 @@ namespace edge
 		}
 
 		return base::window_proc(hwnd, uMsg, wParam, lParam);
-	}
-
-	D2D1_POINT_2F zoomable_window::pointd_to_pointw (D2D1_POINT_2F dlocation) const
-	{
-		auto center = pixel_aligned_window_center();
-		float x = (dlocation.x - center.width) / _zoom + _aimpoint.x;
-		float y = (dlocation.y - center.height) / _zoom + _aimpoint.y;
-		return { x, y };
-	}
-
-	void zoomable_window::pointw_to_pointd (span<D2D1_POINT_2F> locations) const
-	{
-		auto center = pixel_aligned_window_center();
-		for (auto& l : locations)
-		{
-			l.x = (l.x - _aimpoint.x) * _zoom + center.width;
-			l.y = (l.y - _aimpoint.y) * _zoom + center.height;
-		}
 	}
 }

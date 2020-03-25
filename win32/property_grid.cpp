@@ -5,7 +5,6 @@
 #include "pch.h"
 #include "property_grid.h"
 #include "utility_functions.h"
-#include "d2d_window.h"
 
 using namespace edge;
 
@@ -20,49 +19,44 @@ namespace edge
 
 #pragma warning (disable: 4250)
 
-class edge::property_grid : public d2d_window, public property_grid_i
+class edge::property_grid : public edge::event_manager, public property_grid_i
 {
-	using base = d2d_window;
-
+	d2d_window_i* const _window;
 	com_ptr<IDWriteTextFormat> _text_format;
 	com_ptr<IDWriteTextFormat> _bold_text_format;
 	com_ptr<IDWriteTextFormat> _wingdings;
 	std::unique_ptr<text_editor_i> _text_editor;
+	D2D1_RECT_F _rect;
 	float _name_column_factor = 0.6f;
 	float _description_height = 120;
 	std::vector<std::unique_ptr<root_item>> _root_items;
 	pgitem* _selected_item = nullptr;
 	std::optional<float> _description_resize_offset;
 
-	std::queue<std::function<void()>> _workQueue;
-
-	static constexpr UINT WM_CLOSE_POPUP = base::WM_NEXT + 0;
-	static constexpr UINT WM_WORK        = base::WM_NEXT + 1;
+	static constexpr float line_thickness_not_aligned = 0.6f;
 
 public:
-	property_grid (HINSTANCE hInstance, DWORD exStyle, const RECT& rect, HWND hWndParent, ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory)
-		: base (hInstance, exStyle, WS_CHILD | WS_VISIBLE, rect, hWndParent, 0, d3d_dc, dwrite_factory)
+	property_grid (d2d_window_i* window, const D2D1_RECT_F& rect)
+		: _window(window), _rect(rect)
 	{
-		auto hr = dwrite_factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+		auto hr = _window->dwrite_factory()->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
 												   DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_text_format); assert(SUCCEEDED(hr));
 
-		hr = dwrite_factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
+		hr = _window->dwrite_factory()->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
 											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_bold_text_format); assert(SUCCEEDED(hr));
 
-		hr = dwrite_factory->CreateTextFormat (L"Wingdings", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+		hr = _window->dwrite_factory()->CreateTextFormat (L"Wingdings", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
 											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_wingdings); assert(SUCCEEDED(hr));
 	}
 
-	virtual IDWriteFactory* dwrite_factory() const override final { return base::dwrite_factory(); }
+	virtual IDWriteFactory* dwrite_factory() const override final { return _window->dwrite_factory(); }
 
 	virtual IDWriteTextFormat* text_format() const override final { return _text_format; }
 
 	virtual IDWriteTextFormat* bold_text_format() const override final { return _bold_text_format; }
 
-	virtual ID2D1DeviceContext* dc() const override final { return base::d2d_dc(); }
-
-	virtual void invalidate() override final { ::InvalidateRect (hwnd(), nullptr, FALSE); }
-
+	virtual void invalidate() override final { ::InvalidateRect (_window->hwnd(), nullptr, FALSE); } // TODO: optimize
+	/*
 	virtual std::optional<LRESULT> window_proc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) override
 	{
 		auto resultBaseClass = base::window_proc (hwnd, msg, wParam, lParam);
@@ -75,156 +69,28 @@ public:
 			return resultBaseClass;
 		}
 
-		if (msg == WM_SIZE)
-		{
-			if (!_root_items.empty())
-			{
-				discard_editor();
-				for (auto& ri : _root_items)
-					create_render_resources(ri.get());
-			}
-
-			return 0;
-		}
-
-		if (msg == 0x02E3) // WM_DPICHANGED_AFTERPARENT
-		{
-			if (!_root_items.empty())
-			{
-				discard_editor();
-				for (auto& ri : _root_items)
-					create_render_resources(ri.get());
-			}
-			return 0;
-		}
-
 		if ((msg == WM_SETFOCUS) || (msg == WM_KILLFOCUS))
 		{
 			::InvalidateRect (hwnd, nullptr, 0);
 			return 0;
 		}
 
-		if (((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN))
-			|| ((msg == WM_LBUTTONUP) || (msg == WM_RBUTTONUP)))
-		{
-			auto button = ((msg == WM_LBUTTONDOWN) || (msg == WM_LBUTTONUP)) ? mouse_button::left : mouse_button::right;
-			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
-			if ((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN))
-			{
-				if (msg == WM_LBUTTONDOWN)
-					::SetCapture(hwnd);
-				process_mouse_button_down (button, (modifier_key)wParam, pt, dip);
-			}
-			else
-			{
-				process_mouse_button_up (button, (modifier_key)wParam, pt, dip);
-				if (msg == WM_LBUTTONUP)
-					::ReleaseCapture();
-			}
-			return 0;
-		}
-
-		if (msg == WM_MOUSEMOVE)
-		{
-			modifier_key mks = (modifier_key)wParam;
-			if (::GetKeyState(VK_MENU) < 0)
-				mks |= modifier_key::alt;
-			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
-			process_mouse_move (mks, pt, dip);
-		}
-
-		if ((msg == WM_KEYDOWN) || (msg == WM_SYSKEYDOWN))
-		{
-			auto handled = process_virtual_key_down ((UINT) wParam, GetModifierKeys());
-			if (handled == handled::yes)
-				return 0;
-
-			return std::nullopt;
-		}
-
-		if ((msg == WM_KEYUP) || (msg == WM_SYSKEYUP))
-		{
-			auto handled = process_virtual_key_up ((UINT) wParam, GetModifierKeys());
-			if (handled == handled::yes)
-				return 0;
-
-			return std::nullopt;
-		}
-
-		if (msg == WM_CHAR)
-		{
-			if (_text_editor)
-			{
-				auto handled = _text_editor->process_character_key ((uint32_t) wParam);
-				if (handled == handled::yes)
-					return 0;
-				else
-					return std::nullopt;
-			}
-
-			return std::nullopt;
-		}
-
-		if (msg == WM_SETCURSOR)
-		{
-			if (_description_resize_offset)
-			{
-				SetCursor (LoadCursor(nullptr, IDC_SIZENS));
-				return TRUE;
-			}
-
-			if (((HWND) wParam == hwnd) && (LOWORD (lParam) == HTCLIENT))
-			{
-				// Let's check the result because GetCursorPos fails when the input desktop is not the current desktop
-				// (happens for example when the monitor goes to sleep and then the lock screen is displayed).
-				POINT pt;
-				if (::GetCursorPos (&pt))
-				{
-					if (ScreenToClient (hwnd, &pt))
-					{
-						auto dip = pointp_to_pointd(pt.x, pt.y) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
-						process_wm_setcursor({ pt.x, pt.y }, dip);
-						return TRUE;
-					}
-				}
-			}
-
-			return std::nullopt;
-		}
-
-		if (msg == WM_WORK)
-		{
-			_workQueue.front()();
-			_workQueue.pop();
-			return 0;
-		}
-
 		return resultBaseClass;
 	}
-
-	void process_wm_setcursor (POINT pt, D2D1_POINT_2F dip)
+	*/
+	virtual HCURSOR cursor_at (POINT pointp, D2D1_POINT_2F dip) const override
 	{
-		HCURSOR cursor = nullptr;
-
 		if ((_description_height > separator_height) && point_in_rect(description_separator_rect(), dip))
-		{
-			SetCursor(LoadCursor(nullptr, IDC_SIZENS));
-			return;
-		}
+			return LoadCursor(nullptr, IDC_SIZENS);
 
 		auto item = item_at(dip);
 		if (item.first != nullptr)
 		{
 			if (dip.x >= item.second.x_value)
-				cursor = item.first->cursor();
+				return item.first->cursor();
 		}
 
-		if (cursor == nullptr)
-			cursor = ::LoadCursor (nullptr, IDC_ARROW);
-
-		::SetCursor(cursor);
+		return ::LoadCursor (nullptr, IDC_ARROW);
 	}
 
 	void enum_items (const std::function<void(pgitem*, const item_layout&, bool& cancel)>& callback) const
@@ -234,23 +100,25 @@ public:
 		enum_items_inner = [this, &enum_items_inner, &callback, vcx=value_column_x()](pgitem* item, float& y, size_t indent, bool& cancel)
 		{
 			auto item_height = item->content_height();
+			if (item_height > 0)
+			{
+				auto horz_line_y = y + item_height;
+				horz_line_y = ceilf (horz_line_y / _window->pixel_width()) * _window->pixel_width();
 
-			auto horz_line_y = y + item_height;
-			horz_line_y = ceilf (horz_line_y / pixel_width()) * pixel_width();
+				item_layout il;
+				il.y_top = y;
+				il.y_bottom = horz_line_y;
+				il.x_left = _rect.left;
+				il.x_name = _rect.left + indent * indent_width;
+				il.x_value = _rect.left + vcx;
+				il.x_right = _rect.right;
 
-			item_layout il;
-			il.y_top = y;
-			il.y_bottom = horz_line_y;
-			il.x_left = 0;
-			il.x_name = indent * indent_width;
-			il.x_value = vcx;
-			il.x_right = client_width();
+				callback(item, il, cancel);
+				if (cancel)
+					return;
 
-			callback(item, il, cancel);
-			if (cancel)
-				return;
-
-			y = horz_line_y + line_thickness();
+				y = horz_line_y + line_thickness();
+			}
 
 			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
 			{
@@ -263,10 +131,12 @@ public:
 			}
 		};
 
-		float y = 0;
+		float y = _rect.top;
 		bool cancel = false;
 		for (auto& root_item : _root_items)
 		{
+			if (y >= _rect.bottom)
+				break;
 			enum_items_inner (root_item.get(), y, 0, cancel);
 			if (cancel)
 				break;
@@ -276,7 +146,7 @@ public:
 	void create_render_resources (root_item* ri)
 	{
 		auto vcx = value_column_x();
-		auto vcw = std::max (75.0f, client_width() - vcx);
+		auto vcw = std::max (75.0f, _rect.right - _rect.left - vcx);
 
 		std::function<void(pgitem* item, size_t indent)> create_inner;
 
@@ -286,7 +156,7 @@ public:
 			il.x_left = 0;
 			il.x_name = indent * indent_width;
 			il.x_value = vcx;
-			il.x_right = std::max (client_width(), vcx + 75.0f);
+			il.x_right = std::max (_rect.right - _rect.left, vcx + 75.0f);
 
 			item->create_render_resources (il);
 
@@ -302,26 +172,25 @@ public:
 		invalidate();
 	}
 
-	virtual HWND hwnd() const override { return base::hwnd(); }
-
 	virtual void render (ID2D1DeviceContext* dc) const override
 	{
-		dc->Clear(GetD2DSystemColor(COLOR_WINDOW));
+		dc->SetTransform (_window->dpi_transform());
 
-		auto tr = dpi_transform();
-		dc->SetTransform ({ (float)tr._11, (float)tr._12, (float)tr._21, (float)tr._22, (float)tr._31, (float)tr._32 });
+		com_ptr<ID2D1SolidColorBrush> back_brush;
+		dc->CreateSolidColorBrush (GetD2DSystemColor(COLOR_WINDOW), &back_brush);
+		dc->FillRectangle(_rect, back_brush);
 
 		if (_root_items.empty())
 		{
 			auto tl = text_layout_with_metrics (dwrite_factory(), _text_format, "(no selection)");
-			D2D1_POINT_2F p = { client_width() / 2 - tl.width() / 2, client_height() / 2 - tl.height() / 2};
+			D2D1_POINT_2F p = { (_rect.left + _rect.right) / 2 - tl.width() / 2, (_rect.top + _rect.bottom) / 2 - tl.height() / 2};
 			com_ptr<ID2D1SolidColorBrush> brush;
 			dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &brush);
 			dc->DrawTextLayout (p, tl, brush);
 			return;
 		}
 
-		bool focused = GetFocus() == hwnd();
+		bool focused = GetFocus() == _window->hwnd();
 
 		render_context rc;
 		rc.dc = dc;
@@ -332,8 +201,8 @@ public:
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &rc.selected_fore_brush);
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_GRAYTEXT), &rc.disabled_fore_brush);
 
-		float items_bottom = client_height() - ((_description_height > separator_height) ? _description_height : 0);
-		dc->PushAxisAlignedClip({ 0, 0, client_width(), items_bottom}, D2D1_ANTIALIAS_MODE_ALIASED);
+		float items_bottom = _rect.bottom - ((_description_height > separator_height) ? _description_height : 0);
+		dc->PushAxisAlignedClip({ _rect.left, _rect.top, _rect.right, items_bottom}, D2D1_ANTIALIAS_MODE_ALIASED);
 		enum_items ([&, this](pgitem* item, const item_layout& layout, bool& cancel)
 		{
 			bool selected = (item == _selected_item);
@@ -345,8 +214,8 @@ public:
 			if (layout.y_bottom + line_thickness() >= items_bottom)
 				cancel = true;
 
-			D2D1_POINT_2F p0 = { 0, layout.y_bottom + line_thickness() / 2 };
-			D2D1_POINT_2F p1 = { client_width(), layout.y_bottom + line_thickness() / 2 };
+			D2D1_POINT_2F p0 = { _rect.left, layout.y_bottom + line_thickness() / 2 };
+			D2D1_POINT_2F p1 = { _rect.right, layout.y_bottom + line_thickness() / 2 };
 			dc->DrawLine (p0, p1, rc.disabled_fore_brush, line_thickness());
 		});
 		dc->PopAxisAlignedClip();
@@ -362,10 +231,10 @@ public:
 			{
 				auto desc_rect = description_rect();
 				float lr_padding = 3;
-				auto title_layout = text_layout_with_metrics (dwrite_factory(), _bold_text_format, _selected_item->description_title(), client_width() - 2 * lr_padding);
+				auto title_layout = text_layout_with_metrics (dwrite_factory(), _bold_text_format, _selected_item->description_title(), _rect.right - _rect.left - 2 * lr_padding);
 				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top }, title_layout, rc.fore_brush);
 
-				auto desc_layout = text_layout(dwrite_factory(), _text_format, _selected_item->description_text(), client_width() - 2 * lr_padding);
+				auto desc_layout = text_layout(dwrite_factory(), _text_format, _selected_item->description_text(), _rect.right - _rect.left - 2 * lr_padding);
 				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top + title_layout.height() }, desc_layout, rc.fore_brush);
 			}
 		}
@@ -374,31 +243,53 @@ public:
 	D2D1_RECT_F description_rect() const
 	{
 		assert(_description_height > separator_height);
-		D2D1_RECT_F rect = { 0, client_height() - _description_height + separator_height, client_width(), client_height() };
-		rect = align_to_pixel (rect, dpi());
+		D2D1_RECT_F rect = { 0, _rect.bottom - _rect.top - _description_height + separator_height, _rect.right - _rect.left, _rect.bottom - _rect.top };
+		rect = align_to_pixel (rect, _window->dpi());
 		return rect;
 	}
 
 	D2D1_RECT_F description_separator_rect() const
 	{
 		assert(_description_height > separator_height);
-		D2D1_RECT_F separator = { 0, client_height() - _description_height, client_width(), client_height() - _description_height + separator_height };
-		separator = align_to_pixel (separator, dpi());
+		D2D1_RECT_F separator = { _rect.left, _rect.bottom - _description_height, _rect.right, _rect.bottom - _description_height + separator_height };
+		separator = align_to_pixel (separator, _window->dpi());
 		return separator;
 	}
 
-	void discard_editor()
+	virtual d2d_window_i* window() const override { return _window; }
+
+	virtual const D2D1_RECT_F& rect() const override { return _rect; }
+
+	virtual void set_rect (const D2D1_RECT_F& r) override
 	{
-		if (_text_editor)
+		if (_rect != r)
 		{
-			base::invalidate (_text_editor->rect());
-			_text_editor = nullptr;
+			_window->invalidate(_rect);
+			_rect = r;
+			if (!_root_items.empty())
+			{
+				_text_editor = nullptr;
+				for (auto& ri : _root_items)
+					create_render_resources(ri.get());
+			}
+			_window->invalidate(_rect);
 		}
+	}
+
+	virtual void on_dpi_changed() override
+	{
+		if (!_root_items.empty())
+		{
+			_text_editor = nullptr;
+			for (auto& ri : _root_items)
+				create_render_resources(ri.get());
+		}
+		_window->invalidate(_rect);
 	}
 
 	virtual void clear() override
 	{
-		discard_editor();
+		_text_editor = nullptr;
 		_selected_item = nullptr;
 		_root_items.clear();
 		invalidate();
@@ -419,28 +310,29 @@ public:
 
 	virtual bool read_only() const override { return false; }
 
-	virtual property_changed_e::subscriber property_changed() override { return property_changed_e::subscriber(this); }
+	virtual property_edited_e::subscriber property_changed() override { return property_edited_e::subscriber(this); }
 
 	virtual description_height_changed_e::subscriber description_height_changed() override { return description_height_changed_e::subscriber(this); }
 
 	virtual text_editor_i* show_text_editor (const D2D1_RECT_F& rect, bool bold, float lr_padding, std::string_view str) override final
 	{
-		discard_editor();
 		uint32_t fill_argb = 0xFF00'0000u | GetSysColor(COLOR_WINDOW);
 		uint32_t text_argb = 0xFF00'0000u | GetSysColor(COLOR_WINDOWTEXT);
-		_text_editor = text_editor_factory (this, dwrite_factory(), bold ? _bold_text_format : _text_format, fill_argb, text_argb, rect, lr_padding, str);
+		_text_editor = text_editor_factory (_window, dwrite_factory(), bold ? _bold_text_format : _text_format, fill_argb, text_argb, rect, lr_padding, str);
 		return _text_editor.get();
 	}
 
 	virtual int show_enum_editor (D2D1_POINT_2F dip, const nvp* nameValuePairs) override final
 	{
-		discard_editor();
-		POINT ptScreen = pointd_to_pointp(dip, 0);
-		::ClientToScreen (hwnd(), &ptScreen);
+		_text_editor = nullptr;
+		POINT ptScreen = _window->pointd_to_pointp(dip, 0);
+		::ClientToScreen (_window->hwnd(), &ptScreen);
 
-		HINSTANCE hInstance = (HINSTANCE) GetWindowLongPtr (hwnd(), GWLP_HINSTANCE);
+		HINSTANCE hInstance = (HINSTANCE) GetWindowLongPtr (_window->hwnd(), GWLP_HINSTANCE);
 
 		static constexpr wchar_t ClassName[] = L"GIGI-{655C4EA9-2A80-46D7-A7FB-D510A32DC6C6}";
+		static constexpr UINT WM_CLOSE_POPUP = WM_APP;
+
 		static ATOM atom = 0;
 		if (atom == 0)
 		{
@@ -472,7 +364,7 @@ public:
 			atom = ::RegisterClassW (&EditorWndClass); assert (atom != 0);
 		}
 
-		auto hwnd = CreateWindowEx (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, ClassName, L"aaa", WS_POPUP | WS_BORDER, 0, 0, 0, 0, this->hwnd(), nullptr, hInstance, nullptr); assert (hwnd != nullptr);
+		auto hwnd = CreateWindowEx (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, ClassName, L"aaa", WS_POPUP | WS_BORDER, 0, 0, 0, 0, _window->hwnd(), nullptr, hInstance, nullptr); assert (hwnd != nullptr);
 
 		LONG maxTextWidth = 0;
 		LONG maxTextHeight = 0;
@@ -482,7 +374,7 @@ public:
 		if (proc_addr != nullptr)
 		{
 			auto proc = reinterpret_cast<BOOL(WINAPI*)(UINT, UINT, PVOID, UINT, UINT)>(proc_addr);
-			proc(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &ncMetrics, 0, dpi());
+			proc(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &ncMetrics, 0, _window->dpi());
 		}
 		else
 			SystemParametersInfo (SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &ncMetrics, 0);
@@ -501,13 +393,13 @@ public:
 		::SelectObject (hdc, oldFont);
 		::ReleaseDC (hwnd, hdc);
 
-		int lrpadding = 7 * dpi() / 96;
-		int udpadding = ((count <= 5) ? 5 : 0) * dpi() / 96;
-		LONG buttonWidth = std::max (100l * (LONG)dpi() / 96, maxTextWidth + 2 * lrpadding) + 2 * GetSystemMetrics(SM_CXEDGE);
+		int lrpadding = 7 * _window->dpi() / 96;
+		int udpadding = ((count <= 5) ? 5 : 0) * _window->dpi() / 96;
+		LONG buttonWidth = std::max (100l * (LONG)_window->dpi() / 96, maxTextWidth + 2 * lrpadding) + 2 * GetSystemMetrics(SM_CXEDGE);
 		LONG buttonHeight = maxTextHeight + 2 * udpadding + 2 * GetSystemMetrics(SM_CYEDGE);
 
-		int margin = 4 * dpi() / 96;
-		int spacing = 2 * dpi() / 96;
+		int margin = 4 * _window->dpi() / 96;
+		int spacing = 2 * _window->dpi() / 96;
 		int y = margin;
 		for (size_t nvp_index = 0; nameValuePairs[nvp_index].name != nullptr;)
 		{
@@ -573,27 +465,23 @@ public:
 		return result;
 	}
 
-	void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
+	virtual handled process_mouse_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
 	{
-		::SetFocus (hwnd());
-		if (::GetFocus() != hwnd())
-			return;
-
 		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), dip)))
-			return _text_editor->process_mouse_button_down(button, mks, pixel, dip);
+			return _text_editor->process_mouse_button_down(button, mks, dip);
 
 		if (_description_height > separator_height)
 		{
 			auto ds_rect = description_separator_rect();
 			if (point_in_rect(ds_rect, dip))
 			{
-				discard_editor();
+				_text_editor = nullptr;
 				_description_resize_offset = dip.y - ds_rect.top;
-				return;
+				return handled(true);
 			}
 
-			if (dip.y >= ds_rect.bottom)
-				return;
+			if (point_in_rect(description_rect(), dip))
+				return handled(true);
 		}
 
 		auto clicked_item = item_at(dip);
@@ -601,40 +489,50 @@ public:
 		auto new_selected_item = (clicked_item.first && clicked_item.first->selectable()) ? clicked_item.first : nullptr;
 		if (_selected_item != new_selected_item)
 		{
-			discard_editor();
+			_text_editor = nullptr;
 			_selected_item = new_selected_item;
 			invalidate();
 		}
 
 		if (clicked_item.first != nullptr)
+		{
 			clicked_item.first->process_mouse_button_down (button, mks, pixel, dip, clicked_item.second);
+			return handled(true);
+		}
+
+		return handled(false);
 	}
 
-	void process_mouse_button_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
+	virtual handled process_mouse_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
 	{
 		if (_text_editor && _text_editor->mouse_captured())
-			return _text_editor->process_mouse_button_up (button, mks, pixel, dip);
+			return _text_editor->process_mouse_button_up (button, mks, dip);
 
 		if (_description_resize_offset)
 		{
 			_description_resize_offset.reset();
 			event_invoker<description_height_changed_e>()(_description_height);
-			return;
+			return handled(true);
 		}
 
 		auto clicked_item = item_at(dip);
 		if (clicked_item.first != nullptr)
+		{
 			clicked_item.first->process_mouse_button_up (button, mks, pixel, dip, clicked_item.second);
+			return handled(true);
+		}
+
+		return handled(false);
 	}
 
-	void process_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip)
+	virtual void process_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
 	{
 		if (_text_editor && _text_editor->mouse_captured())
-			return _text_editor->process_mouse_move (mks, pixel, dip);
+			return _text_editor->process_mouse_move (mks, dip);
 
 		if (_description_resize_offset)
 		{
-			_description_height = client_height() - dip.y + _description_resize_offset.value();
+			_description_height = _rect.bottom - _rect.top - dip.y + _description_resize_offset.value();
 			_description_height = std::max (description_min_height, _description_height);
 			invalidate();
 			return;
@@ -656,13 +554,13 @@ public:
 		catch (const std::exception& ex)
 		{
 			auto message = utf8_to_utf16(ex.what());
-			::MessageBox (hwnd(), message.c_str(), L"Error setting property", 0);
-			::SetFocus (hwnd());
+			::MessageBox (_window->hwnd(), message.c_str(), L"Error setting property", 0);
+			::SetFocus (_window->hwnd());
 			_text_editor->select_all();
 			return;
 		}
 
-		base::invalidate (_text_editor->rect());
+		_window->invalidate(_text_editor->rect());
 		_text_editor = nullptr;
 	}
 
@@ -688,22 +586,24 @@ public:
 			}
 		}
 
-		property_changed_args args = { objects, std::move(old_values), std::string(new_value_str) };
-		this->event_invoker<property_changed_e>()(std::move(args));
+		property_edited_args args = { objects, std::move(old_values), std::string(new_value_str) };
+		this->event_invoker<property_edited_e>()(std::move(args));
 	}
 
-	virtual float line_thickness() const override { return base::line_thickness(); }
-
-	virtual float client_width() const override { return base::client_width(); }
+	virtual float line_thickness() const override
+	{
+		auto lt = roundf(line_thickness_not_aligned / _window->pixel_width()) * _window->pixel_width();
+		return lt;
+	}
 
 	virtual float value_column_x() const override
 	{
-		float w = client_width() * _name_column_factor;
-		w = roundf (w / pixel_width()) * pixel_width();
+		float w = (_rect.right - _rect.left) * _name_column_factor;
+		w = roundf (w / _window->pixel_width()) * _window->pixel_width();
 		return std::max (75.0f, w);
 	}
 
-	handled process_virtual_key_down (UINT key, modifier_key mks)
+	virtual handled process_key_down (uint32_t key, modifier_key mks) override
 	{
 		if ((key == VK_RETURN) || (key == VK_UP) || (key == VK_DOWN))
 		{
@@ -718,30 +618,39 @@ public:
 				// select next item
 			}
 
-			return handled::yes;
+			return handled(true);
 		}
 
 		if ((key == VK_ESCAPE) && _text_editor)
 		{
-			discard_editor();
-			return handled::yes;
+			_text_editor = nullptr;
+			return handled(true);
 		}
 
 		if (_text_editor)
 			return _text_editor->process_virtual_key_down (key, mks);
 
-		return handled::no;
+		return handled(false);
 	}
 
-	handled process_virtual_key_up (UINT key, modifier_key mks)
+	virtual handled process_key_up (uint32_t key, modifier_key mks) override
 	{
 		if (_text_editor)
 			return _text_editor->process_virtual_key_up (key, mks);
 
-		return handled::no;
+		return handled(false);
+	}
+
+	virtual handled process_char_key (uint32_t key) override
+	{
+		if (_text_editor)
+			return _text_editor->process_character_key (key);
+
+		return handled(false);
 	}
 };
 
-extern edge::property_grid_factory_t* const edge::property_grid_factory =
-	[](auto... params) -> std::unique_ptr<property_grid_i>
-	{ return std::make_unique<property_grid>(std::forward<decltype(params)>(params)...); };
+extern std::unique_ptr<property_grid_i> edge::property_grid_factory (d2d_window_i* window, const D2D1_RECT_F& rect)
+{
+	return std::make_unique<property_grid>(window, rect);
+};

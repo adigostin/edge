@@ -5,7 +5,7 @@
 #pragma once
 #include "..\object.h"
 #include "com_ptr.h"
-#include "d2d_window.h"
+#include "edge_win32.h"
 #include "text_layout.h"
 
 namespace edge
