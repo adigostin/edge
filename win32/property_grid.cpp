@@ -33,8 +33,6 @@ class edge::property_grid : public edge::event_manager, public property_grid_i
 	pgitem* _selected_item = nullptr;
 	std::optional<float> _description_resize_offset;
 
-	static constexpr float line_thickness_not_aligned = 0.6f;
-
 public:
 	property_grid (d2d_window_i* window, const D2D1_RECT_F& rect)
 		: _window(window), _rect(rect)
@@ -75,6 +73,99 @@ public:
 			return 0;
 		}
 
+<<<<<<< HEAD
+=======
+		if (((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN))
+			|| ((msg == WM_LBUTTONUP) || (msg == WM_RBUTTONUP)))
+		{
+			auto button = ((msg == WM_LBUTTONDOWN) || (msg == WM_LBUTTONUP)) ? mouse_button::left : mouse_button::right;
+			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
+			if ((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN))
+			{
+				if (msg == WM_LBUTTONDOWN)
+					::SetCapture(hwnd);
+				process_mouse_button_down (button, (modifier_key)wParam, pt, dip);
+			}
+			else
+			{
+				process_mouse_button_up (button, (modifier_key)wParam, pt, dip);
+				if (msg == WM_LBUTTONUP)
+					::ReleaseCapture();
+			}
+			return 0;
+		}
+
+		if (msg == WM_MOUSEMOVE)
+		{
+			modifier_key mks = (modifier_key)wParam;
+			if (::GetKeyState(VK_MENU) < 0)
+				mks |= modifier_key::alt;
+			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
+			process_mouse_move (mks, pt, dip);
+		}
+
+		if ((msg == WM_KEYDOWN) || (msg == WM_SYSKEYDOWN))
+		{
+			auto handled = process_virtual_key_down ((UINT) wParam, GetModifierKeys());
+			if (handled == handled::yes)
+				return 0;
+
+			return std::nullopt;
+		}
+
+		if ((msg == WM_KEYUP) || (msg == WM_SYSKEYUP))
+		{
+			auto handled = process_virtual_key_up ((UINT) wParam, GetModifierKeys());
+			if (handled == handled::yes)
+				return 0;
+
+			return std::nullopt;
+		}
+
+		if (msg == WM_CHAR)
+		{
+			if (_text_editor)
+			{
+				auto handled = _text_editor->process_character_key ((uint32_t) wParam);
+				if (handled == handled::yes)
+					return 0;
+				else
+					return std::nullopt;
+			}
+
+			return std::nullopt;
+		}
+
+		if (msg == WM_SETCURSOR)
+		{
+			if (_description_resize_offset)
+			{
+				SetCursor (LoadCursor(nullptr, IDC_SIZENS));
+				return TRUE;
+			}
+
+			if (((HWND) wParam == hwnd) && (LOWORD (lParam) == HTCLIENT))
+			{
+				// Let's check the result because GetCursorPos fails when the input desktop is not the current desktop
+				// (happens for example when the monitor goes to sleep and then the lock screen is displayed).
+				POINT pt;
+				if (::GetCursorPos (&pt))
+				{
+					if (ScreenToClient (hwnd, &pt))
+					{
+						auto dip = pointp_to_pointd(pt.x, pt.y) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
+						process_wm_setcursor({ pt.x, pt.y }, dip);
+						return TRUE;
+					}
+				}
+			}
+
+			return std::nullopt;
+		}
+
+>>>>>>> 320e168d387f2214942c65a628462c29a966e3ca
 		return resultBaseClass;
 	}
 	*/
@@ -592,6 +683,7 @@ public:
 
 	virtual float line_thickness() const override
 	{
+		static constexpr float line_thickness_not_aligned = 0.6f;
 		auto lt = roundf(line_thickness_not_aligned / _window->pixel_width()) * _window->pixel_width();
 		return lt;
 	}
