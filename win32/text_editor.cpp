@@ -110,7 +110,7 @@ namespace edge
 			b = align_to_pixel(b, _control->dpi());
 			_control->show_caret(b, D2D1::ColorF(_text_argb & 0x00FF'FFFF));
 		}
-	/*
+		/*
 		// static
 		void TextEditor::OnZoomOrOriginChanged (void* callbackArg, ID2DZoomableWindow* window)
 		{
@@ -119,8 +119,7 @@ namespace edge
 			editor->set_caret_screen_location_from_caret_pos();
 		}
 		*/
-		// TODO: rename to get_byte_index_at
-		size_t GetPosAtDLocation (D2D1_POINT_2F dLocation, bool* isInside)
+		size_t text_pos_at (D2D1_POINT_2F dLocation, bool* isInside)
 		{
 			auto textOffset = get_text_location();
 
@@ -150,7 +149,7 @@ namespace edge
 			if (button == mouse_button::left)
 			{
 				bool isInside;
-				size_t byte_index = GetPosAtDLocation (dip, &isInside);
+				size_t byte_index = text_pos_at (dip, &isInside);
 
 				bool keepSelectionOrigin = ((mks & modifier_key::shift) != 0);
 
@@ -178,7 +177,7 @@ namespace edge
 		{
 			if ((mks & modifier_key::lbutton) != 0)
 			{
-				size_t pos = GetPosAtDLocation (dip, nullptr);
+				size_t pos = text_pos_at (dip, nullptr);
 				set_caret_pos (pos, true);
 				set_caret_screen_location_from_caret_pos();
 			}
