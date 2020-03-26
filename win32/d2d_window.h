@@ -56,7 +56,7 @@ namespace edge
 		static constexpr UINT WM_NEXT = base::WM_NEXT + 1;
 
 	public:
-		d2d_window (HINSTANCE hInstance, DWORD exStyle, DWORD style,
+		d2d_window (DWORD exStyle, DWORD style,
 				   const RECT& rect, HWND hWndParent, int child_control_id,
 				   ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory);
 

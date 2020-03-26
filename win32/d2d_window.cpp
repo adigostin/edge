@@ -16,10 +16,10 @@ using namespace D2D1;
 
 namespace edge
 {
-	d2d_window::d2d_window (HINSTANCE hInstance, DWORD exStyle, DWORD style,
+	d2d_window::d2d_window (DWORD exStyle, DWORD style,
 						  const RECT& rect, HWND hWndParent, int child_control_id,
 						  ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory)
-		: window(hInstance, exStyle, style, rect, hWndParent, child_control_id)
+		: window(exStyle, style, rect, hWndParent, child_control_id)
 		, _d3d_dc(d3d_dc)
 		, _dwrite_factory(dwrite_factory)
 	{

@@ -7,6 +7,14 @@
 
 using namespace edge;
 
+static HINSTANCE GetHInstance()
+{
+	HMODULE hm;
+	BOOL bRes = ::GetModuleHandleEx (GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)&GetHInstance, &hm);
+	assert(bRes);
+	return hm;
+}
+
 void window::register_class (HINSTANCE hInstance, const wnd_class_params& class_params)
 {
 	WNDCLASSEX wcex;
@@ -29,11 +37,11 @@ void window::register_class (HINSTANCE hInstance, const wnd_class_params& class_
 	}
 }
 
-window::window (HINSTANCE hInstance, const wnd_class_params& class_params, DWORD exStyle, DWORD style, int x, int y, int width, int height, HWND hWndParent, HMENU hMenu)
+window::window (const wnd_class_params& class_params, DWORD exStyle, DWORD style, int x, int y, int width, int height, HWND hWndParent, HMENU hMenu)
 {
-	register_class (hInstance, class_params);
+	register_class (GetHInstance(), class_params);
 
-	auto hwnd = ::CreateWindowEx (exStyle, class_params.lpszClassName, L"", style, x, y, width, height, hWndParent, hMenu, hInstance, this); assert (hwnd != nullptr);
+	auto hwnd = ::CreateWindowEx (exStyle, class_params.lpszClassName, L"", style, x, y, width, height, hWndParent, hMenu, GetHInstance(), this); assert (hwnd != nullptr);
 	assert (hwnd == _hwnd);
 }
 
@@ -46,8 +54,8 @@ static const wnd_class_params child_wnd_class_params =
 	nullptr, // lpIconSmName
 };
 
-window::window (HINSTANCE hInstance, DWORD exStyle, DWORD style, const RECT& rect, HWND hWndParent, int child_control_id)
-	: window (hInstance, child_wnd_class_params, exStyle, style,
+window::window (DWORD exStyle, DWORD style, const RECT& rect, HWND hWndParent, int child_control_id)
+	: window (child_wnd_class_params, exStyle, style,
 			  rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
 			  hWndParent, (HMENU)(size_t)child_control_id)
 { }

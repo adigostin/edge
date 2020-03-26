@@ -22,8 +22,8 @@ namespace edge
 		uint32_t _dpi;
 
 	public:
-		window (HINSTANCE hInstance, DWORD exStyle, DWORD style, const RECT& rect, HWND hWndParent, int child_control_id);
-		window (HINSTANCE hInstance, const wnd_class_params& class_params, DWORD exStyle, DWORD style, int x, int y, int width, int height, HWND hWndParent, HMENU hMenu);
+		window (DWORD exStyle, DWORD style, const RECT& rect, HWND hWndParent, int child_control_id);
+		window (const wnd_class_params& class_params, DWORD exStyle, DWORD style, int x, int y, int width, int height, HWND hWndParent, HMENU hMenu);
 
 		window (const window&) = delete;
 		window& operator= (const window&) = delete;
