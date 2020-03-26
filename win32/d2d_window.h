@@ -17,39 +17,39 @@ namespace edge
 		bool _painting = false;
 		bool _forceFullPresentation;
 		com_ptr<IDWriteFactory> const _dwrite_factory;
-		com_ptr<ID3D11Device1> _d3dDevice;
+		com_ptr<ID3D11Device1> _d3d_device;
 		com_ptr<ID3D11DeviceContext1> _d3d_dc;
-		com_ptr<IDXGIDevice2> _dxgiDevice;
-		com_ptr<IDXGIAdapter> _dxgiAdapter;
-		com_ptr<IDXGIFactory2> _dxgiFactory;
-		com_ptr<IDXGISwapChain1> _swapChain;
-		com_ptr<ID2D1DeviceContext> _d2dDeviceContext;
-		com_ptr<ID2D1Factory1> _d2dFactory;
+		com_ptr<IDXGIDevice2> _dxgi_device;
+		com_ptr<IDXGIAdapter> _dxgi_adapter;
+		com_ptr<IDXGIFactory2> _dxgi_factory;
+		com_ptr<IDXGISwapChain1> _swap_chain;
+		com_ptr<ID2D1DeviceContext> _d2d_dc;
+		com_ptr<ID2D1Factory1> _d2d_factory;
 		timer_queue_timer_unique_ptr _caret_blink_timer;
 		bool _caret_blink_on = false;
 		std::pair<D2D1_RECT_F, D2D1_MATRIX_3X2_F> _caret_bounds;
 		D2D1_COLOR_F _caret_color;
 
-		struct RenderPerfInfo
+		struct render_perf_info
 		{
-			LARGE_INTEGER startTime;
-			float durationMilliseconds;
+			LARGE_INTEGER start_time;
+			float duration;
 		};
 
-		LARGE_INTEGER _performanceCounterFrequency;
-		std::deque<RenderPerfInfo> perfInfoQueue;
+		LARGE_INTEGER _performance_counter_frequency;
+		std::deque<render_perf_info> perf_info_queue;
 
-		enum class DebugFlag
+		enum class debug_flag
 		{
-			RenderFrameDurationsAndFPS = 1,
-			RenderUpdateRects = 2,
-			FullClear = 4,
+			render_frame_durations_and_fps = 1,
+			render_update_rects = 2,
+			full_clear = 4,
 		};
-		//virtual bool GetDebugFlag (DebugFlag flag) const = 0;
-		//virtual void SetDebugFlag (DebugFlag flag, bool value) = 0;
+		//virtual bool GetDebugFlag (debug_flag flag) const = 0;
+		//virtual void SetDebugFlag (debug_flag flag, bool value) = 0;
 
-		DebugFlag _debugFlags = (DebugFlag)0; //DebugFlag::RenderFrameDurationsAndFPS;
-		com_ptr<IDWriteTextFormat> _debugTextFormat;
+		debug_flag _debug_flags = (debug_flag)0; //debug_flag::render_frame_durations_and_fps;
+		com_ptr<IDWriteTextFormat> _debug_text_format;
 
 		static constexpr UINT WM_BLINK = base::WM_NEXT + 0;
 	protected:
@@ -61,16 +61,16 @@ namespace edge
 				   ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory);
 
 		ID3D11DeviceContext1* d3d_dc() const { return _d3d_dc; }
-		ID2D1Factory1* d2d_factory() const { return _d2dFactory; }
+		ID2D1Factory1* d2d_factory() const { return _d2d_factory; }
 
 		// d2d_window_i
-		virtual ID2D1DeviceContext* dc() const { return _d2dDeviceContext; }
+		virtual ID2D1DeviceContext* dc() const { return _d2d_dc; }
 		virtual IDWriteFactory* dwrite_factory() const override { return _dwrite_factory; }
 		virtual void show_caret (const D2D1_RECT_F& bounds, D2D1_COLOR_F color, const D2D1_MATRIX_3X2_F* transform = nullptr) override;
 		virtual void hide_caret() override;
 
-		float GetFPS();
-		float GetAverageRenderDuration();
+		float fps();
+		float average_render_duration();
 
 	protected:
 		virtual std::optional<LRESULT> window_proc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;

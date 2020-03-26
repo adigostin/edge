@@ -25,13 +25,13 @@ namespace edge
 	{
 		com_ptr<ID3D11Device> device;
 		d3d_dc->GetDevice(&device);
-		auto hr = device->QueryInterface(IID_PPV_ARGS(&_d3dDevice)); assert(SUCCEEDED(hr));
+		auto hr = device->QueryInterface(IID_PPV_ARGS(&_d3d_device)); assert(SUCCEEDED(hr));
 
-		hr = device->QueryInterface(IID_PPV_ARGS(&_dxgiDevice)); assert(SUCCEEDED(hr));
+		hr = device->QueryInterface(IID_PPV_ARGS(&_dxgi_device)); assert(SUCCEEDED(hr));
 
-		hr = _dxgiDevice->GetAdapter(&_dxgiAdapter); assert(SUCCEEDED(hr));
+		hr = _dxgi_device->GetAdapter(&_dxgi_adapter); assert(SUCCEEDED(hr));
 
-		hr = _dxgiAdapter->GetParent(IID_PPV_ARGS(&_dxgiFactory)); assert(SUCCEEDED(hr));
+		hr = _dxgi_adapter->GetParent(IID_PPV_ARGS(&_dxgi_factory)); assert(SUCCEEDED(hr));
 
 		DXGI_SWAP_CHAIN_DESC1 desc;
 		desc.Width = std::max (8l, client_width_pixels());
@@ -46,42 +46,42 @@ namespace edge
 		desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 		desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 		desc.Flags = 0;
-		hr = _dxgiFactory->CreateSwapChainForHwnd (_d3dDevice, hwnd(), &desc, nullptr, nullptr, &_swapChain); assert(SUCCEEDED(hr));
+		hr = _dxgi_factory->CreateSwapChainForHwnd (_d3d_device, hwnd(), &desc, nullptr, nullptr, &_swap_chain); assert(SUCCEEDED(hr));
 		_forceFullPresentation = true;
 
 		create_d2d_dc();
 
-		QueryPerformanceFrequency(&_performanceCounterFrequency);
+		QueryPerformanceFrequency(&_performance_counter_frequency);
 
-		hr = dwrite_factory->CreateTextFormat (L"Courier New", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_CONDENSED, 11.0f * 96 / dpi(), L"en-US", &_debugTextFormat); assert(SUCCEEDED(hr));
+		hr = dwrite_factory->CreateTextFormat (L"Courier New", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_CONDENSED, 11.0f * 96 / dpi(), L"en-US", &_debug_text_format); assert(SUCCEEDED(hr));
 	}
 
 	void d2d_window::create_d2d_dc()
 	{
-		assert (_d2dDeviceContext == nullptr);
-		assert (_d2dFactory       == nullptr);
+		assert (_d2d_dc == nullptr);
+		assert (_d2d_factory       == nullptr);
 
 		com_ptr<IDXGISurface2> dxgiSurface;
-		auto hr = _swapChain->GetBuffer (0, IID_PPV_ARGS(&dxgiSurface)); assert(SUCCEEDED(hr));
+		auto hr = _swap_chain->GetBuffer (0, IID_PPV_ARGS(&dxgiSurface)); assert(SUCCEEDED(hr));
 
 		D2D1_CREATION_PROPERTIES cps = { };
 		cps.debugLevel = D2D1_DEBUG_LEVEL_ERROR;
 		cps.options = D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS;
-		hr = D2D1CreateDeviceContext (dxgiSurface, &cps, &_d2dDeviceContext); assert(SUCCEEDED(hr));
+		hr = D2D1CreateDeviceContext (dxgiSurface, &cps, &_d2d_dc); assert(SUCCEEDED(hr));
 
 		com_ptr<ID2D1Factory> factory;
-		_d2dDeviceContext->GetFactory(&factory);
-		hr = factory->QueryInterface(&_d2dFactory); assert(SUCCEEDED(hr));
+		_d2d_dc->GetFactory(&factory);
+		hr = factory->QueryInterface(&_d2d_factory); assert(SUCCEEDED(hr));
 
-		_d2dDeviceContext->SetTextAntialiasMode (D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
+		_d2d_dc->SetTextAntialiasMode (D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
 	}
 
 	void d2d_window::release_d2d_dc()
 	{
-		assert (_d2dDeviceContext != nullptr);
-		assert (_d2dFactory != nullptr);
-		_d2dDeviceContext = nullptr;
-		_d2dFactory = nullptr;
+		assert (_d2d_dc != nullptr);
+		assert (_d2d_factory != nullptr);
+		_d2d_dc = nullptr;
+		_d2d_factory = nullptr;
 	}
 
 	void d2d_window::render (ID2D1DeviceContext* dc) const
@@ -107,18 +107,18 @@ namespace edge
 	{
 		base::on_client_size_changed(client_size_pixels, client_size_dips);
 
-		if (_swapChain != nullptr)
+		if (_swap_chain != nullptr)
 		{
 			// Direct2D extends this to 8x8 and gives a warning. Let's extend it ourselves to avoid getting the warning.
 			UINT width = std::max (8u, (UINT)client_size_pixels.cx);
 			UINT height = std::max (8u, (UINT)client_size_pixels.cy);
 			DXGI_SWAP_CHAIN_DESC1 desc1;
-			_swapChain->GetDesc1(&desc1);
+			_swap_chain->GetDesc1(&desc1);
 			if ((desc1.Width != width) || (desc1.Height != height))
 			{
 				this->d2d_dc_releasing();
 				release_d2d_dc();
-				auto hr = _swapChain->ResizeBuffers (0, width, height, DXGI_FORMAT_UNKNOWN, 0); assert(SUCCEEDED(hr));
+				auto hr = _swap_chain->ResizeBuffers (0, width, height, DXGI_FORMAT_UNKNOWN, 0); assert(SUCCEEDED(hr));
 				create_d2d_dc();
 				this->d2d_dc_recreated();
 			}
@@ -172,10 +172,10 @@ namespace edge
 		}
 
 		// Call this before calculating the update rects, to allow derived classed to invalidate stuff.
-		this->create_render_resources (_d2dDeviceContext);
+		this->create_render_resources (_d2d_dc);
 
-		LARGE_INTEGER startTime;
-		BOOL bRes = QueryPerformanceCounter(&startTime); assert(bRes);
+		LARGE_INTEGER start_time;
+		BOOL bRes = QueryPerformanceCounter(&start_time); assert(bRes);
 
 		D2D1_RECT_F frameDurationAndFpsRect;
 		auto _clientSizeDips = client_size();
@@ -183,7 +183,7 @@ namespace edge
 		frameDurationAndFpsRect.top    = round (_clientSizeDips.height - 28) + 0.5f;
 		frameDurationAndFpsRect.right  = _clientSizeDips.width - 0.5f;
 		frameDurationAndFpsRect.bottom = _clientSizeDips.height - 0.5f;
-		if ((int) _debugFlags & (int) DebugFlag::RenderFrameDurationsAndFPS)
+		if ((int) _debug_flags & (int) debug_flag::render_frame_durations_and_fps)
 			this->invalidate (frameDurationAndFpsRect);
 		/*
 		#pragma region Calculate _updateRects
@@ -275,13 +275,13 @@ namespace edge
 
 		_painting = true;
 
-		_d2dDeviceContext->BeginDraw();
-		_d2dDeviceContext->SetTransform(IdentityMatrix());
+		_d2d_dc->BeginDraw();
+		_d2d_dc->SetTransform(IdentityMatrix());
 		/*
 		if (!updateEntireClientArea)
 		{
 			#pragma region Create D2D geometry from _updateRects and push clip layer
-			hr = _d2dFactory->CreatePathGeometry(&_updateGeometry); rassert_hr(hr);
+			hr = _d2d_factory->CreatePathGeometry(&_updateGeometry); rassert_hr(hr);
 
 			ComPtr<ID2D1GeometrySink> sink;
 			hr = _updateGeometry->Open(&sink); rassert_hr(hr);
@@ -305,7 +305,7 @@ namespace edge
 
 			hr = sink->Close(); rassert_hr(hr);
 
-			if (!((int)_debugFlags & (int)DebugFlag::FullClear))
+			if (!((int)_debug_flags & (int)debug_flag::full_clear))
 			{
 				D2D1_LAYER_PARAMETERS1 layerParams = {};
 				layerParams.contentBounds = InfiniteRect();
@@ -315,69 +315,69 @@ namespace edge
 				layerParams.opacity = 1.0f;
 				layerParams.opacityBrush = nullptr;
 				layerParams.layerOptions = D2D1_LAYER_OPTIONS1_IGNORE_ALPHA | D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND;
-				_d2dDeviceContext->PushLayer(&layerParams, nullptr);
+				_d2d_dc->PushLayer(&layerParams, nullptr);
 				// Note AG: without D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND Direct2D calls ClearView,
 				// which some graphic drivers implement in software, which is extremely slow. (Intel integrated for example.)
 			}
 			#pragma endregion
 		}
 		*/
-		this->render (_d2dDeviceContext);
+		this->render (_d2d_dc);
 		/*
 		_updateGeometry = nullptr;
 
-		if ((int)_debugFlags & (int)DebugFlag::RenderUpdateRects)
+		if ((int)_debug_flags & (int)debug_flag::render_update_rects)
 		{
 			ComPtr<ID2D1SolidColorBrush> debugBrush;
-			_d2dDeviceContext->CreateSolidColorBrush(ColorF(ColorF::Red), &debugBrush);
+			_d2d_dc->CreateSolidColorBrush(ColorF(ColorF::Red), &debugBrush);
 
 			for (auto& rect : _updateRects)
-				_d2dDeviceContext->DrawRectangle(RectF(rect.left + 0.5f, rect.top + 0.5f, rect.right - 0.5f, rect.bottom - 0.5f), debugBrush);
+				_d2d_dc->DrawRectangle(RectF(rect.left + 0.5f, rect.top + 0.5f, rect.right - 0.5f, rect.bottom - 0.5f), debugBrush);
 
 			debugBrush->SetColor({ (float)rand() / RAND_MAX, (float)rand() / RAND_MAX, (float)rand() / RAND_MAX, 0.25f });
 
 			for (auto& rect : _updateRects)
-				_d2dDeviceContext->FillRectangle(RectF(rect.left + 0.5f, rect.top + 0.5f, rect.right - 0.5f, rect.bottom - 0.5f), debugBrush);
+				_d2d_dc->FillRectangle(RectF(rect.left + 0.5f, rect.top + 0.5f, rect.right - 0.5f, rect.bottom - 0.5f), debugBrush);
 		}
 		*/
-		if ((int)_debugFlags & (int)DebugFlag::RenderFrameDurationsAndFPS)
+		if ((int)_debug_flags & (int)debug_flag::render_frame_durations_and_fps)
 		{
 			com_ptr<ID2D1SolidColorBrush> backBrush;
-			_d2dDeviceContext->CreateSolidColorBrush (ColorF::ColorF (ColorF::Yellow, 0.5f), &backBrush);
-			_d2dDeviceContext->FillRectangle(frameDurationAndFpsRect, backBrush);
+			_d2d_dc->CreateSolidColorBrush (ColorF::ColorF (ColorF::Yellow, 0.5f), &backBrush);
+			_d2d_dc->FillRectangle(frameDurationAndFpsRect, backBrush);
 
 			com_ptr<ID2D1SolidColorBrush> foreBrush;
-			_d2dDeviceContext->CreateSolidColorBrush (ColorF::ColorF (ColorF::Black), &foreBrush);
+			_d2d_dc->CreateSolidColorBrush (ColorF::ColorF (ColorF::Black), &foreBrush);
 
 			std::wstringstream ss;
-			ss << std::setw(4) << (int)round(GetFPS()) << L" FPS\r\n " << std::setw(3) << (int)round(GetAverageRenderDuration()) << L" ms";
-			auto tl = text_layout_with_metrics (_dwrite_factory, _debugTextFormat, ss.str());
+			ss << std::setw(4) << (int)round(fps()) << L" FPS\r\n " << std::setw(3) << (int)round(average_render_duration()) << L" ms";
+			auto tl = text_layout_with_metrics (_dwrite_factory, _debug_text_format, ss.str());
 
 			D2D1_POINT_2F origin;
 			origin.x = frameDurationAndFpsRect.right - 4 - tl.width();
 			origin.y = (frameDurationAndFpsRect.top + frameDurationAndFpsRect.bottom) / 2 - tl.height() / 2;
-			_d2dDeviceContext->DrawTextLayout (origin, tl, foreBrush);
+			_d2d_dc->DrawTextLayout (origin, tl, foreBrush);
 		}
 		/*
 		if (!updateEntireClientArea
-			&& !((int)_debugFlags & (int)DebugFlag::FullClear))
+			&& !((int)_debug_flags & (int)debug_flag::full_clear))
 		{
-			_d2dDeviceContext->PopLayer();
+			_d2d_dc->PopLayer();
 		}
 		*/
 
 		if (_caret_blink_timer && (::GetFocus() == hwnd()) && _caret_blink_on)
 		{
-			_d2dDeviceContext->SetTransform(dpi_transform() * _caret_bounds.second);
+			_d2d_dc->SetTransform(dpi_transform() * _caret_bounds.second);
 			com_ptr<ID2D1SolidColorBrush> b;
-			_d2dDeviceContext->CreateSolidColorBrush(_caret_color, &b);
-			_d2dDeviceContext->FillRectangle (&_caret_bounds.first, b);
+			_d2d_dc->CreateSolidColorBrush(_caret_color, &b);
+			_d2d_dc->FillRectangle (&_caret_bounds.first, b);
 		}
 
-		hr = _d2dDeviceContext->EndDraw(); assert(SUCCEEDED(hr));
+		hr = _d2d_dc->EndDraw(); assert(SUCCEEDED(hr));
 
 		DXGI_PRESENT_PARAMETERS pp = {};
-		hr = _swapChain->Present1(0, 0, &pp); assert(SUCCEEDED(hr));
+		hr = _swap_chain->Present1(0, 0, &pp); assert(SUCCEEDED(hr));
 
 		::EndPaint(hwnd(), &ps); // this will show the caret in case BeginPaint above hid it.
 
@@ -386,50 +386,50 @@ namespace edge
 		bRes = QueryPerformanceCounter(&timeNow);
 		assert(bRes);
 
-		RenderPerfInfo perfInfo;
-		perfInfo.startTime = startTime;
-		perfInfo.durationMilliseconds = (float)(timeNow.QuadPart - startTime.QuadPart) / (float)_performanceCounterFrequency.QuadPart * 1000.0f;
+		render_perf_info perfInfo;
+		perfInfo.start_time = start_time;
+		perfInfo.duration = (float)(timeNow.QuadPart - start_time.QuadPart) / (float)_performance_counter_frequency.QuadPart * 1000.0f;
 
-		perfInfoQueue.push_back(perfInfo);
-		if (perfInfoQueue.size() > 16)
-			perfInfoQueue.pop_front();
+		perf_info_queue.push_back(perfInfo);
+		if (perf_info_queue.size() > 16)
+			perf_info_queue.pop_front();
 		#pragma endregion
 
-		this->release_render_resources (_d2dDeviceContext);
+		this->release_render_resources (_d2d_dc);
 
 		assert(_painting);
 		_painting = false;
 	}
 
-	float d2d_window::GetFPS ()
+	float d2d_window::fps ()
 	{
-		if (perfInfoQueue.empty())
+		if (perf_info_queue.empty())
 			return 0;
 
-		LARGE_INTEGER startTime = perfInfoQueue.cbegin()->startTime;
+		LARGE_INTEGER start_time = perf_info_queue.cbegin()->start_time;
 
 		LARGE_INTEGER timeNow;
 		QueryPerformanceCounter (&timeNow);
 
-		float seconds = (float) (timeNow.QuadPart - startTime.QuadPart) / (float) _performanceCounterFrequency.QuadPart;
+		float seconds = (float) (timeNow.QuadPart - start_time.QuadPart) / (float) _performance_counter_frequency.QuadPart;
 
-		float fps = (float) perfInfoQueue.size() / seconds;
+		float fps = (float) perf_info_queue.size() / seconds;
 
 		return fps;
 	}
 
-	float d2d_window::GetAverageRenderDuration()
+	float d2d_window::average_render_duration()
 	{
-		if (perfInfoQueue.empty())
+		if (perf_info_queue.empty())
 			return 0;
 
 		float sum = 0;
-		for (const auto& entry : perfInfoQueue)
+		for (const auto& entry : perf_info_queue)
 		{
-			sum += entry.durationMilliseconds;
+			sum += entry.duration;
 		}
 
-		float avg = sum / perfInfoQueue.size();
+		float avg = sum / perf_info_queue.size();
 
 		return avg;
 	}
