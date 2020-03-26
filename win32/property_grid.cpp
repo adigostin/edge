@@ -29,10 +29,8 @@ class edge::property_grid : public edge::event_manager, public property_grid_i
 	RECT _rectp;
 	D2D1_RECT_F _rectd;
 	float _name_column_factor = 0.6f;
-	float _description_height = 120;
 	std::vector<std::unique_ptr<root_item>> _root_items;
 	pgitem* _selected_item = nullptr;
-	std::optional<float> _description_resize_offset;
 
 public:
 	property_grid (d2d_window_i* window, const RECT& rectp)
@@ -81,9 +79,6 @@ public:
 	*/
 	virtual HCURSOR cursor_at (POINT pointp, D2D1_POINT_2F dip) const override
 	{
-		if ((_description_height > separator_height) && point_in_rect(description_separator_rect(), dip))
-			return LoadCursor(nullptr, IDC_SIZENS);
-
 		auto item = item_at(dip);
 		if (item.first != nullptr)
 		{
@@ -202,8 +197,7 @@ public:
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &rc.selected_fore_brush);
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_GRAYTEXT), &rc.disabled_fore_brush);
 
-		float items_bottom = _rectd.bottom - ((_description_height > separator_height) ? _description_height : 0);
-		dc->PushAxisAlignedClip({ _rectd.left, _rectd.top, _rectd.right, items_bottom}, D2D1_ANTIALIAS_MODE_ALIASED);
+		dc->PushAxisAlignedClip({ _rectd.left, _rectd.top, _rectd.right, _rectd.bottom }, D2D1_ANTIALIAS_MODE_ALIASED);
 		enum_items ([&, this](pgitem* item, const item_layout& layout, bool& cancel)
 		{
 			bool selected = (item == _selected_item);
@@ -212,7 +206,7 @@ public:
 			if (selected && _text_editor)
 				_text_editor->render(dc);
 
-			if (layout.y_bottom + line_thickness() >= items_bottom)
+			if (layout.y_bottom + line_thickness() >= _rectd.bottom)
 				cancel = true;
 
 			D2D1_POINT_2F p0 = { _rectd.left, layout.y_bottom + line_thickness() / 2 };
@@ -220,41 +214,6 @@ public:
 			dc->DrawLine (p0, p1, rc.disabled_fore_brush, line_thickness());
 		});
 		dc->PopAxisAlignedClip();
-
-		if (_description_height > separator_height)
-		{
-			auto separator_color = interpolate(GetD2DSystemColor(COLOR_WINDOW), GetD2DSystemColor (COLOR_WINDOWTEXT), 80);
-			com_ptr<ID2D1SolidColorBrush> brush;
-			dc->CreateSolidColorBrush (separator_color, &brush);
-			dc->FillRectangle(description_separator_rect(), brush);
-
-			if (_selected_item)
-			{
-				auto desc_rect = description_rect();
-				float lr_padding = 3;
-				auto title_layout = text_layout_with_metrics (dwrite_factory(), _bold_text_format, _selected_item->description_title(), _rectd.right - _rectd.left - 2 * lr_padding);
-				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top }, title_layout, rc.fore_brush);
-
-				auto desc_layout = text_layout(dwrite_factory(), _text_format, _selected_item->description_text(), _rectd.right - _rectd.left - 2 * lr_padding);
-				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top + title_layout.height() }, desc_layout, rc.fore_brush);
-			}
-		}
-	}
-
-	D2D1_RECT_F description_rect() const
-	{
-		assert(_description_height > separator_height);
-		D2D1_RECT_F rect = { 0, _rectd.bottom - _rectd.top - _description_height + separator_height, _rectd.right - _rectd.left, _rectd.bottom - _rectd.top };
-		rect = align_to_pixel (rect, _window->dpi());
-		return rect;
-	}
-
-	D2D1_RECT_F description_separator_rect() const
-	{
-		assert(_description_height > separator_height);
-		D2D1_RECT_F separator = { _rectd.left, _rectd.bottom - _description_height, _rectd.right, _rectd.bottom - _description_height + separator_height };
-		separator = align_to_pixel (separator, _window->dpi());
-		return separator;
 	}
 
 	virtual d2d_window_i* window() const override { return _window; }
@@ -306,17 +265,9 @@ public:
 		invalidate();
 	}
 
-	virtual void set_description_height (float height) override
-	{
-		_description_height = height;
-		invalidate();
-	}
-
 	virtual bool read_only() const override { return false; }
 
 	virtual property_edited_e::subscriber property_changed() override { return property_edited_e::subscriber(this); }
-
-	virtual description_height_changed_e::subscriber description_height_changed() override { return description_height_changed_e::subscriber(this); }
 
 	virtual text_editor_i* show_text_editor (const D2D1_RECT_F& rect, bool bold, float lr_padding, std::string_view str) override final
 	{
@@ -452,7 +403,7 @@ public:
 		return selected_nvp_index;
 	}
 
-	std::pair<pgitem*, item_layout> item_at (D2D1_POINT_2F dip) const
+	virtual std::pair<pgitem*, item_layout> item_at (D2D1_POINT_2F dip) const override
 	{
 		std::pair<pgitem*, item_layout> result = { };
 
@@ -473,20 +424,6 @@ public:
 	{
 		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), dip)))
 			return _text_editor->on_mouse_down(button, mks, dip);
-
-		if (_description_height > separator_height)
-		{
-			auto ds_rect = description_separator_rect();
-			if (point_in_rect(ds_rect, dip))
-			{
-				_text_editor = nullptr;
-				_description_resize_offset = dip.y - ds_rect.top;
-				return handled(true);
-			}
-
-			if (point_in_rect(description_rect(), dip))
-				return handled(true);
-		}
 
 		auto clicked_item = item_at(dip);
 
@@ -512,13 +449,6 @@ public:
 		if (_text_editor && _text_editor->mouse_captured())
 			return _text_editor->on_mouse_up (button, mks, dip);
 
-		if (_description_resize_offset)
-		{
-			_description_resize_offset.reset();
-			event_invoker<description_height_changed_e>()(_description_height);
-			return handled(true);
-		}
-
 		auto clicked_item = item_at(dip);
 		if (clicked_item.first != nullptr)
 		{
@@ -533,14 +463,6 @@ public:
 	{
 		if (_text_editor && _text_editor->mouse_captured())
 			return _text_editor->on_mouse_move (mks, dip);
-
-		if (_description_resize_offset)
-		{
-			_description_height = _rectd.bottom - _rectd.top - dip.y + _description_resize_offset.value();
-			_description_height = std::max (description_min_height, _description_height);
-			invalidate();
-			return;
-		}
 	}
 
 	void try_commit_editor()

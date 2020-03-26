@@ -73,7 +73,7 @@ namespace edge
 		float average_render_duration();
 
 	protected:
-		virtual std::optional<LRESULT> window_proc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
+		virtual std::optional<LRESULT> window_proc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) override;
 		virtual void create_render_resources (ID2D1DeviceContext* dc) { }
 		virtual void render (ID2D1DeviceContext* dc) const;
 		virtual void release_render_resources (ID2D1DeviceContext* dc) { }

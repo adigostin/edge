@@ -150,17 +150,23 @@ namespace edge
 
 	std::wstring utf8_to_utf16 (std::string_view str_utf8)
 	{
-		int char_count = MultiByteToWideChar (CP_UTF8, 0, str_utf8.data(), -1, nullptr, 0);
+		if (str_utf8.empty())
+			return { };
+
+		int char_count = MultiByteToWideChar (CP_UTF8, 0, str_utf8.data(), (int)str_utf8.size(), nullptr, 0);
 		std::wstring wide (char_count, 0);
-		MultiByteToWideChar (CP_UTF8, 0, str_utf8.data(), -1, wide.data(), char_count);
+		MultiByteToWideChar (CP_UTF8, 0, str_utf8.data(), (int)str_utf8.size(), wide.data(), char_count);
 		return wide;
 	}
 
 	std::string utf16_to_utf8 (std::wstring_view str_utf16)
 	{
-		int size_bytes = WideCharToMultiByte (CP_UTF8, 0, str_utf16.data(), (int) str_utf16.size(), nullptr, 0, nullptr, nullptr);
-		auto str = std::string (size_bytes, 0);
-		WideCharToMultiByte (CP_UTF8, 0, str_utf16.data(), (int) str_utf16.size(), str.data(), size_bytes, nullptr, nullptr);
+		if (str_utf16.empty())
+			return { };
+
+		int char_count = WideCharToMultiByte (CP_UTF8, 0, str_utf16.data(), (int) str_utf16.size(), nullptr, 0, nullptr, nullptr);
+		std::string str (char_count, 0);
+		WideCharToMultiByte (CP_UTF8, 0, str_utf16.data(), (int) str_utf16.size(), str.data(), char_count, nullptr, nullptr);
 		return str;
 	}
 

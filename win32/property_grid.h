@@ -30,7 +30,6 @@ namespace edge
 		virtual void on_dpi_changed() = 0;
 		virtual void clear() = 0;
 		virtual void add_section (const char* heading, std::span<object* const> objects) = 0;
-		virtual void set_description_height (float height) = 0;
 		virtual bool read_only() const = 0;
 		virtual void render (ID2D1DeviceContext* dc) const = 0;
 		virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) = 0;
@@ -40,6 +39,7 @@ namespace edge
 		virtual handled on_key_up (uint32_t vkey, modifier_key mks) = 0;
 		virtual handled on_char_key (uint32_t ch) = 0;
 		virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const = 0;
+		virtual std::pair<pgitem*, item_layout> item_at (D2D1_POINT_2F dip) const = 0;
 
 		struct property_edited_args
 		{
@@ -50,9 +50,6 @@ namespace edge
 
 		struct property_edited_e : event<property_edited_e, property_edited_args&&> { };
 		virtual property_edited_e::subscriber property_changed() = 0;
-
-		struct description_height_changed_e : event<description_height_changed_e, float> { };
-		virtual description_height_changed_e::subscriber description_height_changed() = 0;
 
 		// TODO: make these internal to property_grid.cpp / property_grid_items.cpp
 		virtual IDWriteFactory* dwrite_factory() const = 0;

@@ -149,8 +149,8 @@ namespace edge
 		virtual void render (const render_context& rc, const item_layout& l, bool selected, bool focused) const override final;
 		virtual float content_height() const override final;
 		virtual bool selectable() const override final { return false; }
-		virtual std::string description_title() const override final { assert(false); return { }; }
-		virtual std::string description_text() const override final { assert(false); return { }; }
+		virtual std::string description_title() const override final { return { }; }
+		virtual std::string description_text() const override final { return { }; }
 	};
 
 	// TODO: value from collection / value from pd
