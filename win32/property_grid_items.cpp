@@ -24,8 +24,8 @@ namespace edge
 	}
 
 	#pragma region object_item
-	object_item::object_item (object* const* objects, size_t size)
-		: _objects(objects, objects + size)
+	object_item::object_item (std::span<object* const> objects)
+		: _objects(objects.begin(), objects.end())
 	{
 		for (auto obj : _objects)
 		{
@@ -190,8 +190,8 @@ namespace edge
 	#pragma endregion
 
 	#pragma region root_item
-	root_item::root_item (property_grid_i* grid, const char* heading, object* const* objects, size_t size)
-		: base(objects, size), _grid(grid), _heading(heading ? heading : "")
+	root_item::root_item (property_grid_i* grid, const char* heading, std::span<object* const> objects)
+		: base(objects), _grid(grid), _heading(heading ? heading : "")
 	{
 		expand();
 	}

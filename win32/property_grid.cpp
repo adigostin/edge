@@ -386,9 +386,9 @@ public:
 		invalidate();
 	}
 
-	virtual void add_section (const char* heading, object* const* objects, size_t size) override
+	virtual void add_section (const char* heading, std::span<object* const> objects) override
 	{
-		_root_items.push_back (std::make_unique<root_item>(this, heading, objects, size));
+		_root_items.push_back (std::make_unique<root_item>(this, heading, objects));
 		create_render_resources(_root_items.back().get());
 		invalidate();
 	}

@@ -29,7 +29,7 @@ namespace edge
 		virtual void set_rect (const D2D1_RECT_F& r) = 0;
 		virtual void on_dpi_changed() = 0;
 		virtual void clear() = 0;
-		virtual void add_section (const char* heading, object* const* objects, size_t size) = 0;
+		virtual void add_section (const char* heading, std::span<object* const> objects) = 0;
 		virtual void set_description_height (float height) = 0;
 		virtual bool read_only() const = 0;
 		virtual void render (ID2D1DeviceContext* dc) const = 0;

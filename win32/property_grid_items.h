@@ -96,7 +96,7 @@ namespace edge
 		std::vector<object*> const _objects;
 
 	public:
-		object_item (object* const* objects, size_t size);
+		object_item (std::span<object* const> objects);
 		virtual ~object_item();
 
 		const std::vector<object*>& objects() const { return _objects; }
@@ -141,7 +141,7 @@ namespace edge
 	public:
 		property_grid_i* const _grid;
 
-		root_item (property_grid_i* grid, const char* heading, object* const* objects, size_t size);
+		root_item (property_grid_i* grid, const char* heading, std::span<object* const> objects);
 
 		virtual expandable_item* parent() const override { assert(false); return nullptr; }
 		virtual root_item* root() override final { return this; }
