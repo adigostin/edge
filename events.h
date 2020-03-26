@@ -139,18 +139,18 @@ namespace edge
 				{
 					auto range = _em->_events.equal_range(std::type_index(typeid(event_t)));
 
-					// Note that this function must be reentrant (one event handler can invoke another event).
-					// We use one of two lists: one in the stack in case we have a few handlers, the other in the heap for many handlers.
+					// Note that this function must be reentrant (one event handler can invoke
+					// another event, or add/remove events), that's why these stack copies.
 					std::vector<event_manager::handler> long_list;
 					event_manager::handler short_list[8];
-					size_t short_list_size = 0;
 
 					std::span<const event_manager::handler> handlers;
 					if (count <= std::size(short_list))
 					{
+						size_t size = 0;
 						for (auto it = range.first; it != range.second; it++)
-							short_list[short_list_size++] = it->second;
-						handlers = { &short_list[0], &short_list[short_list_size] };
+							short_list[size++] = it->second;
+						handlers = { &short_list[0], &short_list[size] };
 					}
 					else
 					{
