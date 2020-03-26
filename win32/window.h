@@ -18,7 +18,8 @@ namespace edge
 
 	class window : public event_manager, public virtual dpi_aware_window_i
 	{
-		void register_class (HINSTANCE hInstance, const wnd_class_params& class_params);
+		HWND _hwnd = nullptr;
+		uint32_t _dpi;
 
 	public:
 		window (HINSTANCE hInstance, DWORD exStyle, DWORD style, const RECT& rect, HWND hWndParent, int child_control_id);
@@ -54,8 +55,7 @@ namespace edge
 		virtual uint32_t dpi() const override { return _dpi; }
 
 	private:
-		HWND _hwnd = nullptr;
-		uint32_t _dpi;
+		static void register_class (HINSTANCE hInstance, const wnd_class_params& class_params);
 
 		static LRESULT CALLBACK window_proc_static (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	};
