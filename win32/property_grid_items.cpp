@@ -29,8 +29,8 @@ namespace edge
 	{
 		for (auto obj : _objects)
 		{
-			obj->property_changing().add_handler(&on_property_changing, this);
-			obj->property_changed().add_handler(&on_property_changed, this);
+			obj->property_changing().add_handler<&object_item::on_property_changing>(this);
+			obj->property_changed().add_handler<&object_item::on_property_changed>(this);
 		}
 	}
 
@@ -38,28 +38,25 @@ namespace edge
 	{
 		for (auto obj : _objects)
 		{
-			obj->property_changed().remove_handler(&on_property_changed, this);
-			obj->property_changing().remove_handler(&on_property_changing, this);
+			obj->property_changed().remove_handler<&object_item::on_property_changed>(this);
+			obj->property_changing().remove_handler<&object_item::on_property_changing>(this);
 		}
 	}
 
-	//static
-	void object_item::on_property_changing (void* arg, object* obj, const property_change_args& args)
+	void object_item::on_property_changing (object* obj, const property_change_args& args)
 	{
 	}
 
-	//static
-	void object_item::on_property_changed (void* arg, object* obj, const property_change_args& args)
+	void object_item::on_property_changed (object* obj, const property_change_args& args)
 	{
 		if (args.property->_ui_visible == ui_visible::no)
 			return;
 
-		auto oi = static_cast<object_item*>(arg);
-		auto root_item = oi->root();
+		auto root_item = this->root();
 
 		if (auto prop = dynamic_cast<const value_property*>(args.property))
 		{
-			for (auto& gi : oi->children())
+			for (auto& gi : children())
 			{
 				for (auto& child_item : static_cast<group_item*>(gi.get())->children())
 				{

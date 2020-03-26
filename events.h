@@ -99,7 +99,7 @@ namespace edge
 				using member_callback_t = decltype(member_callback);
 				using class_type = typename extract_class<member_callback_t>::class_type;
 				auto c = static_cast<class_type*>(arg);
-				(c->*member_callback)(args...);
+				(c->*member_callback)(std::forward<args_t>(args)...);
 			}
 
 		public:
