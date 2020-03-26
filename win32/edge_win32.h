@@ -55,6 +55,8 @@ namespace edge
 		LONG height_pixels() const;
 		SIZE size_pixels() const;
 		void move_window (const RECT& rect);
+		void invalidate();
+		void invalidate (const RECT& rect);
 	};
 
 	struct __declspec(novtable) dpi_aware_window_i : virtual win32_window_i
@@ -74,8 +76,9 @@ namespace edge
 		POINT pointd_to_pointp (D2D1_POINT_2F locationDips, int round_style) const;
 		D2D1_SIZE_F sizep_to_sized (SIZE size_pixels) const;
 		//SIZE sized_to_sizep (D2D1_SIZE_F size_dips) const;
+		D2D1_RECT_F rectp_to_rectd (RECT rp) const;
+		using win32_window_i::invalidate;
 		void invalidate (const D2D1_RECT_F& rect);
-		void invalidate();
 	};
 
 	struct __declspec(novtable) d2d_window_i : virtual dpi_aware_window_i

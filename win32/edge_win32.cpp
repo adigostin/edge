@@ -81,6 +81,16 @@ namespace edge
 		BOOL bRes = ::MoveWindow (hwnd(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 		assert(bRes);
 	}
+
+	void win32_window_i::invalidate()
+	{
+		::InvalidateRect (hwnd(), nullptr, FALSE);
+	}
+
+	void win32_window_i::invalidate (const RECT& rect)
+	{
+		::InvalidateRect (hwnd(), &rect, FALSE);
+	}
 	#pragma endregion
 
 	#pragma region dpi_aware_i
@@ -166,17 +176,19 @@ namespace edge
 		return SIZE{ (LONG)(sized.width / 96.0f * dpi()), (LONG)(sized.height / 96.0f * dpi()) };
 	}
 	*/
+	D2D1_RECT_F dpi_aware_window_i::rectp_to_rectd (RECT rp) const
+	{
+		auto tl = pointp_to_pointd(rp.left, rp.top);
+		auto br = pointp_to_pointd(rp.right, rp.bottom);
+		return { tl.x, tl.y, br.x, br.y };
+	}
+
 	void dpi_aware_window_i::invalidate (const D2D1_RECT_F& rect)
 	{
 		auto tl = this->pointd_to_pointp (rect.left, rect.top, -1);
 		auto br = this->pointd_to_pointp (rect.right, rect.bottom, 1);
-		RECT rc = { tl.x, tl.y, br.x, br.y };
-		::InvalidateRect (hwnd(), &rc, FALSE);
-	}
-
-	void dpi_aware_window_i::invalidate()
-	{
-		::InvalidateRect (hwnd(), nullptr, FALSE);
+		RECT rectp = { tl.x, tl.y, br.x, br.y };
+		invalidate (rectp);
 	}
 	#pragma endregion
 

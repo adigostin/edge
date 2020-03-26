@@ -26,7 +26,8 @@ class edge::property_grid : public edge::event_manager, public property_grid_i
 	com_ptr<IDWriteTextFormat> _bold_text_format;
 	com_ptr<IDWriteTextFormat> _wingdings;
 	std::unique_ptr<text_editor_i> _text_editor;
-	D2D1_RECT_F _rect;
+	RECT _rectp;
+	D2D1_RECT_F _rectd;
 	float _name_column_factor = 0.6f;
 	float _description_height = 120;
 	std::vector<std::unique_ptr<root_item>> _root_items;
@@ -34,8 +35,10 @@ class edge::property_grid : public edge::event_manager, public property_grid_i
 	std::optional<float> _description_resize_offset;
 
 public:
-	property_grid (d2d_window_i* window, const D2D1_RECT_F& rect)
-		: _window(window), _rect(rect)
+	property_grid (d2d_window_i* window, const RECT& rectp)
+		: _window(window)
+		, _rectp(rectp)
+		, _rectd(window->rectp_to_rectd(rectp))
 	{
 		auto hr = _window->dwrite_factory()->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
 												   DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_text_format); assert(SUCCEEDED(hr));
@@ -106,10 +109,10 @@ public:
 				item_layout il;
 				il.y_top = y;
 				il.y_bottom = horz_line_y;
-				il.x_left = _rect.left;
-				il.x_name = _rect.left + indent * indent_width;
-				il.x_value = _rect.left + vcx;
-				il.x_right = _rect.right;
+				il.x_left = _rectd.left;
+				il.x_name = _rectd.left + indent * indent_width;
+				il.x_value = _rectd.left + vcx;
+				il.x_right = _rectd.right;
 
 				callback(item, il, cancel);
 				if (cancel)
@@ -129,11 +132,11 @@ public:
 			}
 		};
 
-		float y = _rect.top;
+		float y = _rectd.top;
 		bool cancel = false;
 		for (auto& root_item : _root_items)
 		{
-			if (y >= _rect.bottom)
+			if (y >= _rectd.bottom)
 				break;
 			enum_items_inner (root_item.get(), y, 0, cancel);
 			if (cancel)
@@ -144,7 +147,7 @@ public:
 	void create_render_resources (root_item* ri)
 	{
 		auto vcx = value_column_x();
-		auto vcw = std::max (75.0f, _rect.right - _rect.left - vcx);
+		auto vcw = std::max (75.0f, _rectd.right - _rectd.left - vcx);
 
 		std::function<void(pgitem* item, size_t indent)> create_inner;
 
@@ -154,7 +157,7 @@ public:
 			il.x_left = 0;
 			il.x_name = indent * indent_width;
 			il.x_value = vcx;
-			il.x_right = std::max (_rect.right - _rect.left, vcx + 75.0f);
+			il.x_right = std::max (_rectd.right - _rectd.left, vcx + 75.0f);
 
 			item->create_render_resources (il);
 
@@ -176,12 +179,12 @@ public:
 
 		com_ptr<ID2D1SolidColorBrush> back_brush;
 		dc->CreateSolidColorBrush (GetD2DSystemColor(COLOR_WINDOW), &back_brush);
-		dc->FillRectangle(_rect, back_brush);
+		dc->FillRectangle(_rectd, back_brush);
 
 		if (_root_items.empty())
 		{
 			auto tl = text_layout_with_metrics (dwrite_factory(), _text_format, "(no selection)");
-			D2D1_POINT_2F p = { (_rect.left + _rect.right) / 2 - tl.width() / 2, (_rect.top + _rect.bottom) / 2 - tl.height() / 2};
+			D2D1_POINT_2F p = { (_rectd.left + _rectd.right) / 2 - tl.width() / 2, (_rectd.top + _rectd.bottom) / 2 - tl.height() / 2};
 			com_ptr<ID2D1SolidColorBrush> brush;
 			dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &brush);
 			dc->DrawTextLayout (p, tl, brush);
@@ -199,8 +202,8 @@ public:
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &rc.selected_fore_brush);
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_GRAYTEXT), &rc.disabled_fore_brush);
 
-		float items_bottom = _rect.bottom - ((_description_height > separator_height) ? _description_height : 0);
-		dc->PushAxisAlignedClip({ _rect.left, _rect.top, _rect.right, items_bottom}, D2D1_ANTIALIAS_MODE_ALIASED);
+		float items_bottom = _rectd.bottom - ((_description_height > separator_height) ? _description_height : 0);
+		dc->PushAxisAlignedClip({ _rectd.left, _rectd.top, _rectd.right, items_bottom}, D2D1_ANTIALIAS_MODE_ALIASED);
 		enum_items ([&, this](pgitem* item, const item_layout& layout, bool& cancel)
 		{
 			bool selected = (item == _selected_item);
@@ -212,8 +215,8 @@ public:
 			if (layout.y_bottom + line_thickness() >= items_bottom)
 				cancel = true;
 
-			D2D1_POINT_2F p0 = { _rect.left, layout.y_bottom + line_thickness() / 2 };
-			D2D1_POINT_2F p1 = { _rect.right, layout.y_bottom + line_thickness() / 2 };
+			D2D1_POINT_2F p0 = { _rectd.left, layout.y_bottom + line_thickness() / 2 };
+			D2D1_POINT_2F p1 = { _rectd.right, layout.y_bottom + line_thickness() / 2 };
 			dc->DrawLine (p0, p1, rc.disabled_fore_brush, line_thickness());
 		});
 		dc->PopAxisAlignedClip();
@@ -229,10 +232,10 @@ public:
 			{
 				auto desc_rect = description_rect();
 				float lr_padding = 3;
-				auto title_layout = text_layout_with_metrics (dwrite_factory(), _bold_text_format, _selected_item->description_title(), _rect.right - _rect.left - 2 * lr_padding);
+				auto title_layout = text_layout_with_metrics (dwrite_factory(), _bold_text_format, _selected_item->description_title(), _rectd.right - _rectd.left - 2 * lr_padding);
 				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top }, title_layout, rc.fore_brush);
 
-				auto desc_layout = text_layout(dwrite_factory(), _text_format, _selected_item->description_text(), _rect.right - _rect.left - 2 * lr_padding);
+				auto desc_layout = text_layout(dwrite_factory(), _text_format, _selected_item->description_text(), _rectd.right - _rectd.left - 2 * lr_padding);
 				dc->DrawTextLayout({ desc_rect.left + lr_padding, desc_rect.top + title_layout.height() }, desc_layout, rc.fore_brush);
 			}
 		}
@@ -241,7 +244,7 @@ public:
 	D2D1_RECT_F description_rect() const
 	{
 		assert(_description_height > separator_height);
-		D2D1_RECT_F rect = { 0, _rect.bottom - _rect.top - _description_height + separator_height, _rect.right - _rect.left, _rect.bottom - _rect.top };
+		D2D1_RECT_F rect = { 0, _rectd.bottom - _rectd.top - _description_height + separator_height, _rectd.right - _rectd.left, _rectd.bottom - _rectd.top };
 		rect = align_to_pixel (rect, _window->dpi());
 		return rect;
 	}
@@ -249,40 +252,43 @@ public:
 	D2D1_RECT_F description_separator_rect() const
 	{
 		assert(_description_height > separator_height);
-		D2D1_RECT_F separator = { _rect.left, _rect.bottom - _description_height, _rect.right, _rect.bottom - _description_height + separator_height };
+		D2D1_RECT_F separator = { _rectd.left, _rectd.bottom - _description_height, _rectd.right, _rectd.bottom - _description_height + separator_height };
 		separator = align_to_pixel (separator, _window->dpi());
 		return separator;
 	}
 
 	virtual d2d_window_i* window() const override { return _window; }
 
-	virtual const D2D1_RECT_F& rect() const override { return _rect; }
+	virtual const D2D1_RECT_F& rect() const override { return _rectd; }
 
-	virtual void set_rect (const D2D1_RECT_F& r) override
+	virtual void set_rect (const RECT& rp) override
 	{
-		if (_rect != r)
+		if (_rectp != rp)
 		{
-			_window->invalidate(_rect);
-			_rect = r;
+			_window->invalidate(_rectd);
+			_rectp = rp;
+			_rectd = _window->rectp_to_rectd(rp);
 			if (!_root_items.empty())
 			{
 				_text_editor = nullptr;
 				for (auto& ri : _root_items)
 					create_render_resources(ri.get());
 			}
-			_window->invalidate(_rect);
+			_window->invalidate(_rectd);
 		}
 	}
 
 	virtual void on_dpi_changed() override
 	{
+		_rectd = _window->rectp_to_rectd(_rectp);
+
 		if (!_root_items.empty())
 		{
 			_text_editor = nullptr;
 			for (auto& ri : _root_items)
 				create_render_resources(ri.get());
 		}
-		_window->invalidate(_rect);
+		_window->invalidate(_rectd);
 	}
 
 	virtual void clear() override
@@ -530,7 +536,7 @@ public:
 
 		if (_description_resize_offset)
 		{
-			_description_height = _rect.bottom - _rect.top - dip.y + _description_resize_offset.value();
+			_description_height = _rectd.bottom - _rectd.top - dip.y + _description_resize_offset.value();
 			_description_height = std::max (description_min_height, _description_height);
 			invalidate();
 			return;
@@ -597,7 +603,7 @@ public:
 
 	virtual float value_column_x() const override
 	{
-		float w = (_rect.right - _rect.left) * _name_column_factor;
+		float w = (_rectd.right - _rectd.left) * _name_column_factor;
 		w = roundf (w / _window->pixel_width()) * _window->pixel_width();
 		return std::max (75.0f, w);
 	}
@@ -649,7 +655,7 @@ public:
 	}
 };
 
-extern std::unique_ptr<property_grid_i> edge::property_grid_factory (d2d_window_i* window, const D2D1_RECT_F& rect)
+extern std::unique_ptr<property_grid_i> edge::property_grid_factory (d2d_window_i* window, const RECT& rectp)
 {
-	return std::make_unique<property_grid>(window, rect);
+	return std::make_unique<property_grid>(window, rectp);
 };

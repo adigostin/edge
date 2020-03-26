@@ -26,7 +26,7 @@ namespace edge
 		virtual ~property_grid_i() = default;
 		virtual d2d_window_i* window() const = 0;
 		virtual const D2D1_RECT_F& rect() const = 0;
-		virtual void set_rect (const D2D1_RECT_F& r) = 0;
+		virtual void set_rect (const RECT& rectp) = 0;
 		virtual void on_dpi_changed() = 0;
 		virtual void clear() = 0;
 		virtual void add_section (const char* heading, std::span<object* const> objects) = 0;
@@ -68,5 +68,5 @@ namespace edge
 		float height() const { auto r = rect(); return r.bottom - r.top; }
 	};
 
-	std::unique_ptr<property_grid_i> property_grid_factory (d2d_window_i* window, const D2D1_RECT_F& rect);
+	std::unique_ptr<property_grid_i> property_grid_factory (d2d_window_i* window, const RECT& rectp);
 }
