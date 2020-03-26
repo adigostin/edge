@@ -200,7 +200,7 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT msg, WPARAM wParam, L
 	if ((msg == WM_KEYDOWN) || (msg == WM_SYSKEYDOWN))
 	{
 		auto mks = GetModifierKeys();
-		bool handled = this->on_virtual_key_down ((UINT) wParam, mks);
+		bool handled = this->on_key_down ((UINT) wParam, mks);
 		if (handled)
 			return 0;
 		return std::nullopt;
@@ -209,7 +209,7 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT msg, WPARAM wParam, L
 	if ((msg == WM_KEYUP) || (msg == WM_SYSKEYUP))
 	{
 		auto mks = GetModifierKeys();
-		bool handled = this->on_virtual_key_up ((UINT) wParam, mks);
+		bool handled = this->on_key_up ((UINT) wParam, mks);
 		if (handled)
 			return 0;
 		return std::nullopt;

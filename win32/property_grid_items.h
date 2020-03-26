@@ -65,8 +65,8 @@ namespace edge
 		virtual float content_height() const = 0;
 		virtual HCURSOR cursor() const { return nullptr; }
 		virtual bool selectable() const = 0;
-		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
-		virtual void process_mouse_button_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
+		virtual void on_mouse_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
+		virtual void on_mouse_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) { }
 		virtual std::string description_title() const = 0;
 		virtual std::string description_text() const = 0;
 	};
@@ -221,8 +221,8 @@ namespace edge
 
 	protected:
 		virtual HCURSOR cursor() const override final;
-		virtual void process_mouse_button_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
-		virtual void process_mouse_button_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
+		virtual void on_mouse_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
+		virtual void on_mouse_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout) override;
 	};
 
 	struct __declspec(novtable) pgitem_factory_i : property_editor_factory_i

@@ -33,12 +33,12 @@ namespace edge
 		virtual void set_description_height (float height) = 0;
 		virtual bool read_only() const = 0;
 		virtual void render (ID2D1DeviceContext* dc) const = 0;
-		virtual handled process_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) = 0;
-		virtual handled process_mouse_up   (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) = 0;
-		virtual void process_mouse_move (modifier_key mks, POINT pp, D2D1_POINT_2F pd) = 0;
-		virtual handled process_key_down (uint32_t vkey, modifier_key mks) = 0;
-		virtual handled process_key_up (uint32_t vkey, modifier_key mks) = 0;
-		virtual handled process_char_key (uint32_t ch) = 0;
+		virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) = 0;
+		virtual handled on_mouse_up   (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) = 0;
+		virtual void    on_mouse_move (modifier_key mks, POINT pp, D2D1_POINT_2F pd) = 0;
+		virtual handled on_key_down (uint32_t vkey, modifier_key mks) = 0;
+		virtual handled on_key_up (uint32_t vkey, modifier_key mks) = 0;
+		virtual handled on_char_key (uint32_t ch) = 0;
 		virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const = 0;
 
 		struct property_edited_args

@@ -42,8 +42,8 @@ namespace edge
 		virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) { return false; }
 		virtual handled on_mouse_up   (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) { return false; }
 		virtual void on_mouse_move (modifier_key mks, POINT pp, D2D1_POINT_2F pd) { }
-		virtual handled on_virtual_key_down (uint32_t vkey, modifier_key mks) { return false; }
-		virtual handled on_virtual_key_up   (uint32_t virtual_key, modifier_key mks) { return false; }
+		virtual handled on_key_down (uint32_t vkey, modifier_key mks) { return false; }
+		virtual handled on_key_up   (uint32_t virtual_key, modifier_key mks) { return false; }
 		virtual handled on_char_key (uint32_t key) { return false; }
 		virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const { return nullptr; }
 

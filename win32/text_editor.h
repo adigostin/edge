@@ -16,12 +16,12 @@ namespace edge
 		virtual std::wstring_view wstr() const = 0;
 		virtual void select_all() = 0;
 		virtual const D2D1_RECT_F& rect() const = 0;
-		virtual handled process_mouse_button_down (mouse_button button, modifier_key mks, D2D1_POINT_2F pd) = 0;
-		virtual handled process_mouse_button_up   (mouse_button button, modifier_key mks, D2D1_POINT_2F pd) = 0;
-		virtual void process_mouse_move (modifier_key mks, D2D1_POINT_2F pd) = 0;
-		virtual handled process_virtual_key_down (uint32_t virtualKey, modifier_key mks) = 0;
-		virtual handled process_virtual_key_up (uint32_t key, modifier_key mks) = 0;
-		virtual handled process_character_key (uint32_t ch) = 0;
+		virtual handled on_mouse_down (mouse_button button, modifier_key mks, D2D1_POINT_2F pd) = 0;
+		virtual handled on_mouse_up   (mouse_button button, modifier_key mks, D2D1_POINT_2F pd) = 0;
+		virtual void    on_mouse_move (modifier_key mks, D2D1_POINT_2F pd) = 0;
+		virtual handled on_key_down (uint32_t virtualKey, modifier_key mks) = 0;
+		virtual handled on_key_up (uint32_t key, modifier_key mks) = 0;
+		virtual handled on_char_key (uint32_t ch) = 0;
 		virtual bool mouse_captured() const = 0;
 	};
 

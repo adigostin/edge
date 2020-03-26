@@ -144,7 +144,7 @@ namespace edge
 			return pos;
 		}
 
-		virtual handled process_mouse_button_down (mouse_button button, modifier_key mks, D2D1_POINT_2F dip) override
+		virtual handled on_mouse_down (mouse_button button, modifier_key mks, D2D1_POINT_2F dip) override
 		{
 			if (button == mouse_button::left)
 			{
@@ -162,7 +162,7 @@ namespace edge
 			return handled(false);
 		}
 
-		virtual handled process_mouse_button_up (mouse_button button, modifier_key mks, D2D1_POINT_2F dip) override
+		virtual handled on_mouse_up (mouse_button button, modifier_key mks, D2D1_POINT_2F dip) override
 		{
 			if (button == mouse_button::left)
 			{
@@ -173,7 +173,7 @@ namespace edge
 			return handled(false);
 		}
 
-		virtual void process_mouse_move (modifier_key mks, D2D1_POINT_2F dip) override
+		virtual void on_mouse_move (modifier_key mks, D2D1_POINT_2F dip) override
 		{
 			if ((mks & modifier_key::lbutton) != 0)
 			{
@@ -183,7 +183,7 @@ namespace edge
 			}
 		}
 
-		virtual handled process_virtual_key_down (uint32_t virtualKey, modifier_key mks) override
+		virtual handled on_key_down (uint32_t virtualKey, modifier_key mks) override
 		{
 			#pragma region Left
 			if (virtualKey == VK_LEFT)
@@ -377,7 +377,7 @@ namespace edge
 			return handled(false);
 		}
 
-		virtual handled process_virtual_key_up (uint32_t key, modifier_key mks) override
+		virtual handled on_key_up (uint32_t key, modifier_key mks) override
 		{
 			return handled(false);
 		}
@@ -407,7 +407,7 @@ namespace edge
 			invalidate();
 		}
 
-		virtual handled process_character_key (uint32_t ch) override
+		virtual handled on_char_key (uint32_t ch) override
 		{
 			if (ch >= 0x20)
 			{

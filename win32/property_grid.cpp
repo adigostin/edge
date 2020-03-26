@@ -73,99 +73,6 @@ public:
 			return 0;
 		}
 
-<<<<<<< HEAD
-=======
-		if (((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN))
-			|| ((msg == WM_LBUTTONUP) || (msg == WM_RBUTTONUP)))
-		{
-			auto button = ((msg == WM_LBUTTONDOWN) || (msg == WM_LBUTTONUP)) ? mouse_button::left : mouse_button::right;
-			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
-			if ((msg == WM_LBUTTONDOWN) || (msg == WM_RBUTTONDOWN))
-			{
-				if (msg == WM_LBUTTONDOWN)
-					::SetCapture(hwnd);
-				process_mouse_button_down (button, (modifier_key)wParam, pt, dip);
-			}
-			else
-			{
-				process_mouse_button_up (button, (modifier_key)wParam, pt, dip);
-				if (msg == WM_LBUTTONUP)
-					::ReleaseCapture();
-			}
-			return 0;
-		}
-
-		if (msg == WM_MOUSEMOVE)
-		{
-			modifier_key mks = (modifier_key)wParam;
-			if (::GetKeyState(VK_MENU) < 0)
-				mks |= modifier_key::alt;
-			auto pt = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			auto dip = pointp_to_pointd(pt) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
-			process_mouse_move (mks, pt, dip);
-		}
-
-		if ((msg == WM_KEYDOWN) || (msg == WM_SYSKEYDOWN))
-		{
-			auto handled = process_virtual_key_down ((UINT) wParam, GetModifierKeys());
-			if (handled == handled::yes)
-				return 0;
-
-			return std::nullopt;
-		}
-
-		if ((msg == WM_KEYUP) || (msg == WM_SYSKEYUP))
-		{
-			auto handled = process_virtual_key_up ((UINT) wParam, GetModifierKeys());
-			if (handled == handled::yes)
-				return 0;
-
-			return std::nullopt;
-		}
-
-		if (msg == WM_CHAR)
-		{
-			if (_text_editor)
-			{
-				auto handled = _text_editor->process_character_key ((uint32_t) wParam);
-				if (handled == handled::yes)
-					return 0;
-				else
-					return std::nullopt;
-			}
-
-			return std::nullopt;
-		}
-
-		if (msg == WM_SETCURSOR)
-		{
-			if (_description_resize_offset)
-			{
-				SetCursor (LoadCursor(nullptr, IDC_SIZENS));
-				return TRUE;
-			}
-
-			if (((HWND) wParam == hwnd) && (LOWORD (lParam) == HTCLIENT))
-			{
-				// Let's check the result because GetCursorPos fails when the input desktop is not the current desktop
-				// (happens for example when the monitor goes to sleep and then the lock screen is displayed).
-				POINT pt;
-				if (::GetCursorPos (&pt))
-				{
-					if (ScreenToClient (hwnd, &pt))
-					{
-						auto dip = pointp_to_pointd(pt.x, pt.y) + D2D1_SIZE_F{ pixel_width() / 2, pixel_width() / 2 };
-						process_wm_setcursor({ pt.x, pt.y }, dip);
-						return TRUE;
-					}
-				}
-			}
-
-			return std::nullopt;
-		}
-
->>>>>>> 320e168d387f2214942c65a628462c29a966e3ca
 		return resultBaseClass;
 	}
 	*/
@@ -556,10 +463,10 @@ public:
 		return result;
 	}
 
-	virtual handled process_mouse_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
+	virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
 	{
 		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), dip)))
-			return _text_editor->process_mouse_button_down(button, mks, dip);
+			return _text_editor->on_mouse_down(button, mks, dip);
 
 		if (_description_height > separator_height)
 		{
@@ -587,17 +494,17 @@ public:
 
 		if (clicked_item.first != nullptr)
 		{
-			clicked_item.first->process_mouse_button_down (button, mks, pixel, dip, clicked_item.second);
+			clicked_item.first->on_mouse_down (button, mks, pixel, dip, clicked_item.second);
 			return handled(true);
 		}
 
 		return handled(false);
 	}
 
-	virtual handled process_mouse_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
+	virtual handled on_mouse_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
 	{
 		if (_text_editor && _text_editor->mouse_captured())
-			return _text_editor->process_mouse_button_up (button, mks, dip);
+			return _text_editor->on_mouse_up (button, mks, dip);
 
 		if (_description_resize_offset)
 		{
@@ -609,17 +516,17 @@ public:
 		auto clicked_item = item_at(dip);
 		if (clicked_item.first != nullptr)
 		{
-			clicked_item.first->process_mouse_button_up (button, mks, pixel, dip, clicked_item.second);
+			clicked_item.first->on_mouse_up (button, mks, pixel, dip, clicked_item.second);
 			return handled(true);
 		}
 
 		return handled(false);
 	}
 
-	virtual void process_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
+	virtual void on_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
 	{
 		if (_text_editor && _text_editor->mouse_captured())
-			return _text_editor->process_mouse_move (mks, dip);
+			return _text_editor->on_mouse_move (mks, dip);
 
 		if (_description_resize_offset)
 		{
@@ -695,7 +602,7 @@ public:
 		return std::max (75.0f, w);
 	}
 
-	virtual handled process_key_down (uint32_t key, modifier_key mks) override
+	virtual handled on_key_down (uint32_t key, modifier_key mks) override
 	{
 		if ((key == VK_RETURN) || (key == VK_UP) || (key == VK_DOWN))
 		{
@@ -720,23 +627,23 @@ public:
 		}
 
 		if (_text_editor)
-			return _text_editor->process_virtual_key_down (key, mks);
+			return _text_editor->on_key_down (key, mks);
 
 		return handled(false);
 	}
 
-	virtual handled process_key_up (uint32_t key, modifier_key mks) override
+	virtual handled on_key_up (uint32_t key, modifier_key mks) override
 	{
 		if (_text_editor)
-			return _text_editor->process_virtual_key_up (key, mks);
+			return _text_editor->on_key_up (key, mks);
 
 		return handled(false);
 	}
 
-	virtual handled process_char_key (uint32_t key) override
+	virtual handled on_char_key (uint32_t key) override
 	{
 		if (_text_editor)
-			return _text_editor->process_character_key (key);
+			return _text_editor->on_char_key (key);
 
 		return handled(false);
 	}
