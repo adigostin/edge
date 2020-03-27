@@ -231,6 +231,16 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT msg, WPARAM wParam, L
 		return std::nullopt;
 	}
 
+	if (msg == WM_CONTEXTMENU)
+	{
+		POINT pt_screen = { GET_X_LPARAM (lParam), GET_Y_LPARAM (lParam) };
+		POINT pp = pt_screen;
+		::ScreenToClient (hwnd, &pp);
+		auto pd = pointp_to_pointd(pp);
+		this->show_context_menu (pt_screen, pp, pd);
+		return 0;
+	}
+
 	return std::nullopt;
 }
 

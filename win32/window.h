@@ -46,6 +46,7 @@ namespace edge
 		virtual handled on_key_up   (uint32_t virtual_key, modifier_key mks) { return false; }
 		virtual handled on_char_key (uint32_t key) { return false; }
 		virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const { return nullptr; }
+		virtual void show_context_menu (POINT pt_screen, POINT pp, D2D1_POINT_2F pd) { }
 
 	public:
 		// win32_window_i
