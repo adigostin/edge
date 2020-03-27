@@ -101,5 +101,10 @@ namespace edge
 			children.erase (children.begin() + index);
 			return result;
 		}
+
+		std::unique_ptr<child_t> remove_last()
+		{
+			return remove(children_store().size() - 1);
+		}
 	};
 }

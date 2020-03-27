@@ -25,7 +25,8 @@ namespace edge
 	{
 		virtual ~property_grid_i() = default;
 		virtual d2d_window_i* window() const = 0;
-		virtual const D2D1_RECT_F& rect() const = 0;
+		virtual RECT rectp() const = 0;
+		virtual D2D1_RECT_F rectd() const = 0;
 		virtual void set_rect (const RECT& rectp) = 0;
 		virtual void on_dpi_changed() = 0;
 		virtual void clear() = 0;
@@ -39,7 +40,6 @@ namespace edge
 		virtual handled on_key_up (uint32_t vkey, modifier_key mks) = 0;
 		virtual handled on_char_key (uint32_t ch) = 0;
 		virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const = 0;
-		virtual std::pair<pgitem*, item_layout> item_at (D2D1_POINT_2F dip) const = 0;
 
 		struct property_edited_args
 		{
@@ -61,8 +61,8 @@ namespace edge
 		virtual void change_property (const std::vector<object*>& objects, const value_property* prop, std::string_view new_value_str) = 0;
 		virtual float line_thickness() const = 0;
 		virtual float value_column_x() const = 0;
-		float width() const { auto r = rect(); return r.right - r.left; }
-		float height() const { auto r = rect(); return r.bottom - r.top; }
+		float width() const { auto r = rectd(); return r.right - r.left; }
+		float height() const { auto r = rectd(); return r.bottom - r.top; }
 	};
 
 	std::unique_ptr<property_grid_i> property_grid_factory (d2d_window_i* window, const RECT& rectp);

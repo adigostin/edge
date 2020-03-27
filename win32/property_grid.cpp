@@ -31,6 +31,8 @@ class edge::property_grid : public edge::event_manager, public property_grid_i
 	float _name_column_factor = 0.6f;
 	std::vector<std::unique_ptr<root_item>> _root_items;
 	pgitem* _selected_item = nullptr;
+	HWND _tooltip = nullptr;
+	POINT _last_tt_location = { -1, -1 };
 
 public:
 	property_grid (d2d_window_i* window, const RECT& rectp)
@@ -38,6 +40,24 @@ public:
 		, _rectp(rectp)
 		, _rectd(window->rectp_to_rectd(rectp))
 	{
+		auto hinstance = (HINSTANCE)::GetWindowLongPtr (_window->hwnd(), GWLP_HINSTANCE);
+
+		_tooltip = CreateWindowEx (WS_EX_TOPMOST, TOOLTIPS_CLASS, nullptr,
+			WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+			_window->hwnd(), nullptr, hinstance, nullptr);
+
+		TOOLINFO ti = { sizeof(TOOLINFO) };
+		ti.uFlags   = TTF_SUBCLASS;
+		ti.hwnd     = _window->hwnd();
+		ti.lpszText = nullptr;
+		ti.rect     = rectp;
+		SendMessage(_tooltip, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
+
+		SendMessage (_tooltip, TTM_SETDELAYTIME, TTDT_INITIAL, 1500);
+		SendMessage (_tooltip, TTM_SETDELAYTIME, TTDT_AUTOPOP, (LPARAM)(LONG)MAXSHORT);
+		SendMessage (_tooltip, TTM_SETMAXTIPWIDTH, 0, rectp.right - rectp.left);
+
 		auto hr = _window->dwrite_factory()->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
 												   DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_text_format); assert(SUCCEEDED(hr));
 
@@ -46,6 +66,11 @@ public:
 
 		hr = _window->dwrite_factory()->CreateTextFormat (L"Wingdings", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
 											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_wingdings); assert(SUCCEEDED(hr));
+	}
+
+	virtual ~property_grid()
+	{
+		::DestroyWindow(_tooltip);
 	}
 
 	virtual IDWriteFactory* dwrite_factory() const override final { return _window->dwrite_factory(); }
@@ -218,21 +243,31 @@ public:
 
 	virtual d2d_window_i* window() const override { return _window; }
 
-	virtual const D2D1_RECT_F& rect() const override { return _rectd; }
+	virtual RECT rectp() const override { return _rectp; }
 
-	virtual void set_rect (const RECT& rp) override
+	virtual D2D1_RECT_F rectd() const override { return _rectd; }
+
+	virtual void set_rect (const RECT& rectp) override
 	{
-		if (_rectp != rp)
+		if (_rectp != rectp)
 		{
 			_window->invalidate(_rectd);
-			_rectp = rp;
-			_rectd = _window->rectp_to_rectd(rp);
+			_rectp = rectp;
+			_rectd = _window->rectp_to_rectd(rectp);
 			if (!_root_items.empty())
 			{
 				_text_editor = nullptr;
 				for (auto& ri : _root_items)
 					create_render_resources(ri.get());
 			}
+
+			TOOLINFO ti = { sizeof(TOOLINFO) };
+			ti.uFlags   = TTF_SUBCLASS;
+			ti.hwnd     = _window->hwnd();
+			ti.lpszText = nullptr;
+			ti.rect     = rectp;
+			SendMessage(_tooltip, TTM_SETTOOLINFO, 0, (LPARAM) (LPTOOLINFO) &ti);
+
 			_window->invalidate(_rectd);
 		}
 	}
@@ -403,7 +438,7 @@ public:
 		return selected_nvp_index;
 	}
 
-	virtual std::pair<pgitem*, item_layout> item_at (D2D1_POINT_2F dip) const override
+	std::pair<pgitem*, item_layout> item_at (D2D1_POINT_2F dip) const
 	{
 		std::pair<pgitem*, item_layout> result = { };
 
@@ -459,10 +494,37 @@ public:
 		return handled(false);
 	}
 
-	virtual void on_mouse_move (modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
+	virtual void on_mouse_move (modifier_key mks, POINT pp, D2D1_POINT_2F pd) override final
 	{
 		if (_text_editor && _text_editor->mouse_captured())
-			return _text_editor->on_mouse_move (mks, dip);
+			return _text_editor->on_mouse_move (mks, pd);
+
+		if (_last_tt_location != pp)
+		{
+			_last_tt_location = pp;
+
+			::SendMessage (_tooltip, TTM_POP, 0, 0);
+
+			std::wstring text;
+			std::wstring title;
+
+			auto i = item_at(pd);
+			if (i.first)
+			{
+				title = utf8_to_utf16(i.first->description_title());
+				text  = utf8_to_utf16(i.first->description_text());
+
+				if (!title.empty() && text.empty())
+					text = L"--";
+			}
+
+			TOOLINFO ti = { sizeof(TOOLINFO) };
+			ti.hwnd     = _window->hwnd();
+			ti.lpszText = text.data();
+			SendMessage(_tooltip, TTM_UPDATETIPTEXT, 0, (LPARAM)&ti);
+
+			SendMessage(_tooltip, TTM_SETTITLE, TTI_INFO, (LPARAM)title.data());
+		}
 	}
 
 	void try_commit_editor()
