@@ -28,6 +28,7 @@ namespace edge
 		virtual RECT rectp() const = 0;
 		virtual D2D1_RECT_F rectd() const = 0;
 		virtual void set_rect (const RECT& rectp) = 0;
+		virtual void set_border_width (float bw) = 0;
 		virtual void on_dpi_changed() = 0;
 		virtual void clear() = 0;
 		virtual void add_section (const char* heading, std::span<object* const> objects) = 0;

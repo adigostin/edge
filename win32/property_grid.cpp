@@ -33,6 +33,7 @@ class edge::property_grid : public edge::event_manager, public property_grid_i
 	pgitem* _selected_item = nullptr;
 	HWND _tooltip = nullptr;
 	POINT _last_tt_location = { -1, -1 };
+	float _border_width_not_aligned = 0;
 
 public:
 	property_grid (d2d_window_i* window, const RECT& rectp)
@@ -118,7 +119,7 @@ public:
 	{
 		std::function<void(pgitem* item, float& y, size_t indent, bool& cancel)> enum_items_inner;
 
-		enum_items_inner = [this, &enum_items_inner, &callback, vcx=value_column_x()](pgitem* item, float& y, size_t indent, bool& cancel)
+		enum_items_inner = [this, &enum_items_inner, &callback, vcx=value_column_x(), bw=border_width()](pgitem* item, float& y, size_t indent, bool& cancel)
 		{
 			auto item_height = item->content_height();
 			if (item_height > 0)
@@ -129,10 +130,10 @@ public:
 				item_layout il;
 				il.y_top = y;
 				il.y_bottom = horz_line_y;
-				il.x_left = _rectd.left;
-				il.x_name = _rectd.left + indent * indent_width;
-				il.x_value = _rectd.left + vcx;
-				il.x_right = _rectd.right;
+				il.x_left = _rectd.left + bw;
+				il.x_name = _rectd.left + bw + indent * indent_width;
+				il.x_value = _rectd.left + bw + vcx;
+				il.x_right = _rectd.right - bw;
 
 				callback(item, il, cancel);
 				if (cancel)
@@ -152,7 +153,7 @@ public:
 			}
 		};
 
-		float y = _rectd.top;
+		float y = _rectd.top + border_width();
 		bool cancel = false;
 		for (auto& root_item : _root_items)
 		{
@@ -201,13 +202,18 @@ public:
 		dc->CreateSolidColorBrush (GetD2DSystemColor(COLOR_WINDOW), &back_brush);
 		dc->FillRectangle(_rectd, back_brush);
 
+		com_ptr<ID2D1SolidColorBrush> fore_brush;
+		dc->CreateSolidColorBrush (GetD2DSystemColor(COLOR_WINDOWTEXT), &fore_brush);
+
+		float bw = border_width();
+		if (bw > 0)
+			dc->DrawRectangle(inflate(_rectd, -bw / 2), fore_brush, bw);
+
 		if (_root_items.empty())
 		{
 			auto tl = text_layout_with_metrics (dwrite_factory(), _text_format, "(no selection)");
 			D2D1_POINT_2F p = { (_rectd.left + _rectd.right) / 2 - tl.width() / 2, (_rectd.top + _rectd.bottom) / 2 - tl.height() / 2};
-			com_ptr<ID2D1SolidColorBrush> brush;
-			dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &brush);
-			dc->DrawTextLayout (p, tl, brush);
+			dc->DrawTextLayout (p, tl, fore_brush);
 			return;
 		}
 
@@ -249,17 +255,27 @@ public:
 
 	virtual void set_rect (const RECT& rectp) override
 	{
-		if (_rectp != rectp)
+		auto rectd = _window->rectp_to_rectd(rectp);
+
+		if ((_rectp != rectp) || (_rectd != rectd))
 		{
-			_window->invalidate(_rectd);
-			_rectp = rectp;
-			_rectd = _window->rectp_to_rectd(rectp);
-			if (!_root_items.empty())
+			_window->invalidate(_rectp);
+			_text_editor = nullptr;
+
+			// When the grid is moved without resizing, the width still changes slightly
+			// due to floating point rounding errors, that's why the check.
+			// The limit is far less than a pixel width, so we shouldn't see any artifacts.
+			float old_width = _rectd.right - _rectd.left;
+			float new_width = rectd.right - rectd.left;
+			float limit = 0.01f;
+			if (fabsf(old_width - new_width) >= limit)
 			{
-				_text_editor = nullptr;
 				for (auto& ri : _root_items)
 					create_render_resources(ri.get());
 			}
+
+			_rectp = rectp;
+			_rectd = rectd;
 
 			TOOLINFO ti = { sizeof(TOOLINFO) };
 			ti.uFlags   = TTF_SUBCLASS;
@@ -268,6 +284,19 @@ public:
 			ti.rect     = rectp;
 			SendMessage(_tooltip, TTM_SETTOOLINFO, 0, (LPARAM) (LPTOOLINFO) &ti);
 
+			_window->invalidate(_rectp);
+		}
+	}
+
+	virtual void set_border_width (float bw) override
+	{
+		if (_border_width_not_aligned != bw)
+		{
+			_border_width_not_aligned = bw;
+
+			_text_editor = nullptr;
+			for (auto& ri : _root_items)
+				create_render_resources(ri.get());
 			_window->invalidate(_rectd);
 		}
 	}
@@ -276,12 +305,9 @@ public:
 	{
 		_rectd = _window->rectp_to_rectd(_rectp);
 
-		if (!_root_items.empty())
-		{
-			_text_editor = nullptr;
-			for (auto& ri : _root_items)
-				create_render_resources(ri.get());
-		}
+		_text_editor = nullptr;
+		for (auto& ri : _root_items)
+			create_render_resources(ri.get());
 		_window->invalidate(_rectd);
 	}
 
@@ -578,6 +604,13 @@ public:
 		this->event_invoker<property_edited_e>()(std::move(args));
 	}
 
+	float border_width() const
+	{
+		auto pw = _window->pixel_width();
+		auto bw = roundf(_border_width_not_aligned / pw) * pw;
+		return bw;
+	}
+
 	virtual float line_thickness() const override
 	{
 		static constexpr float line_thickness_not_aligned = 0.6f;
@@ -587,9 +620,9 @@ public:
 
 	virtual float value_column_x() const override
 	{
-		float w = (_rectd.right - _rectd.left) * _name_column_factor;
-		w = roundf (w / _window->pixel_width()) * _window->pixel_width();
-		return std::max (75.0f, w);
+		float bw = border_width();
+		float w = (_rectd.right - _rectd.left - 2 * bw) * _name_column_factor;
+		return bw + std::max (75.0f, w);
 	}
 
 	virtual handled on_key_down (uint32_t key, modifier_key mks) override
