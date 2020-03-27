@@ -119,7 +119,7 @@ namespace edge
 			editor->set_caret_screen_location_from_caret_pos();
 		}
 		*/
-		size_t text_pos_at (D2D1_POINT_2F dLocation, bool* isInside)
+		size_t text_pos_at (D2D1_POINT_2F dLocation, bool* isInside = nullptr)
 		{
 			auto textOffset = get_text_location();
 
@@ -144,25 +144,22 @@ namespace edge
 			return pos;
 		}
 
-		virtual handled on_mouse_down (mouse_button button, modifier_key mks, D2D1_POINT_2F dip) override
+		virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) override
 		{
-			if (button == mouse_button::left)
-			{
-				bool isInside;
-				size_t byte_index = text_pos_at (dip, &isInside);
+			if (button != mouse_button::left)
+				return handled(false);
 
-				bool keepSelectionOrigin = ((mks & modifier_key::shift) != 0);
+			size_t byte_index = text_pos_at(pd);
 
-				set_caret_pos (byte_index, keepSelectionOrigin);
-				set_caret_screen_location_from_caret_pos ();
-				_mouse_captured = true;
-				return handled(true);
-			}
+			bool keepSelectionOrigin = ((mks & modifier_key::shift) != 0);
 
-			return handled(false);
+			set_caret_pos (byte_index, keepSelectionOrigin);
+			set_caret_screen_location_from_caret_pos ();
+			_mouse_captured = true;
+			return handled(true);
 		}
 
-		virtual handled on_mouse_up (mouse_button button, modifier_key mks, D2D1_POINT_2F dip) override
+		virtual handled on_mouse_up (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) override
 		{
 			if (button == mouse_button::left)
 			{
@@ -173,11 +170,11 @@ namespace edge
 			return handled(false);
 		}
 
-		virtual void on_mouse_move (modifier_key mks, D2D1_POINT_2F dip) override
+		virtual void on_mouse_move (modifier_key mks, POINT pp, D2D1_POINT_2F pd) override
 		{
 			if ((mks & modifier_key::lbutton) != 0)
 			{
-				size_t pos = text_pos_at (dip, nullptr);
+				size_t pos = text_pos_at (pd, nullptr);
 				set_caret_pos (pos, true);
 				set_caret_screen_location_from_caret_pos();
 			}

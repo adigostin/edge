@@ -455,12 +455,12 @@ public:
 		return result;
 	}
 
-	virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
+	virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) override final
 	{
-		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), dip)))
-			return _text_editor->on_mouse_down(button, mks, dip);
+		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), pd)))
+			return _text_editor->on_mouse_down(button, mks, pp, pd);
 
-		auto clicked_item = item_at(dip);
+		auto clicked_item = item_at(pd);
 
 		auto new_selected_item = (clicked_item.first && clicked_item.first->selectable()) ? clicked_item.first : nullptr;
 		if (_selected_item != new_selected_item)
@@ -470,24 +470,24 @@ public:
 			invalidate();
 		}
 
-		if (clicked_item.first != nullptr)
+		if (clicked_item.first)
 		{
-			clicked_item.first->on_mouse_down (button, mks, pixel, dip, clicked_item.second);
+			clicked_item.first->on_mouse_down (button, mks, pp, pd, clicked_item.second);
 			return handled(true);
 		}
 
 		return handled(false);
 	}
 
-	virtual handled on_mouse_up (mouse_button button, modifier_key mks, POINT pixel, D2D1_POINT_2F dip) override final
+	virtual handled on_mouse_up (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) override final
 	{
 		if (_text_editor && _text_editor->mouse_captured())
-			return _text_editor->on_mouse_up (button, mks, dip);
+			return _text_editor->on_mouse_up (button, mks, pp, pd);
 
-		auto clicked_item = item_at(dip);
+		auto clicked_item = item_at(pd);
 		if (clicked_item.first != nullptr)
 		{
-			clicked_item.first->on_mouse_up (button, mks, pixel, dip, clicked_item.second);
+			clicked_item.first->on_mouse_up (button, mks, pp, pd, clicked_item.second);
 			return handled(true);
 		}
 
@@ -497,7 +497,7 @@ public:
 	virtual void on_mouse_move (modifier_key mks, POINT pp, D2D1_POINT_2F pd) override final
 	{
 		if (_text_editor && _text_editor->mouse_captured())
-			return _text_editor->on_mouse_move (mks, pd);
+			return _text_editor->on_mouse_move (mks, pp, pd);
 
 		if (_last_tt_location != pp)
 		{

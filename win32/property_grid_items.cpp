@@ -369,9 +369,9 @@ float root_item::content_height() const
 		{ nullptr, -1 },
 	};
 
-	void default_value_pgitem::on_mouse_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout)
+	void default_value_pgitem::on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd, const item_layout& layout)
 	{
-		if (dip.x < layout.x_value)
+		if (pd.x < layout.x_value)
 			return;
 
 		if (auto cep = dynamic_cast<const custom_editor_property_i*>(property()))
@@ -387,7 +387,7 @@ float root_item::content_height() const
 		if (property()->nvps() || dynamic_cast<const edge::bool_p*>(property()))
 		{
 			auto nvps = property()->nvps() ? property()->nvps() : bool_nvps;
-			int selected_nvp_index = root()->_grid->show_enum_editor(dip, nvps);
+			int selected_nvp_index = root()->_grid->show_enum_editor(pd, nvps);
 			if (selected_nvp_index >= 0)
 			{
 				auto new_value_str = nvps[selected_nvp_index].name;
@@ -414,7 +414,7 @@ float root_item::content_height() const
 			D2D1_RECT_F editor_rect = { layout.x_value + lt, layout.y_top, layout.x_right, layout.y_bottom };
 			bool bold = changed_from_default();
 			auto editor = root()->_grid->show_text_editor (editor_rect, bold, text_lr_padding, multiple_values() ? "" : property()->get_to_string(parent()->parent()->objects().front()));
-			editor->on_mouse_down (button, mks, dip);
+			//editor->on_mouse_down (button, mks, pp, pd);
 		}
 	}
 
