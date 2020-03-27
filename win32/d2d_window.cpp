@@ -103,9 +103,9 @@ namespace edge
 		dc->DrawLine ({ rect.left, rect.bottom }, { rect.right, rect.top }, brush, 2 * pw);
 	}
 
-	void d2d_window::on_client_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips)
+	void d2d_window::on_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips)
 	{
-		base::on_client_size_changed(client_size_pixels, client_size_dips);
+		base::on_size_changed(client_size_pixels, client_size_dips);
 
 		if (_swap_chain != nullptr)
 		{

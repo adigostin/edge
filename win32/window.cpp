@@ -128,7 +128,7 @@ std::optional<LRESULT> window::window_proc(HWND hwnd, UINT msg, WPARAM wParam, L
 	{
 		SIZE client_size_pixels = { LOWORD(lParam), HIWORD(lParam) };
 		D2D1_SIZE_F client_size_dips = sizep_to_sized(client_size_pixels);
-		this->on_client_size_changed(client_size_pixels, client_size_dips);
+		this->on_size_changed(client_size_pixels, client_size_dips);
 		return 0;
 	}
 

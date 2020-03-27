@@ -81,7 +81,7 @@ namespace edge
 		virtual void d2d_dc_releasing() { }
 		virtual void d2d_dc_recreated() { }
 
-		virtual void on_client_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips) override;
+		virtual void on_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips) override;
 
 	private:
 		void invalidate_caret();

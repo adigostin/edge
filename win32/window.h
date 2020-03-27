@@ -37,7 +37,7 @@ namespace edge
 
 		static constexpr UINT WM_NEXT = WM_APP;
 
-		virtual void on_client_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips) { }
+		virtual void on_size_changed (SIZE client_size_pixels, D2D1_SIZE_F client_size_dips) { }
 		virtual void on_dpi_changed (UINT dpi) { }
 		virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) { return false; }
 		virtual handled on_mouse_up   (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) { return false; }
