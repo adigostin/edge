@@ -348,7 +348,7 @@ namespace edge
 
 	float value_item::content_height() const
 	{
-		return std::max (_name.height(), _value.tl.height());
+		return std::max (_name ? _name.height() : 0.0f, _value.tl ? _value.tl.height() : 0.0f);
 	}
 
 	void value_item::render (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
@@ -399,9 +399,12 @@ namespace edge
 	#pragma region default_value_pgitem
 	void default_value_pgitem::render_value (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
 	{
-		auto line_thickness = root()->grid()->line_thickness();
-		auto fore = !can_edit() ? rc.disabled_fore_brush.get() : (selected ? rc.selected_fore_brush.get() : rc.fore_brush.get());
-		rc.dc->DrawTextLayout ({ pd.x + line_thickness + text_lr_padding, pd.y }, value().tl, fore);
+		if (auto& tl = value().tl)
+		{
+			auto line_thickness = root()->grid()->line_thickness();
+			auto fore = !can_edit() ? rc.disabled_fore_brush.get() : (selected ? rc.selected_fore_brush.get() : rc.fore_brush.get());
+			rc.dc->DrawTextLayout ({ pd.x + line_thickness + text_lr_padding, pd.y }, value().tl, fore);
+		}
 	}
 
 	HCURSOR default_value_pgitem::cursor() const
