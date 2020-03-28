@@ -103,7 +103,7 @@ public:
 	{
 		if ((dip.x >= value_column_x()) && (dip.x < _rectd.right))
 		{
-			auto item = item_at(dip);
+			auto item = item_at(dip.y);
 			if (item.first)
 				return item.first->cursor();
 		}
@@ -115,7 +115,7 @@ public:
 	{
 		std::function<void(pgitem* item, float& y, size_t indent, bool& cancel)> enum_items_inner;
 
-		enum_items_inner = [this, &enum_items_inner, &callback, vcx=value_column_x(), bw=border_width()](pgitem* item, float& y, size_t indent, bool& cancel)
+		enum_items_inner = [this, &enum_items_inner, &callback, lt=line_thickness(), vcx=value_column_x(), bw=border_width()](pgitem* item, float& y, size_t indent, bool& cancel)
 		{
 			auto item_height = item->content_height_aligned();
 			if (item_height > 0)
@@ -124,7 +124,7 @@ public:
 				if (cancel)
 					return;
 
-				y += item_height + line_thickness();
+				y += item_height + lt;
 			}
 
 			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
@@ -438,14 +438,14 @@ public:
 		return selected_nvp_index;
 	}
 
-	std::pair<pgitem*, float> item_at (D2D1_POINT_2F dip) const
+	std::pair<pgitem*, float> item_at (float pdy) const
 	{
 		std::pair<pgitem*, float> result = { };
 
-		enum_items ([&](pgitem* item, float y, bool& cancel)
+		enum_items ([pdy, &result, lt=line_thickness()](pgitem* item, float y, bool& cancel)
 		{
-			float h = item->content_height_aligned() + line_thickness();
-			if (dip.y < y + h)
+			float h = item->content_height_aligned() + lt;
+			if (pdy < y + h)
 			{
 				result.first = item;
 				result.second = y;
@@ -461,7 +461,7 @@ public:
 		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), pd)))
 			return _text_editor->on_mouse_down(button, mks, pp, pd);
 
-		auto clicked_item = item_at(pd);
+		auto clicked_item = item_at(pd.y);
 
 		auto new_selected_item = (clicked_item.first && clicked_item.first->selectable()) ? clicked_item.first : nullptr;
 		if (_selected_item != new_selected_item)
@@ -485,7 +485,7 @@ public:
 		if (_text_editor && _text_editor->mouse_captured())
 			return _text_editor->on_mouse_up (button, mks, pp, pd);
 
-		auto clicked_item = item_at(pd);
+		auto clicked_item = item_at(pd.y);
 		if (clicked_item.first != nullptr)
 		{
 			clicked_item.first->on_mouse_up (button, mks, pp, pd, clicked_item.second);
@@ -509,7 +509,7 @@ public:
 			std::wstring text;
 			std::wstring title;
 
-			auto i = item_at(pd);
+			auto i = item_at(pd.y);
 			if (i.first)
 			{
 				title = utf8_to_utf16(i.first->description_title());
