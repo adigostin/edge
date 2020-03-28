@@ -330,6 +330,7 @@ namespace edge
 	{
 		static const char type_name[];
 		using value_t = bool;
+		static constexpr nvp nvps[] = { { "False", 0 }, { "True", 1 }, { nullptr, -1 }, };
 		static void to_string (value_t from, std::string& to);
 		static void from_string (std::string_view from, value_t& to);
 		static void serialize (value_t from, out_stream_i* to) { assert(false); } // not implemented

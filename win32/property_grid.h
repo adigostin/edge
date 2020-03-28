@@ -29,6 +29,7 @@ namespace edge
 		virtual D2D1_RECT_F rectd() const = 0;
 		virtual void set_rect (const RECT& rectp) = 0;
 		virtual void set_border_width (float bw) = 0;
+		virtual float border_width() const = 0;
 		virtual void on_dpi_changed() = 0;
 		virtual void clear() = 0;
 		virtual void add_section (const char* heading, std::span<object* const> objects) = 0;
@@ -61,6 +62,7 @@ namespace edge
 		virtual int show_enum_editor (D2D1_POINT_2F dip, const nvp* nvps) = 0;
 		virtual void change_property (const std::vector<object*>& objects, const value_property* prop, std::string_view new_value_str) = 0;
 		virtual float line_thickness() const = 0;
+		virtual float name_column_x (size_t indent) const = 0;
 		virtual float value_column_x() const = 0;
 		float width() const { auto r = rectd(); return r.right - r.left; }
 		float height() const { auto r = rectd(); return r.bottom - r.top; }

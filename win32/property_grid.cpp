@@ -8,10 +8,6 @@
 
 using namespace edge;
 
-static constexpr float indent_width = 10;
-static constexpr float separator_height = 4;
-static constexpr float description_min_height = 20;
-
 namespace edge
 {
 	class property_grid;
@@ -60,13 +56,13 @@ public:
 		SendMessage (_tooltip, TTM_SETMAXTIPWIDTH, 0, rectp.right - rectp.left);
 
 		auto hr = _window->dwrite_factory()->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-												   DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_text_format); assert(SUCCEEDED(hr));
+												   DWRITE_FONT_STRETCH_NORMAL, pgitem::font_size, L"en-US", &_text_format); assert(SUCCEEDED(hr));
 
 		hr = _window->dwrite_factory()->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
-											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_bold_text_format); assert(SUCCEEDED(hr));
+											  DWRITE_FONT_STRETCH_NORMAL, pgitem::font_size, L"en-US", &_bold_text_format); assert(SUCCEEDED(hr));
 
 		hr = _window->dwrite_factory()->CreateTextFormat (L"Wingdings", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-											  DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &_wingdings); assert(SUCCEEDED(hr));
+											  DWRITE_FONT_STRETCH_NORMAL, pgitem::font_size, L"en-US", &_wingdings); assert(SUCCEEDED(hr));
 	}
 
 	virtual ~property_grid()
@@ -105,17 +101,17 @@ public:
 	*/
 	virtual HCURSOR cursor_at (POINT pointp, D2D1_POINT_2F dip) const override
 	{
-		auto item = item_at(dip);
-		if (item.first != nullptr)
+		if ((dip.x >= value_column_x()) && (dip.x < _rectd.right))
 		{
-			if (dip.x >= item.second.x_value)
+			auto item = item_at(dip);
+			if (item.first)
 				return item.first->cursor();
 		}
 
-		return ::LoadCursor (nullptr, IDC_ARROW);
+		return nullptr;
 	}
 
-	void enum_items (const std::function<void(pgitem*, const item_layout&, bool& cancel)>& callback) const
+	void enum_items (const std::function<void(pgitem*, float y, bool& cancel)>& callback) const
 	{
 		std::function<void(pgitem* item, float& y, size_t indent, bool& cancel)> enum_items_inner;
 
@@ -127,15 +123,7 @@ public:
 				auto horz_line_y = y + item_height;
 				horz_line_y = ceilf (horz_line_y / _window->pixel_width()) * _window->pixel_width();
 
-				item_layout il;
-				il.y_top = y;
-				il.y_bottom = horz_line_y;
-				il.x_left = _rectd.left + bw;
-				il.x_name = _rectd.left + bw + indent * indent_width;
-				il.x_value = _rectd.left + bw + vcx;
-				il.x_right = _rectd.right - bw;
-
-				callback(item, il, cancel);
+				callback(item, y, cancel);
 				if (cancel)
 					return;
 
@@ -167,20 +155,11 @@ public:
 
 	void create_render_resources (root_item* ri)
 	{
-		auto vcx = value_column_x();
-		auto vcw = std::max (75.0f, _rectd.right - _rectd.left - vcx);
-
 		std::function<void(pgitem* item, size_t indent)> create_inner;
 
-		create_inner = [&create_inner, this, vcx, vcw] (pgitem* item, size_t indent)
+		create_inner = [&create_inner, this] (pgitem* item, size_t indent)
 		{
-			item_layout_horz il;
-			il.x_left = 0;
-			il.x_name = indent * indent_width;
-			il.x_value = vcx;
-			il.x_right = std::max (_rectd.right - _rectd.left, vcx + 75.0f);
-
-			item->create_render_resources (il);
+			item->perform_layout();
 
 			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
 			{
@@ -207,7 +186,11 @@ public:
 
 		float bw = border_width();
 		if (bw > 0)
-			dc->DrawRectangle(inflate(_rectd, -bw / 2), fore_brush, bw);
+		{
+			com_ptr<ID2D1SolidColorBrush> border_brush;
+			dc->CreateSolidColorBrush ({ 0.5f, 0.5f, 0.5f, 1 }, &border_brush);
+			dc->DrawRectangle(inflate(_rectd, -bw / 2), border_brush, bw);
+		}
 
 		if (_root_items.empty())
 		{
@@ -229,20 +212,22 @@ public:
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_GRAYTEXT), &rc.disabled_fore_brush);
 
 		dc->PushAxisAlignedClip({ _rectd.left, _rectd.top, _rectd.right, _rectd.bottom }, D2D1_ANTIALIAS_MODE_ALIASED);
-		enum_items ([&, this](pgitem* item, const item_layout& layout, bool& cancel)
+		enum_items ([&, this](pgitem* item, float y, bool& cancel)
 		{
+			if (y >= _rectd.bottom)
+			{
+				cancel = true;
+				return;
+			}
+
 			bool selected = (item == _selected_item);
-			item->render (rc, layout, selected, focused);
+			item->render (rc, { _rectd.left, y }, selected, focused);
 
 			if (selected && _text_editor)
 				_text_editor->render(dc);
 
-			if (layout.y_bottom + line_thickness() >= _rectd.bottom)
-				cancel = true;
-
-			D2D1_POINT_2F p0 = { _rectd.left, layout.y_bottom + line_thickness() / 2 };
-			D2D1_POINT_2F p1 = { _rectd.right, layout.y_bottom + line_thickness() / 2 };
-			dc->DrawLine (p0, p1, rc.disabled_fore_brush, line_thickness());
+			float line_y = y + item->content_height_aligned(_window->pixel_width()) + line_thickness() / 2;
+			dc->DrawLine ({ _rectd.left + bw, line_y }, { _rectd.right - bw, line_y }, rc.disabled_fore_brush, line_thickness());
 		});
 		dc->PopAxisAlignedClip();
 	}
@@ -464,16 +449,17 @@ public:
 		return selected_nvp_index;
 	}
 
-	std::pair<pgitem*, item_layout> item_at (D2D1_POINT_2F dip) const
+	std::pair<pgitem*, float> item_at (D2D1_POINT_2F dip) const
 	{
-		std::pair<pgitem*, item_layout> result = { };
+		std::pair<pgitem*, float> result = { };
 
-		enum_items ([&](pgitem* item, const item_layout& layout, bool& cancel)
+		enum_items ([&](pgitem* item, float y, bool& cancel)
 		{
-			if (dip.y < layout.y_bottom)
+			float h = item->content_height_aligned(_window->pixel_width()) + line_thickness();
+			if (dip.y < y + h)
 			{
 				result.first = item;
-				result.second = layout;
+				result.second = y;
 				cancel = true;
 			}
 		});
@@ -604,7 +590,7 @@ public:
 		this->event_invoker<property_edited_e>()(std::move(args));
 	}
 
-	float border_width() const
+	virtual float border_width() const override
 	{
 		auto pw = _window->pixel_width();
 		auto bw = roundf(_border_width_not_aligned / pw) * pw;
@@ -618,11 +604,24 @@ public:
 		return lt;
 	}
 
+	virtual float name_column_x (size_t indent) const override
+	{
+		float x = _rectd.left + border_width() + indent * pgitem::indent_step;
+		auto pw = _window->pixel_width();
+		x = roundf(x / pw) * pw;
+		return x;
+	}
+
 	virtual float value_column_x() const override
 	{
 		float bw = border_width();
 		float w = (_rectd.right - _rectd.left - 2 * bw) * _name_column_factor;
-		return bw + std::max (75.0f, w);
+		if (w < 75)
+			w = 75;
+		float x = _rectd.left + bw + w;
+		auto pw = _window->pixel_width();
+		x = roundf(x / pw) * pw;
+		return x;
 	}
 
 	virtual handled on_key_down (uint32_t key, modifier_key mks) override

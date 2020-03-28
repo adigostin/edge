@@ -11,6 +11,16 @@ using namespace D2D1;
 
 namespace edge
 {
+	size_t pgitem::indent() const
+	{
+		return parent()->indent() + 1;
+	}
+
+	float pgitem::content_height_aligned(float pixel_width) const
+	{
+		return std::ceilf (content_height() / pixel_width) * pixel_width;
+	}
+
 	root_item* pgitem::root()
 	{
 		return parent()->root();
@@ -21,6 +31,11 @@ namespace edge
 		assert (!_expanded);
 		_children = this->create_children();
 		_expanded = true;
+	}
+
+	void expandable_item::collapse()
+	{
+		assert(false); // not implemented
 	}
 
 	#pragma region object_item
@@ -60,7 +75,7 @@ namespace edge
 			{
 				for (auto& child_item : static_cast<group_item*>(gi.get())->children())
 				{
-					if (auto vi = dynamic_cast<value_item*>(child_item.get()); vi->property() == prop)
+					if (auto vi = dynamic_cast<value_item*>(child_item.get()); vi->_property == prop)
 					{
 						vi->on_value_changed();
 						break;
@@ -112,8 +127,9 @@ namespace edge
 		}
 
 		std::vector<std::unique_ptr<pgitem>> items;
-		std::transform (groups.begin(), groups.end(), std::back_inserter(items),
-						[this](const property_group* n) { return std::make_unique<group_item>(this, n); });
+		for (const property_group* g : groups)
+			items.push_back (std::make_unique<group_item>(this, g));
+
 		return items;
 	}
 	#pragma endregion
@@ -122,6 +138,7 @@ namespace edge
 	group_item::group_item (object_item* parent, const property_group* group)
 		: _parent(parent), _group(group)
 	{
+		perform_layout();
 		expand();
 	}
 
@@ -164,20 +181,28 @@ namespace edge
 		return items;
 	}
 
-	void group_item::create_render_resources (const item_layout_horz& l)
+	void group_item::perform_layout()
 	{
-		auto factory = root()->_grid->dwrite_factory();
-		com_ptr<IDWriteTextFormat> tf;
-		auto hr = factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
-											 DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &tf);
-		float layout_width = std::max (0.0f, l.x_right -l.x_name - 2 * title_lr_padding);
-		_layout = text_layout_with_metrics (factory, tf, _group->name, layout_width);
+		auto grid = root()->grid();
+		float layout_width = grid->width() - 2 * grid->border_width() - 2 * title_lr_padding;
+		if (layout_width > 0)
+		{
+			com_ptr<IDWriteTextFormat> tf;
+			auto hr = grid->dwrite_factory()->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
+				DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &tf);
+			_layout = text_layout_with_metrics (grid->dwrite_factory(), tf, _group->name, layout_width);
+		}
+		else
+			_layout = nullptr;
 	}
 
-	void group_item::render (const render_context& rc, const item_layout& l, bool selected, bool focused) const
+	void group_item::render (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
 	{
-		rc.dc->FillRectangle ({ l.x_left, l.y_top, l.x_right, l.y_bottom }, rc.back_brush);
-		rc.dc->DrawTextLayout ({ l.x_name + text_lr_padding, l.y_top }, _layout, rc.fore_brush);
+		float bw = root()->grid()->border_width();
+		auto rectd = root()->grid()->rectd();
+		float indent_width = indent() * indent_step;
+		rc.dc->FillRectangle ({ rectd.left + bw, pd.y, rectd.right - bw, pd.y + _layout.height() }, rc.back_brush);
+		rc.dc->DrawTextLayout ({ rectd.left + bw + indent_width + text_lr_padding, pd.y }, _layout, rc.fore_brush);
 	}
 
 	float group_item::content_height() const
@@ -190,26 +215,31 @@ namespace edge
 	root_item::root_item (property_grid_i* grid, const char* heading, std::span<object* const> objects)
 		: base(objects), _grid(grid), _heading(heading ? heading : "")
 	{
+		perform_layout();
 		expand();
 	}
 
-	void root_item::create_render_resources (const item_layout_horz& l)
+	void root_item::perform_layout()
 	{
 		_text_layout = nullptr;
 		if (!_heading.empty())
 		{
-			auto factory = root()->_grid->dwrite_factory();
-			// TODO: padding
-			com_ptr<IDWriteTextFormat> tf;
-			auto hr = factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
-												 DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &tf);
-			float layout_width = std::max (0.0f, l.x_right -l.x_left - 2 * title_lr_padding);
-			_text_layout = text_layout_with_metrics (factory, tf, _heading, layout_width);
+			float layout_width = _grid->width() - 2 * _grid->border_width() - 2 * title_lr_padding;
+			if (layout_width > 0)
+			{
+				auto factory = _grid->dwrite_factory();
+				com_ptr<IDWriteTextFormat> tf;
+				auto hr = factory->CreateTextFormat (L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
+					DWRITE_FONT_STRETCH_NORMAL, font_size, L"en-US", &tf);
+				_text_layout = text_layout_with_metrics (factory, tf, _heading, layout_width);
+			}
 		}
 	}
 
-	void root_item::render (const render_context& rc, const item_layout& l, bool selected, bool focused) const
+	void root_item::render (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
 	{
+		assert(false);
+		/*
 		if (_text_layout)
 		{
 			com_ptr<ID2D1SolidColorBrush> brush;
@@ -219,9 +249,10 @@ namespace edge
 			brush->SetColor (GetD2DSystemColor(COLOR_CAPTIONTEXT));
 			rc.dc->DrawTextLayout ({ l.x_left + title_lr_padding, l.y_top + title_ud_padding }, _text_layout, brush);
 		}
+		*/
 	}
 
-float root_item::content_height() const
+	float root_item::content_height() const
 	{
 		if (_text_layout)
 			return _text_layout.height() + 2 * title_ud_padding;
@@ -231,12 +262,19 @@ float root_item::content_height() const
 	#pragma endregion
 
 	#pragma region value_item
+	value_item::value_item (group_item* parent, const value_property* property)
+		: _parent(parent), _property(property)
+	{
+		_name = create_name_layout();
+		_value = create_value_layout();
+	}
+
 	bool value_item::multiple_values() const
 	{
 		auto& objs = _parent->parent()->objects();
 		for (size_t i = 1; i < objs.size(); i++)
 		{
-			if (!property()->equal(objs[0], objs[i]))
+			if (!_property->equal(objs[0], objs[i]))
 				return true;
 		}
 
@@ -245,27 +283,39 @@ float root_item::content_height() const
 
 	bool value_item::can_edit() const
 	{
-		return !root()->_grid->read_only() && _value.readable && (dynamic_cast<const custom_editor_property_i*>(property()) || !property()->read_only());
+		return !root()->grid()->read_only() && _value.readable && (dynamic_cast<const custom_editor_property_i*>(_property) || !_property->read_only());
 	}
 
 	bool value_item::changed_from_default() const
 	{
 		for (auto o : parent()->parent()->objects())
 		{
-			if (property()->changed_from_default(o))
+			if (_property->changed_from_default(o))
 				return true;
 		}
 
 		return false;
 	}
 
-	value_item::value_layout value_item::create_value_layout_internal() const
+	text_layout_with_metrics value_item::create_name_layout() const
 	{
-		auto grid = root()->_grid;
+		auto grid = root()->grid();
+		float name_layout_width = grid->value_column_x() - grid->name_column_x(indent()) - grid->line_thickness() - 2 * text_lr_padding;
+		if (name_layout_width <= 0)
+			return { };
+
+		return text_layout_with_metrics (grid->dwrite_factory(), grid->text_format(), _property->_name, name_layout_width);
+	}
+
+	value_item::value_layout value_item::create_value_layout() const
+	{
+		auto grid = root()->grid();
+
+		float width = grid->rectd().right - grid->border_width() - grid->value_column_x() - grid->line_thickness() - 2 * text_lr_padding;
+		if (width <= 0)
+			return { };
+
 		auto factory = grid->dwrite_factory();
-
-		float width = std::max (0.0f, grid->width() - grid->value_column_x() - grid->line_thickness() - 2 * text_lr_padding);
-
 		auto format = changed_from_default() ? grid->bold_text_format() : grid->text_format();
 
 		text_layout_with_metrics tl;
@@ -275,7 +325,7 @@ float root_item::content_height() const
 			if (multiple_values())
 				tl = text_layout_with_metrics (factory, format, "(multiple values)", width);
 			else
-				tl = text_layout_with_metrics (factory, format, property()->get_to_string(parent()->parent()->objects().front()), width);
+				tl = text_layout_with_metrics (factory, format, _property->get_to_string(parent()->parent()->objects().front()), width);
 			readable = true;
 		}
 		catch (const std::exception& ex)
@@ -287,14 +337,10 @@ float root_item::content_height() const
 		return { std::move(tl), readable };
 	}
 
-	void value_item::create_render_resources (const item_layout_horz& l)
+	void value_item::perform_layout()
 	{
-		auto grid = root()->_grid;
-		auto factory = grid->dwrite_factory();
-		auto format = grid->text_format();
-		auto line_thickness = grid->line_thickness();
-		_name = text_layout_with_metrics (factory, format, property()->_name, l.x_value - l.x_name - line_thickness - 2 * text_lr_padding);
-		_value = create_value_layout_internal();
+		_name = create_name_layout();
+		_value = create_value_layout();
 	}
 
 	float value_item::content_height() const
@@ -302,24 +348,30 @@ float root_item::content_height() const
 		return std::max (_name.height(), _value.tl.height());
 	}
 
-	void value_item::render (const render_context& rc, const item_layout& l, bool selected, bool focused) const
+	void value_item::render (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
 	{
-		auto line_thickness = root()->_grid->line_thickness();
+		auto grid = root()->grid();
+		auto line_thickness = grid->line_thickness();
+		float bw = grid->border_width();
+		auto rectd = grid->rectd();
+		float indent_width = indent() * indent_step;
+		float pw = grid->window()->pixel_width();
+		float height = std::ceilf(content_height() / pw) * pw;
 
 		if (selected)
 		{
-			D2D1_RECT_F rect = { l.x_left, l.y_top, l.x_right, l.y_bottom };
+			D2D1_RECT_F rect = { rectd.left + bw, pd.y, rectd.right - bw, pd.y + height };
 			rc.dc->FillRectangle (&rect, focused ? rc.selected_back_brush_focused.get() : rc.selected_back_brush_not_focused.get());
 		}
 
-		float name_line_x = l.x_name + line_thickness / 2;
-		rc.dc->DrawLine ({ name_line_x, l.y_top }, { name_line_x, l.y_bottom }, rc.disabled_fore_brush, line_thickness);
+		float name_line_x = rectd.left + bw + indent_width + line_thickness / 2;
+		rc.dc->DrawLine ({ name_line_x, pd.y }, { name_line_x, pd.y + height }, rc.disabled_fore_brush, line_thickness);
 		auto fore = selected ? rc.selected_fore_brush.get() : rc.fore_brush.get();
-		rc.dc->DrawTextLayout ({ l.x_name + line_thickness + text_lr_padding, l.y_top }, name(), fore);
+		rc.dc->DrawTextLayout ({ rectd.left + bw + indent_width + line_thickness + text_lr_padding, pd.y }, name_layout(), fore);
 
-		float linex = l.x_value + line_thickness / 2;
-		rc.dc->DrawLine ({ linex, l.y_top }, { linex, l.y_bottom }, rc.disabled_fore_brush, line_thickness);
-		this->render_value (rc, l, selected, focused);
+		float linex = grid->value_column_x() + line_thickness / 2;
+		rc.dc->DrawLine ({ linex, pd.y }, { linex, pd.y + height }, rc.disabled_fore_brush, line_thickness);
+		this->render_value (rc, { grid->value_column_x(), pd.y }, selected, focused);
 	}
 
 	std::string value_item::description_title() const
@@ -336,17 +388,17 @@ float root_item::content_height() const
 
 	void value_item::on_value_changed()
 	{
-		_value = create_value_layout_internal();
-		root()->_grid->invalidate();
+		_value = create_value_layout();
+		root()->grid()->invalidate();
 	}
 	#pragma endregion
 
 	#pragma region default_value_pgitem
-	void default_value_pgitem::render_value (const render_context& rc, const item_layout& l, bool selected, bool focused) const
+	void default_value_pgitem::render_value (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
 	{
-		auto line_thickness = root()->_grid->line_thickness();
+		auto line_thickness = root()->grid()->line_thickness();
 		auto fore = !can_edit() ? rc.disabled_fore_brush.get() : (selected ? rc.selected_fore_brush.get() : rc.fore_brush.get());
-		rc.dc->DrawTextLayout ({ l.x_value + line_thickness + text_lr_padding, l.y_top }, value().tl, fore);
+		rc.dc->DrawTextLayout ({ pd.x + line_thickness + text_lr_padding, pd.y }, value().tl, fore);
 	}
 
 	HCURSOR default_value_pgitem::cursor() const
@@ -363,31 +415,26 @@ float root_item::content_height() const
 		return ::LoadCursor (nullptr, IDC_IBEAM);
 	}
 
-	static const nvp bool_nvps[] = {
-		{ "False", 0 },
-		{ "True", 1 },
-		{ nullptr, -1 },
-	};
-
-	void default_value_pgitem::on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd, const item_layout& layout)
+	void default_value_pgitem::on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd, float item_y)
 	{
-		if (pd.x < layout.x_value)
+		auto grid = root()->grid();
+		auto vcx = grid->value_column_x();
+		if (pd.x < vcx)
 			return;
 
 		if (auto cep = dynamic_cast<const custom_editor_property_i*>(property()))
 		{
 			auto editor = cep->create_editor(parent()->parent()->objects());
-			editor->show(root()->_grid->window());
+			editor->show(grid->window());
 			return;
 		}
 
 		if (property()->read_only())
 			return;
 
-		if (property()->nvps() || dynamic_cast<const edge::bool_p*>(property()))
+		if (auto nvps = property()->nvps())
 		{
-			auto nvps = property()->nvps() ? property()->nvps() : bool_nvps;
-			int selected_nvp_index = root()->_grid->show_enum_editor(pd, nvps);
+			int selected_nvp_index = grid->show_enum_editor(pd, nvps);
 			if (selected_nvp_index >= 0)
 			{
 				auto new_value_str = nvps[selected_nvp_index].name;
@@ -397,12 +444,12 @@ float root_item::content_height() const
 				{
 					try
 					{
-						root()->_grid->change_property (objects, property(), new_value_str);
+						grid->change_property (objects, property(), new_value_str);
 					}
 					catch (const std::exception& ex)
 					{
 						auto message = utf8_to_utf16(ex.what());
-						::MessageBox (root()->_grid->window()->hwnd(), message.c_str(), L"Error setting property", 0);
+						::MessageBox (grid->window()->hwnd(), message.c_str(), L"Error setting property", 0);
 					}
 				}
 
@@ -410,30 +457,16 @@ float root_item::content_height() const
 		}
 		else
 		{
-			auto lt = root()->_grid->line_thickness();
-			D2D1_RECT_F editor_rect = { layout.x_value + lt, layout.y_top, layout.x_right, layout.y_bottom };
+			auto lt = grid->line_thickness();
+			D2D1_RECT_F editor_rect = { vcx + lt, item_y, grid->rectd().right, item_y + content_height() };
 			bool bold = changed_from_default();
-			auto editor = root()->_grid->show_text_editor (editor_rect, bold, text_lr_padding, multiple_values() ? "" : property()->get_to_string(parent()->parent()->objects().front()));
+			auto editor = grid->show_text_editor (editor_rect, bold, text_lr_padding, multiple_values() ? "" : property()->get_to_string(parent()->parent()->objects().front()));
 			//editor->on_mouse_down (button, mks, pp, pd);
 		}
 	}
 
-	void default_value_pgitem::on_mouse_up (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, const item_layout& layout)
+	void default_value_pgitem::on_mouse_up (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, float item_y)
 	{
 	}
 	#pragma endregion
-
-	std::unique_ptr<pgitem> create_default_pgitem (expandable_item* parent, std::span<object* const> objects, const property* prop)
-	{
-		if (auto value_prop = dynamic_cast<const value_property*>(prop))
-		{
-			auto gi = static_cast<group_item*>(parent);
-			assert (gi == dynamic_cast<group_item*>(parent));
-			return std::make_unique<default_value_pgitem>(gi, value_prop);
-		}
-
-		// TODO: placeholder pg item for unknown types of properties
-		assert(false);
-		return nullptr;
-	}
 }
