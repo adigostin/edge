@@ -150,22 +150,15 @@ public:
 		}
 	}
 
-	void create_render_resources (root_item* ri)
+	void perform_layout (pgitem* item)
 	{
-		std::function<void(pgitem* item, size_t indent)> create_inner;
+		item->perform_layout();
 
-		create_inner = [&create_inner, this] (pgitem* item, size_t indent)
+		if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
 		{
-			item->perform_layout();
-
-			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
-			{
-				for (auto& child : ei->children())
-					create_inner (child.get(), indent + 1);
-			}
+			for (auto& child : ei->children())
+				perform_layout (child.get());
 		};
-
-		create_inner (ri, 0);
 
 		invalidate();
 	}
@@ -253,7 +246,7 @@ public:
 			if (fabsf(old_width - new_width) >= limit)
 			{
 				for (auto& ri : _root_items)
-					create_render_resources(ri.get());
+					perform_layout(ri.get());
 			}
 
 			_rectp = rectp;
@@ -278,7 +271,7 @@ public:
 
 			_text_editor = nullptr;
 			for (auto& ri : _root_items)
-				create_render_resources(ri.get());
+				perform_layout(ri.get());
 			_window->invalidate(_rectd);
 		}
 	}
@@ -289,7 +282,7 @@ public:
 
 		_text_editor = nullptr;
 		for (auto& ri : _root_items)
-			create_render_resources(ri.get());
+			perform_layout(ri.get());
 		_window->invalidate(_rectd);
 	}
 
@@ -304,7 +297,6 @@ public:
 	virtual void add_section (const char* heading, std::span<object* const> objects) override
 	{
 		_root_items.push_back (std::make_unique<root_item>(this, heading, objects));
-		create_render_resources(_root_items.back().get());
 		invalidate();
 	}
 
