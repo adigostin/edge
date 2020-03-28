@@ -238,18 +238,20 @@ namespace edge
 
 	void root_item::render (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
 	{
-		assert(false);
-		/*
 		if (_text_layout)
 		{
 			com_ptr<ID2D1SolidColorBrush> brush;
 			rc.dc->CreateSolidColorBrush (GetD2DSystemColor(COLOR_ACTIVECAPTION), &brush);
-			D2D1_RECT_F rect = { l.x_left, l.y_top, l.x_right, l.y_bottom };
+			D2D1_RECT_F rect = {
+				_grid->rectd().left + _grid->border_width(),
+				pd.y,
+				_grid->rectd().right - _grid->border_width(),
+				pd.y + content_height_aligned(_grid->window()->pixel_width())
+			};
 			rc.dc->FillRectangle (&rect, brush);
 			brush->SetColor (GetD2DSystemColor(COLOR_CAPTIONTEXT));
-			rc.dc->DrawTextLayout ({ l.x_left + title_lr_padding, l.y_top + title_ud_padding }, _text_layout, brush);
+			rc.dc->DrawTextLayout ({ rect.left + title_lr_padding, rect.top + title_ud_padding }, _text_layout, brush);
 		}
-		*/
 	}
 
 	float root_item::content_height() const
