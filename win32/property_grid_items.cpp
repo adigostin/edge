@@ -16,8 +16,9 @@ namespace edge
 		return parent()->indent() + 1;
 	}
 
-	float pgitem::content_height_aligned(float pixel_width) const
+	float pgitem::content_height_aligned() const
 	{
+		float pixel_width = root()->grid()->window()->pixel_width();
 		return std::ceilf (content_height() / pixel_width) * pixel_width;
 	}
 
@@ -246,7 +247,7 @@ namespace edge
 				_grid->rectd().left + _grid->border_width(),
 				pd.y,
 				_grid->rectd().right - _grid->border_width(),
-				pd.y + content_height_aligned(_grid->window()->pixel_width())
+				pd.y + content_height_aligned()
 			};
 			rc.dc->FillRectangle (&rect, brush);
 			brush->SetColor (GetD2DSystemColor(COLOR_CAPTIONTEXT));
@@ -358,7 +359,7 @@ namespace edge
 		auto rectd = grid->rectd();
 		float indent_width = indent() * indent_step;
 		float pw = grid->window()->pixel_width();
-		float height = std::ceilf(content_height() / pw) * pw;
+		float height = content_height_aligned();
 
 		if (selected)
 		{
@@ -460,7 +461,7 @@ namespace edge
 		else
 		{
 			auto lt = grid->line_thickness();
-			D2D1_RECT_F editor_rect = { vcx + lt, item_y, grid->rectd().right, item_y + content_height() };
+			D2D1_RECT_F editor_rect = { vcx + lt, item_y, grid->rectd().right - grid->border_width(), item_y + content_height_aligned() };
 			bool bold = changed_from_default();
 			auto editor = grid->show_text_editor (editor_rect, bold, text_lr_padding, multiple_values() ? "" : property()->get_to_string(parent()->parent()->objects().front()));
 			//editor->on_mouse_down (button, mks, pp, pd);

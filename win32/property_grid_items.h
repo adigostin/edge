@@ -48,7 +48,7 @@ namespace edge
 		virtual void perform_layout() = 0;
 		virtual void render (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const = 0;
 		virtual float content_height() const = 0;
-		float content_height_aligned(float pixel_width) const;
+		float content_height_aligned() const;
 		virtual HCURSOR cursor() const { return nullptr; }
 		virtual bool selectable() const = 0;
 		virtual void on_mouse_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, float item_y) { }

@@ -117,17 +117,14 @@ public:
 
 		enum_items_inner = [this, &enum_items_inner, &callback, vcx=value_column_x(), bw=border_width()](pgitem* item, float& y, size_t indent, bool& cancel)
 		{
-			auto item_height = item->content_height();
+			auto item_height = item->content_height_aligned();
 			if (item_height > 0)
 			{
-				auto horz_line_y = y + item_height;
-				horz_line_y = ceilf (horz_line_y / _window->pixel_width()) * _window->pixel_width();
-
 				callback(item, y, cancel);
 				if (cancel)
 					return;
 
-				y = horz_line_y + line_thickness();
+				y += item_height + line_thickness();
 			}
 
 			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
@@ -226,7 +223,7 @@ public:
 			if (selected && _text_editor)
 				_text_editor->render(dc);
 
-			float line_y = y + item->content_height_aligned(_window->pixel_width()) + line_thickness() / 2;
+			float line_y = y + item->content_height_aligned() + line_thickness() / 2;
 			dc->DrawLine ({ _rectd.left + bw, line_y }, { _rectd.right - bw, line_y }, rc.disabled_fore_brush, line_thickness());
 		});
 		dc->PopAxisAlignedClip();
@@ -455,7 +452,7 @@ public:
 
 		enum_items ([&](pgitem* item, float y, bool& cancel)
 		{
-			float h = item->content_height_aligned(_window->pixel_width()) + line_thickness();
+			float h = item->content_height_aligned() + line_thickness();
 			if (dip.y < y + h)
 			{
 				result.first = item;
