@@ -23,6 +23,7 @@ namespace edge
 		com_ptr<ID2D1SolidColorBrush> selected_back_brush_not_focused;
 		com_ptr<ID2D1SolidColorBrush> selected_fore_brush;
 		com_ptr<ID2D1SolidColorBrush> disabled_fore_brush;
+		com_ptr<ID2D1LinearGradientBrush> item_gradient_brush;
 	};
 
 	class pgitem

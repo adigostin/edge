@@ -18,8 +18,9 @@ namespace edge
 
 	float pgitem::content_height_aligned() const
 	{
-		float pixel_width = root()->grid()->window()->pixel_width();
-		return std::ceilf (content_height() / pixel_width) * pixel_width;
+		auto grid = root()->grid();
+		float pixel_width = grid->window()->pixel_width();
+		return std::ceilf (content_height() / pixel_width) * pixel_width + grid->line_thickness();
 	}
 
 	root_item* pgitem::root()
@@ -354,26 +355,33 @@ namespace edge
 	void value_item::render (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
 	{
 		auto grid = root()->grid();
-		auto line_thickness = grid->line_thickness();
+		auto lt = grid->line_thickness();
 		float bw = grid->border_width();
 		auto rectd = grid->rectd();
 		float indent_width = indent() * indent_step;
 		float pw = grid->window()->pixel_width();
 		float height = content_height_aligned();
 
+		D2D1_RECT_F fill_rect = { rectd.left + bw, pd.y, rectd.right - bw, pd.y + height };
+
 		if (selected)
 		{
-			D2D1_RECT_F rect = { rectd.left + bw, pd.y, rectd.right - bw, pd.y + height };
-			rc.dc->FillRectangle (&rect, focused ? rc.selected_back_brush_focused.get() : rc.selected_back_brush_not_focused.get());
+			rc.dc->FillRectangle (&fill_rect, focused ? rc.selected_back_brush_focused.get() : rc.selected_back_brush_not_focused.get());
+		}
+		else
+		{
+			rc.item_gradient_brush->SetStartPoint ({ fill_rect.left, fill_rect.top });
+			rc.item_gradient_brush->SetEndPoint ({ fill_rect.left, fill_rect.bottom });
+			rc.dc->FillRectangle (&fill_rect, rc.item_gradient_brush);
 		}
 
-		float name_line_x = rectd.left + bw + indent_width + line_thickness / 2;
-		rc.dc->DrawLine ({ name_line_x, pd.y }, { name_line_x, pd.y + height }, rc.disabled_fore_brush, line_thickness);
+		float name_line_x = rectd.left + bw + indent_width + lt / 2;
+		rc.dc->DrawLine ({ name_line_x, pd.y }, { name_line_x, pd.y + height }, rc.disabled_fore_brush, lt);
 		auto fore = selected ? rc.selected_fore_brush.get() : rc.fore_brush.get();
-		rc.dc->DrawTextLayout ({ rectd.left + bw + indent_width + line_thickness + text_lr_padding, pd.y }, name_layout(), fore);
+		rc.dc->DrawTextLayout ({ rectd.left + bw + indent_width + lt + text_lr_padding, pd.y }, name_layout(), fore);
 
-		float linex = grid->value_column_x() + line_thickness / 2;
-		rc.dc->DrawLine ({ linex, pd.y }, { linex, pd.y + height }, rc.disabled_fore_brush, line_thickness);
+		float linex = grid->value_column_x() + lt / 2;
+		rc.dc->DrawLine ({ linex, pd.y }, { linex, pd.y + height }, rc.disabled_fore_brush, lt);
 		this->render_value (rc, { grid->value_column_x(), pd.y }, selected, focused);
 	}
 
@@ -401,9 +409,8 @@ namespace edge
 	{
 		if (auto& tl = value().tl)
 		{
-			auto line_thickness = root()->grid()->line_thickness();
 			auto fore = !can_edit() ? rc.disabled_fore_brush.get() : (selected ? rc.selected_fore_brush.get() : rc.fore_brush.get());
-			rc.dc->DrawTextLayout ({ pd.x + line_thickness + text_lr_padding, pd.y }, value().tl, fore);
+			rc.dc->DrawTextLayout ({ pd.x + root()->grid()->line_thickness() + text_lr_padding, pd.y }, value().tl, fore);
 		}
 	}
 
@@ -463,8 +470,7 @@ namespace edge
 		}
 		else
 		{
-			auto lt = grid->line_thickness();
-			D2D1_RECT_F editor_rect = { vcx + lt, item_y, grid->rectd().right - grid->border_width(), item_y + content_height_aligned() };
+			D2D1_RECT_F editor_rect = { vcx + grid->line_thickness(), item_y, grid->rectd().right - grid->border_width(), item_y + content_height_aligned() };
 			bool bold = changed_from_default();
 			auto editor = grid->show_text_editor (editor_rect, bold, text_lr_padding, multiple_values() ? "" : property()->get_to_string(parent()->parent()->objects().front()));
 			//editor->on_mouse_down (button, mks, pp, pd);

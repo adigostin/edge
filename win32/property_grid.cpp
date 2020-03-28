@@ -115,7 +115,7 @@ public:
 	{
 		std::function<void(pgitem* item, float& y, size_t indent, bool& cancel)> enum_items_inner;
 
-		enum_items_inner = [this, &enum_items_inner, &callback, lt=line_thickness(), vcx=value_column_x(), bw=border_width()](pgitem* item, float& y, size_t indent, bool& cancel)
+		enum_items_inner = [this, &enum_items_inner, &callback, vcx=value_column_x(), bw=border_width()](pgitem* item, float& y, size_t indent, bool& cancel)
 		{
 			auto item_height = item->content_height_aligned();
 			if (item_height > 0)
@@ -124,7 +124,7 @@ public:
 				if (cancel)
 					return;
 
-				y += item_height + lt;
+				y += item_height;
 			}
 
 			if (auto ei = dynamic_cast<expandable_item*>(item); ei && ei->expanded())
@@ -201,8 +201,19 @@ public:
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &rc.selected_fore_brush);
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_GRAYTEXT), &rc.disabled_fore_brush);
 
-		dc->PushAxisAlignedClip({ _rectd.left, _rectd.top, _rectd.right, _rectd.bottom }, D2D1_ANTIALIAS_MODE_ALIASED);
-		enum_items ([&, this](pgitem* item, float y, bool& cancel)
+		static constexpr D2D1_GRADIENT_STOP stops[3] =
+		{
+			{ 0,    { 0.97f, 0.97f, 0.97f, 1 } },
+			{ 0.3f, { 1,     1,     1,     1 } },
+			{ 1,    { 0.93f, 0.93f, 0.93f, 1 } },
+		};
+		com_ptr<ID2D1GradientStopCollection> stop_collection;
+		auto hr = dc->CreateGradientStopCollection (stops, _countof(stops), &stop_collection); assert(SUCCEEDED(hr));
+		static constexpr D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES lgbp = { { 0, 0 }, { 1, 0 } };
+		hr = dc->CreateLinearGradientBrush (&lgbp, nullptr, stop_collection, &rc.item_gradient_brush); assert(SUCCEEDED(hr));
+
+		dc->PushAxisAlignedClip (&_rectd, D2D1_ANTIALIAS_MODE_ALIASED);
+		enum_items ([&, this, bw=border_width()](pgitem* item, float y, bool& cancel)
 		{
 			if (y >= _rectd.bottom)
 			{
@@ -215,9 +226,6 @@ public:
 
 			if (selected && _text_editor)
 				_text_editor->render(dc);
-
-			float line_y = y + item->content_height_aligned() + line_thickness() / 2;
-			dc->DrawLine ({ _rectd.left + bw, line_y }, { _rectd.right - bw, line_y }, rc.disabled_fore_brush, line_thickness());
 		});
 		dc->PopAxisAlignedClip();
 	}
@@ -442,9 +450,9 @@ public:
 	{
 		std::pair<pgitem*, float> result = { };
 
-		enum_items ([pdy, &result, lt=line_thickness()](pgitem* item, float y, bool& cancel)
+		enum_items ([pdy, &result](pgitem* item, float y, bool& cancel)
 		{
-			float h = item->content_height_aligned() + lt;
+			float h = item->content_height_aligned();
 			if (pdy < y + h)
 			{
 				result.first = item;
