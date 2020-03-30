@@ -251,14 +251,16 @@ public:
 			float old_width = _rectd.right - _rectd.left;
 			float new_width = rectd.right - rectd.left;
 			float limit = 0.01f;
-			if (fabsf(old_width - new_width) >= limit)
+			bool layout_changed = fabsf(old_width - new_width) >= limit;
+
+			_rectp = rectp;
+			_rectd = rectd;
+
+			if (layout_changed)
 			{
 				for (auto& ri : _root_items)
 					perform_layout(ri.get());
 			}
-
-			_rectp = rectp;
-			_rectd = rectd;
 
 			TOOLINFO ti = { sizeof(TOOLINFO) };
 			ti.uFlags   = TTF_SUBCLASS;
