@@ -140,6 +140,17 @@ namespace edge
 		return lengthp * 96.0f / dpi();
 	}
 
+	LONG dpi_aware_window_i::lengthd_to_lengthp (float lengthd, int round_style) const
+	{
+		if (round_style < 0)
+			return (LONG) std::floorf(lengthd / 96.0f * dpi());
+
+		if (round_style > 0)
+			return (LONG) std::ceilf(lengthd / 96.0f * dpi());
+
+		return (LONG) std::roundf(lengthd / 96.0f * dpi());
+	}
+
 	D2D1_POINT_2F dpi_aware_window_i::pointp_to_pointd (POINT p) const
 	{
 		return { p.x * 96.0f / dpi(), p.y * 96.0f / dpi() };

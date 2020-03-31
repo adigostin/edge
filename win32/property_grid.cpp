@@ -30,6 +30,7 @@ class edge::property_grid : public edge::event_manager, public property_grid_i
 	HWND _tooltip = nullptr;
 	POINT _last_tt_location = { -1, -1 };
 	float _border_width_not_aligned = 0;
+	bool _input_output_enabled = false;
 
 public:
 	property_grid (d2d_window_i* window, const RECT& rectp)
@@ -99,13 +100,13 @@ public:
 		return resultBaseClass;
 	}
 	*/
-	virtual HCURSOR cursor_at (POINT pointp, D2D1_POINT_2F dip) const override
+	virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const override
 	{
-		if ((dip.x >= value_column_x()) && (dip.x < _rectd.right))
+		if ((pd.x >= value_column_x()) && (pd.x < _rectd.right))
 		{
-			auto item = item_at(dip.y);
-			if (item.first)
-				return item.first->cursor();
+			auto htr = item_at(pd);
+			if (htr.item)
+				return htr.item->cursor();
 		}
 
 		return nullptr;
@@ -212,8 +213,22 @@ public:
 		static constexpr D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES lgbp = { { 0, 0 }, { 1, 0 } };
 		hr = dc->CreateLinearGradientBrush (&lgbp, nullptr, stop_collection, &rc.item_gradient_brush); assert(SUCCEEDED(hr));
 
+		com_ptr<ID2D1Factory> factory;
+		dc->GetFactory(&factory);
+		factory->CreatePathGeometry(&rc.triangle_geo);
+		com_ptr<ID2D1GeometrySink> sink;
+		rc.triangle_geo->Open(&sink);
+		text_layout_with_line_metrics dummy (_window->dwrite_factory(), _text_format, L"A");
+		float triangle_height = dummy.height();
+		const float cs = triangle_height * 4 / 5;
+		sink->BeginFigure({ 0, triangle_height / 2 - cs / 2 }, D2D1_FIGURE_BEGIN_FILLED);
+		sink->AddLine ({ cs / 2, triangle_height / 2 });
+		sink->AddLine ({ 0, triangle_height / 2 + cs / 2 });
+		sink->EndFigure (D2D1_FIGURE_END_CLOSED);
+		sink->Close();
+
 		dc->PushAxisAlignedClip (&_rectd, D2D1_ANTIALIAS_MODE_ALIASED);
-		enum_items ([&, this, bw=border_width()](pgitem* item, float y, bool& cancel)
+		enum_items ([dc, &rc, focused, this, bw=border_width()](pgitem* item, float y, bool& cancel)
 		{
 			if (y >= _rectd.bottom)
 			{
@@ -309,6 +324,8 @@ public:
 		_root_items.push_back (std::make_unique<root_item>(this, heading, objects));
 		invalidate();
 	}
+
+	virtual std::span<const std::unique_ptr<root_item>> sections() const override { return _root_items; }
 
 	virtual bool read_only() const override { return false; }
 
@@ -448,17 +465,31 @@ public:
 		return selected_nvp_index;
 	}
 
-	std::pair<pgitem*, float> item_at (float pdy) const
+	virtual htresult item_at (D2D1_POINT_2F pd) const override
 	{
-		std::pair<pgitem*, float> result = { };
+		htresult result = { nullptr };
 
-		enum_items ([pdy, &result](pgitem* item, float y, bool& cancel)
+		enum_items ([this, pd, &result](pgitem* item, float y, bool& cancel)
 		{
 			float h = item->content_height_aligned();
-			if (pdy < y + h)
+			if (pd.y < y + h)
 			{
-				result.first = item;
-				result.second = y;
+				result = htresult{ };
+				result.item = item;
+				result.y = y;
+
+				if (pd.x < name_column_x(item->indent()))
+				{
+					if (auto vi = dynamic_cast<value_item*>(item); _input_output_enabled && vi && !vi->property()->read_only())
+						result.code = htcode::input;
+					else
+						result.code = htcode::expand;
+				}
+				else if (pd.x < value_column_x())
+					result.code = htcode::name;
+				else
+					result.code = htcode::value;
+
 				cancel = true;
 			}
 		});
@@ -466,14 +497,38 @@ public:
 		return result;
 	}
 
+	virtual void enable_input_output(bool enable) override
+	{
+		_input_output_enabled = enable;
+	}
+
+	virtual bool input_output_enabled() const override { return _input_output_enabled; }
+
+	virtual D2D1_POINT_2F input_of (value_item* vi) const override
+	{
+		std::optional<D2D1_POINT_2F> res;
+
+		enum_items ([vi, this, &res](pgitem* item, float y, bool& cancel)
+		{
+			if (item == vi)
+			{
+				res = D2D1_POINT_2F{ _rectd.left, y + item->content_height_aligned() / 2 };
+				cancel = true;
+			}
+		});
+
+		assert(res);
+		return res.value();
+	}
+
 	virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) override final
 	{
 		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), pd)))
 			return _text_editor->on_mouse_down(button, mks, pp, pd);
 
-		auto clicked_item = item_at(pd.y);
+		auto clicked_item = item_at(pd);
 
-		auto new_selected_item = (clicked_item.first && clicked_item.first->selectable()) ? clicked_item.first : nullptr;
+		auto new_selected_item = (clicked_item.item && clicked_item.item->selectable()) ? clicked_item.item : nullptr;
 		if (_selected_item != new_selected_item)
 		{
 			_text_editor = nullptr;
@@ -481,9 +536,9 @@ public:
 			invalidate();
 		}
 
-		if (clicked_item.first)
+		if (clicked_item.item)
 		{
-			clicked_item.first->on_mouse_down (button, mks, pp, pd, clicked_item.second);
+			clicked_item.item->on_mouse_down (button, mks, pp, pd, clicked_item.y);
 			return handled(true);
 		}
 
@@ -495,10 +550,10 @@ public:
 		if (_text_editor && _text_editor->mouse_captured())
 			return _text_editor->on_mouse_up (button, mks, pp, pd);
 
-		auto clicked_item = item_at(pd.y);
-		if (clicked_item.first != nullptr)
+		auto clicked_item = item_at(pd);
+		if (clicked_item.item != nullptr)
 		{
-			clicked_item.first->on_mouse_up (button, mks, pp, pd, clicked_item.second);
+			clicked_item.item->on_mouse_up (button, mks, pp, pd, clicked_item.y);
 			return handled(true);
 		}
 
@@ -519,11 +574,11 @@ public:
 			std::wstring text;
 			std::wstring title;
 
-			auto i = item_at(pd.y);
-			if (i.first)
+			auto htres = item_at(pd);
+			if (htres.item)
 			{
-				title = utf8_to_utf16(i.first->description_title());
-				text  = utf8_to_utf16(i.first->description_text());
+				title = utf8_to_utf16(htres.item->description_title());
+				text  = utf8_to_utf16(htres.item->description_text());
 
 				if (!title.empty() && text.empty())
 					text = L"--";

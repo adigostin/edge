@@ -4,7 +4,6 @@
 
 #pragma once
 #include "..\object.h"
-#include "com_ptr.h"
 #include "edge_win32.h"
 #include "text_layout.h"
 
@@ -24,6 +23,7 @@ namespace edge
 		com_ptr<ID2D1SolidColorBrush> selected_fore_brush;
 		com_ptr<ID2D1SolidColorBrush> disabled_fore_brush;
 		com_ptr<ID2D1LinearGradientBrush> item_gradient_brush;
+		com_ptr<ID2D1PathGeometry> triangle_geo;
 	};
 
 	class pgitem

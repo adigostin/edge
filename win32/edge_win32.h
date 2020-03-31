@@ -70,6 +70,7 @@ namespace edge
 		float client_width() const;
 		float client_height() const;
 		float lengthp_to_lengthd (LONG lengthp) const;
+		LONG lengthd_to_lengthp (float lengthd, int round_style) const;
 		D2D1_POINT_2F pointp_to_pointd (POINT locationPixels) const;
 		D2D1_POINT_2F pointp_to_pointd (long xPixels, long yPixels) const;
 		POINT pointd_to_pointp (float xDips, float yDips, int round_style) const;

@@ -41,6 +41,8 @@ namespace edge
 		return (base_type == t) || base_type->is_derived_from(t);
 	}
 
+	bool type::is_derived_from (const type& t) const { return is_derived_from(&t); }
+
 	void object::on_property_changing (const property_change_args& args)
 	{
 		#ifdef _WIN32

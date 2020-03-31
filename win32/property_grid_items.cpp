@@ -200,16 +200,19 @@ namespace edge
 
 	void group_item::render (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
 	{
-		float bw = root()->grid()->border_width();
-		auto rectd = root()->grid()->rectd();
-		float indent_width = indent() * indent_step;
-		rc.dc->FillRectangle ({ rectd.left + bw, pd.y, rectd.right - bw, pd.y + _layout.height() }, rc.back_brush);
-		rc.dc->DrawTextLayout ({ rectd.left + bw + indent_width + text_lr_padding, pd.y }, _layout, rc.fore_brush);
+		if (_layout)
+		{
+			float bw = root()->grid()->border_width();
+			auto rectd = root()->grid()->rectd();
+			float indent_width = indent() * indent_step;
+			rc.dc->FillRectangle ({ rectd.left + bw, pd.y, rectd.right - bw, pd.y + content_height_aligned() }, rc.back_brush);
+			rc.dc->DrawTextLayout ({ rectd.left + bw + indent_width + text_lr_padding, pd.y }, _layout, rc.fore_brush);
+		}
 	}
 
 	float group_item::content_height() const
 	{
-		return _layout.height();
+		return _layout ? _layout.height() : 0;
 	}
 	#pragma endregion
 
@@ -373,6 +376,33 @@ namespace edge
 			rc.item_gradient_brush->SetStartPoint ({ fill_rect.left, fill_rect.top });
 			rc.item_gradient_brush->SetEndPoint ({ fill_rect.left, fill_rect.bottom });
 			rc.dc->FillRectangle (&fill_rect, rc.item_gradient_brush);
+		}
+
+		if (grid->input_output_enabled() && !_property->read_only())
+		{
+			bool filled = false;
+
+			float line_width_not_aligned = 1.6f;
+			LONG line_width_pixels = grid->window()->lengthd_to_lengthp (line_width_not_aligned, 0);
+			float line_width = grid->window()->lengthp_to_lengthd(line_width_pixels);
+
+			D2D1::Matrix3x2F oldtr;
+			rc.dc->GetTransform(&oldtr);
+			float padding = line_width;
+			rc.dc->SetTransform (Matrix3x2F::Translation(rectd.left + bw + padding + line_width / 2, pd.y) * oldtr);
+
+			if (filled)
+			{
+				com_ptr<ID2D1SolidColorBrush> green_fill_brush;
+				rc.dc->CreateSolidColorBrush({ 0, 0.75f, 0.25f, 1 }, &green_fill_brush);
+				rc.dc->FillGeometry(rc.triangle_geo, green_fill_brush);
+			}
+
+			com_ptr<ID2D1SolidColorBrush> green_outline_brush;
+			rc.dc->CreateSolidColorBrush({ 0, 0.5f, 0, 1 }, &green_outline_brush);
+			rc.dc->DrawGeometry(rc.triangle_geo, green_outline_brush, line_width);
+
+			rc.dc->SetTransform(&oldtr);
 		}
 
 		float name_line_x = rectd.left + bw + indent_width + lt / 2;

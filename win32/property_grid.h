@@ -33,6 +33,8 @@ namespace edge
 		virtual void on_dpi_changed() = 0;
 		virtual void clear() = 0;
 		virtual void add_section (const char* heading, std::span<object* const> objects) = 0;
+		void add_section (const char* heading, object* obj) { add_section(heading, { &obj, 1 }); }
+		virtual std::span<const std::unique_ptr<root_item>> sections() const = 0;
 		virtual bool read_only() const = 0;
 		virtual void render (ID2D1DeviceContext* dc) const = 0;
 		virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) = 0;
@@ -42,6 +44,20 @@ namespace edge
 		virtual handled on_key_up (uint32_t vkey, modifier_key mks) = 0;
 		virtual handled on_char_key (uint32_t ch) = 0;
 		virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const = 0;
+		virtual void enable_input_output(bool enable) = 0;
+		virtual bool input_output_enabled() const = 0;
+		virtual D2D1_POINT_2F input_of (value_item* vi) const = 0;
+
+		enum class htcode { none, input, expand, name, value, output };
+
+		struct htresult
+		{
+			pgitem* item;
+			float   y;
+			htcode  code;
+		};
+
+		virtual htresult item_at (D2D1_POINT_2F pd) const = 0;
 
 		struct property_edited_args
 		{
