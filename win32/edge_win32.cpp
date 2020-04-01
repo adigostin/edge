@@ -181,12 +181,7 @@ namespace edge
 	{
 		return D2D1_SIZE_F{ sizep.cx * 96.0f / dpi(), sizep.cy * 96.0f / dpi() };
 	}
-	/*
-	SIZE dpi_aware_window_i::sized_to_sizep(D2D1_SIZE_F sized) const
-	{
-		return SIZE{ (LONG)(sized.width / 96.0f * dpi()), (LONG)(sized.height / 96.0f * dpi()) };
-	}
-	*/
+
 	D2D1_RECT_F dpi_aware_window_i::rectp_to_rectd (RECT rp) const
 	{
 		auto tl = pointp_to_pointd(rp.left, rp.top);
@@ -203,8 +198,8 @@ namespace edge
 	}
 	#pragma endregion
 
-	#pragma region zoomable_i interface
-	D2D1_POINT_2F zoomable_i::pointd_to_pointw (D2D1_POINT_2F dlocation) const
+	#pragma region zoomable_window_i interface
+	D2D1_POINT_2F zoomable_window_i::pointd_to_pointw (D2D1_POINT_2F dlocation) const
 	{
 		auto center = pixel_aligned_window_center();
 		auto aimpoint = this->aimpoint();
@@ -214,7 +209,7 @@ namespace edge
 		return { x, y };
 	}
 
-	void zoomable_i::pointw_to_pointd (std::span<D2D1_POINT_2F> locations) const
+	void zoomable_window_i::pointw_to_pointd (std::span<D2D1_POINT_2F> locations) const
 	{
 		auto center = pixel_aligned_window_center();
 		auto aimpoint = this->aimpoint();
@@ -227,7 +222,7 @@ namespace edge
 	}
 
 	// The implementor should align the aimpoint to a pixel center so that graphics will look crisp at integer zoom factors.
-	D2D1_SIZE_F zoomable_i::pixel_aligned_window_center() const
+	D2D1_SIZE_F zoomable_window_i::pixel_aligned_window_center() const
 	{
 		float pw = pixel_width();
 
@@ -240,13 +235,13 @@ namespace edge
 		return { center_x, center_y };
 	}
 
-	D2D1_POINT_2F zoomable_i::pointw_to_pointd (D2D1_POINT_2F location) const
+	D2D1_POINT_2F zoomable_window_i::pointw_to_pointd (D2D1_POINT_2F location) const
 	{
 		pointw_to_pointd ({ &location, 1 });
 		return location;
 	}
 
-	D2D1::Matrix3x2F zoomable_i::zoom_transform() const
+	D2D1::Matrix3x2F zoomable_window_i::zoom_transform() const
 	{
 		auto aimpoint = this->aimpoint();
 		auto zoom = this->zoom();
@@ -256,7 +251,7 @@ namespace edge
 			* D2D1::Matrix3x2F::Translation(pixel_aligned_window_center());
 	}
 
-	bool zoomable_i::hit_test_line (D2D1_POINT_2F dLocation, float tolerance, D2D1_POINT_2F p0w, D2D1_POINT_2F p1w, float lineWidth) const
+	bool zoomable_window_i::hit_test_line (D2D1_POINT_2F dLocation, float tolerance, D2D1_POINT_2F p0w, D2D1_POINT_2F p1w, float lineWidth) const
 	{
 		auto fd = this->pointw_to_pointd(p0w);
 		auto td = this->pointw_to_pointd(p1w);

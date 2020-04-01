@@ -76,7 +76,6 @@ namespace edge
 		POINT pointd_to_pointp (float xDips, float yDips, int round_style) const;
 		POINT pointd_to_pointp (D2D1_POINT_2F locationDips, int round_style) const;
 		D2D1_SIZE_F sizep_to_sized (SIZE size_pixels) const;
-		//SIZE sized_to_sizep (D2D1_SIZE_F size_dips) const;
 		D2D1_RECT_F rectp_to_rectd (RECT rp) const;
 		using win32_window_i::invalidate;
 		void invalidate (const D2D1_RECT_F& rect);
@@ -90,9 +89,9 @@ namespace edge
 		virtual void hide_caret() = 0;
 	};
 
-	struct __declspec(novtable) zoomable_i : virtual d2d_window_i
+	struct __declspec(novtable) zoomable_window_i : virtual d2d_window_i
 	{
-		struct zoom_transform_changed_e : event<zoom_transform_changed_e, zoomable_i*> { };
+		struct zoom_transform_changed_e : event<zoom_transform_changed_e, zoomable_window_i*> { };
 
 		virtual D2D1_POINT_2F aimpoint() const = 0;
 		virtual float zoom() const = 0;

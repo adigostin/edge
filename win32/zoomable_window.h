@@ -7,7 +7,7 @@
 
 namespace edge
 {
-	class zoomable_window abstract : public d2d_window, public virtual zoomable_i
+	class zoomable_window abstract : public d2d_window, public virtual zoomable_window_i
 	{
 		using base = d2d_window;
 
@@ -43,7 +43,7 @@ namespace edge
 
 		void zoom_to (D2D1_POINT_2F aimpoint, float zoom, bool smooth);
 
-		// zoomable_i
+		// zoomable_window_i
 		virtual D2D1_POINT_2F aimpoint() const override { return _aimpoint; }
 		virtual float zoom() const override { return _zoom; }
 		virtual zoom_transform_changed_e::subscriber zoom_transform_changed() override { return zoom_transform_changed_e::subscriber(this); }
