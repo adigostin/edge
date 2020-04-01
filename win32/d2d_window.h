@@ -25,7 +25,7 @@ namespace edge
 		com_ptr<IDXGISwapChain1> _swap_chain;
 		com_ptr<ID2D1DeviceContext> _d2d_dc;
 		com_ptr<ID2D1Factory1> _d2d_factory;
-		timer_queue_timer_unique_ptr _caret_blink_timer;
+		bool _caret_on = false;
 		bool _caret_blink_on = false;
 		std::pair<D2D1_RECT_F, D2D1_MATRIX_3X2_F> _caret_bounds;
 		D2D1_COLOR_F _caret_color;
@@ -50,10 +50,6 @@ namespace edge
 
 		debug_flag _debug_flags = (debug_flag)0; //debug_flag::render_frame_durations_and_fps;
 		com_ptr<IDWriteTextFormat> _debug_text_format;
-
-		static constexpr UINT WM_BLINK = base::WM_NEXT + 0;
-	protected:
-		static constexpr UINT WM_NEXT = base::WM_NEXT + 1;
 
 	public:
 		d2d_window (DWORD exStyle, DWORD style,
@@ -85,7 +81,9 @@ namespace edge
 
 	private:
 		void invalidate_caret();
-		void process_wm_blink();
+		static void CALLBACK on_blink_timer (HWND Arg1, UINT Arg2, UINT_PTR Arg3, DWORD Arg4);
+		UINT_PTR timer_id_from_window() const;
+		static d2d_window* window_from_timer_id (UINT_PTR);
 		void create_d2d_dc();
 		void release_d2d_dc();
 		void process_wm_paint();

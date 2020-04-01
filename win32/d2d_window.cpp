@@ -150,12 +150,6 @@ namespace edge
 			return 0;
 		}
 
-		if (uMsg == WM_BLINK)
-		{
-			process_wm_blink();
-			return 0;
-		}
-
 		return resultBaseClass;
 	}
 
@@ -366,7 +360,7 @@ namespace edge
 		}
 		*/
 
-		if (_caret_blink_timer && (::GetFocus() == hwnd()) && _caret_blink_on)
+		if (_caret_on && (::GetFocus() == hwnd()) && _caret_blink_on)
 		{
 			_d2d_dc->SetTransform(dpi_transform() * _caret_bounds.second);
 			com_ptr<ID2D1SolidColorBrush> b;
@@ -437,13 +431,13 @@ namespace edge
 	#pragma region Caret methods
 	void d2d_window::process_wm_set_focus()
 	{
-		if (_caret_blink_timer && _caret_blink_on)
+		if (_caret_on && _caret_blink_on)
 			invalidate_caret();
 	}
 
 	void d2d_window::process_wm_kill_focus()
 	{
-		if (_caret_blink_timer && _caret_blink_on)
+		if (_caret_on && _caret_blink_on)
 			invalidate_caret();
 	}
 
@@ -457,6 +451,20 @@ namespace edge
 		invalidate(bounds);
 	}
 
+	UINT_PTR d2d_window::timer_id_from_window() const
+	{
+		// Let's generate a timer ID that should be unique throughout the process.
+		// This would be a pointer to some private data of this class within this object.
+		return (UINT_PTR)this + offsetof(d2d_window, _caret_on);
+	}
+
+	//static
+	d2d_window* d2d_window::window_from_timer_id (UINT_PTR timer_id)
+	{
+		return (d2d_window*)(timer_id - offsetof(d2d_window, _caret_on));
+	}
+
+	// This can be called repeatedly, first to show the caret, and then to move it.
 	void d2d_window::show_caret (const D2D1_RECT_F& bounds, D2D1_COLOR_F color, const D2D1_MATRIX_3X2_F* transform)
 	{
 		assert (!_painting);
@@ -475,13 +483,9 @@ namespace edge
 				invalidate_caret();
 		}
 
-		static const auto blink_callback = [](void* lpParameter, BOOLEAN)
-		{
-			// We're on a worker thread. Let's post this message and continue processing on the GUI thread.
-			auto d2dw = static_cast<d2d_window*>(lpParameter);
-			::PostMessage(d2dw->hwnd(), WM_BLINK, 0, 0);
-		};
-		_caret_blink_timer = create_timer_queue_timer (blink_callback, this, GetCaretBlinkTime(), GetCaretBlinkTime());
+		UINT_PTR timer_res = ::SetTimer (hwnd(), timer_id_from_window(), GetCaretBlinkTime(), on_blink_timer);
+		assert (timer_res == timer_id_from_window());
+		_caret_on = true;
 		_caret_blink_on = true;
 	}
 
@@ -489,22 +493,22 @@ namespace edge
 	{
 		assert (!_painting); // "This function may not be called during paiting.
 
-		assert (_caret_blink_timer); // ShowCaret() was not called.
-
-		_caret_blink_timer = nullptr;
+		assert(_caret_on);
+		BOOL bres = ::KillTimer(hwnd(), timer_id_from_window()); assert(bres);
+		_caret_on = false;
 
 		if ((::GetFocus() == hwnd()) && _caret_blink_on)
 			invalidate_caret();
 	}
 
-	void d2d_window::process_wm_blink()
+	// static
+	void CALLBACK d2d_window::on_blink_timer (HWND Arg1, UINT Arg2, UINT_PTR Arg3, DWORD Arg4)
 	{
-		if (_caret_blink_timer)
-		{
-			_caret_blink_on = !_caret_blink_on;
-			invalidate_caret();
-		}
+		auto window = window_from_timer_id(Arg3);
+		assert(window->hwnd() == Arg1);
+		assert(window->_caret_on);
+		window->_caret_blink_on = !window->_caret_blink_on;
+		window->invalidate_caret();
 	}
-
 	#pragma endregion
 }
