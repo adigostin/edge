@@ -54,7 +54,7 @@ namespace edge
 
 	public:
 		constexpr xtype (const char* name, const type* base, std::span<const property* const> props,
-			factory_t factory = nullptr, const typed_property<factory_arg_property_traits>*... factory_props)
+			factory_t factory = nullptr, const static_value_property<factory_arg_property_traits>*... factory_props)
 			: concrete_type(name, base, props)
 			, _factory(factory)
 			, _factory_props(std::array<const value_property*, parameter_count>{ factory_props... })

@@ -113,7 +113,7 @@ namespace edge
 	// ========================================================================
 
 	template<typename property_traits>
-	struct typed_value_property_base : value_property
+	struct typed_value_property : value_property
 	{
 		using base = value_property;
 		using base::base;
@@ -178,9 +178,9 @@ namespace edge
 	// ========================================================================
 
 	template<typename property_traits>
-	struct typed_property : typed_value_property_base<property_traits>
+	struct static_value_property : typed_value_property<property_traits>
 	{
-		using base = typed_value_property_base<property_traits>;
+		using base = typed_value_property<property_traits>;
 
 		using value_t  = typename property_traits::value_t;
 
@@ -279,7 +279,7 @@ namespace edge
 		setter_t const _setter;
 		std::optional<value_t> const default_value;
 
-		constexpr typed_property (const char* name, const property_group* group, const char* description, getter_t getter, setter_t setter, std::optional<value_t>&& default_value = std::nullopt)
+		constexpr static_value_property (const char* name, const property_group* group, const char* description, getter_t getter, setter_t setter, std::optional<value_t>&& default_value = std::nullopt)
 			: base(name, group, description), _getter(getter), _setter(setter), default_value(std::move(default_value))
 		{ }
 
@@ -312,7 +312,7 @@ namespace edge
 		static void serialize (value_t from, out_stream_i* to) { assert(false); } // not implemented
 		static void deserialize (binary_reader& from, value_t& to) { assert(false); } // not implemented
 	};
-	using bool_p = typed_property<bool_property_traits>;
+	using bool_p = static_value_property<bool_property_traits>;
 
 	template<typename t_, const char* type_name_>
 	struct arithmetic_property_traits
@@ -328,23 +328,23 @@ namespace edge
 
 	extern const char int32_type_name[];
 	using int32_property_traits = arithmetic_property_traits<int32_t, int32_type_name>;
-	using int32_p = typed_property<int32_property_traits>;
+	using int32_p = static_value_property<int32_property_traits>;
 
 	extern const char uint32_type_name[];
 	using uint32_property_traits = arithmetic_property_traits<uint32_t, uint32_type_name>;
-	using uint32_p = typed_property<uint32_property_traits>;
+	using uint32_p = static_value_property<uint32_property_traits>;
 
 	extern const char uint64_type_name[];
 	using uint64_property_traits = arithmetic_property_traits<uint64_t, uint64_type_name>;
-	using uint64_p = typed_property<uint64_property_traits>;
+	using uint64_p = static_value_property<uint64_property_traits>;
 
 	extern const char size_t_type_name[];
 	using size_t_property_traits = arithmetic_property_traits<size_t, size_t_type_name>;
-	using size_t_p = typed_property<size_t_property_traits>;
+	using size_t_p = static_value_property<size_t_property_traits>;
 
 	extern const char float_type_name[];
 	using float_property_traits = arithmetic_property_traits<float, float_type_name>;
-	using float_p = typed_property<float_property_traits>;
+	using float_p = static_value_property<float_property_traits>;
 
 	struct backed_string_property_traits
 	{
@@ -355,7 +355,7 @@ namespace edge
 		static void serialize (value_t from, out_stream_i* to);
 		static void deserialize (binary_reader& from, value_t& to);
 	};
-	using backed_string_p = typed_property<backed_string_property_traits>;
+	using backed_string_p = static_value_property<backed_string_property_traits>;
 
 	struct temp_string_property_traits
 	{
@@ -366,7 +366,7 @@ namespace edge
 		static void serialize (value_t from, out_stream_i* to);
 		static void deserialize (binary_reader& from, value_t& to);
 	};
-	using temp_string_p = typed_property<temp_string_property_traits>;
+	using temp_string_p = static_value_property<temp_string_property_traits>;
 
 	// ========================================================================
 
@@ -433,7 +433,7 @@ namespace edge
 	extern const char unknown_enum_value_str[];
 
 	template<typename enum_t, const char* type_name, const nvp* nvps_, bool serialize_as_integer = false, const char* unknown_str = unknown_enum_value_str>
-	using enum_property = typed_property<enum_property_traits<enum_t, type_name, nvps_, serialize_as_integer, unknown_str>>;
+	using enum_property = static_value_property<enum_property_traits<enum_t, type_name, nvps_, serialize_as_integer, unknown_str>>;
 
 	// ========================================================================
 
