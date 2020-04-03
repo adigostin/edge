@@ -569,27 +569,35 @@ public:
 		{
 			_last_tt_location = pp;
 
-			::SendMessage (_tooltip, TTM_POP, 0, 0);
-
-			std::wstring text;
-			std::wstring title;
-
-			auto htres = item_at(pd);
-			if (htres.item)
+			if (_text_editor && point_in_rect(_text_editor->rect(), pd))
 			{
-				title = utf8_to_utf16(htres.item->description_title());
-				text  = utf8_to_utf16(htres.item->description_text());
-
-				if (!title.empty() && text.empty())
-					text = L"--";
+				TOOLINFO ti = { sizeof(TOOLINFO), 0, _window->hwnd() };
+				SendMessage(_tooltip, TTM_UPDATETIPTEXT, 0, (LPARAM)&ti);
 			}
+			else
+			{
+				::SendMessage (_tooltip, TTM_POP, 0, 0);
 
-			TOOLINFO ti = { sizeof(TOOLINFO) };
-			ti.hwnd     = _window->hwnd();
-			ti.lpszText = text.data();
-			SendMessage(_tooltip, TTM_UPDATETIPTEXT, 0, (LPARAM)&ti);
+				std::wstring text;
+				std::wstring title;
 
-			SendMessage(_tooltip, TTM_SETTITLE, TTI_INFO, (LPARAM)title.data());
+				auto htres = item_at(pd);
+				if (htres.item)
+				{
+					title = utf8_to_utf16(htres.item->description_title());
+					text  = utf8_to_utf16(htres.item->description_text());
+
+					if (!title.empty() && text.empty())
+						text = L"--";
+				}
+
+				TOOLINFO ti = { sizeof(TOOLINFO) };
+				ti.hwnd     = _window->hwnd();
+				ti.lpszText = text.data();
+				SendMessage(_tooltip, TTM_UPDATETIPTEXT, 0, (LPARAM)&ti);
+
+				SendMessage(_tooltip, TTM_SETTITLE, TTI_INFO, (LPARAM)title.data());
+			}
 		}
 	}
 
