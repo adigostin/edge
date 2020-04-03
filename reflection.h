@@ -32,8 +32,6 @@ namespace edge
 
 	extern const property_group misc_group;
 
-	enum class ui_visible { no, yes };
-
 	class string_convert_exception : public std::exception
 	{
 		std::string const _message;
@@ -52,30 +50,22 @@ namespace edge
 		not_implemented_exception() : std::runtime_error("Not implemented") { }
 	};
 
-	struct __declspec(novtable) property_editor_factory_i
-	{
-		virtual ~property_editor_factory_i() = default;
-	};
-
+	// Note that we want this type to be polymorphic so we can dynamic_cast<> on it.
+	// It should contain at least one virtual function (in C++20 that could be the destructor).
 	struct property
 	{
 		const char* const _name;
 		const property_group* const _group;
 		const char* const _description;
-		ui_visible _ui_visible;
 
-		constexpr property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible)
-			: _name(name), _group((group != nullptr) ? group : &misc_group), _description(description), _ui_visible(ui_visible)
+		constexpr property (const char* name, const property_group* group, const char* description)
+			: _name(name), _group((group != nullptr) ? group : &misc_group), _description(description)
 		{ }
 		property (const property&) = delete;
 		property& operator= (const property&) = delete;
 
-		virtual std::span<const property_editor_factory_i* const> editor_factories() const { return { }; }
-
 	private:
-		// We want this type to be polymorphic, and we can't make the destructor virtual
-		// cause we also want the type to be a literal type. That's why the dummy function.
-		virtual void dummy() { }
+		virtual void dummy_to_make_polymorphic() { }
 	};
 
 	struct nvp
@@ -145,24 +135,10 @@ namespace edge
 			static const nvp* nvps() { return T::nvps; }
 		};
 
-		template <typename T, typename = void>
-		struct editors_helper
-		{
-			static std::span<const property_editor_factory_i* const> editor_factories() { return { }; }
-		};
-
-		template <typename T>
-		struct editors_helper<T, typename std::enable_if<bool(sizeof(&T::editor_factories))>::type>
-		{
-			static std::span<const property_editor_factory_i* const> editor_factories() { return T::editor_factories; }
-		};
-
 	public:
 		virtual const char* type_name() const override final { return property_traits::type_name; }
 
 		virtual const nvp* nvps() const override final { return nvps_helper<property_traits>::nvps(); }
-
-		virtual std::span<const property_editor_factory_i* const> editor_factories() const override final { return editors_helper<property_traits>::editor_factories(); }
 
 		virtual value_t get (const object* from) const = 0;
 
@@ -303,8 +279,8 @@ namespace edge
 		setter_t const _setter;
 		std::optional<value_t> const default_value;
 
-		constexpr typed_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible, getter_t getter, setter_t setter, std::optional<value_t>&& default_value = std::nullopt)
-			: base(name, group, description, ui_visible), _getter(getter), _setter(setter), default_value(std::move(default_value))
+		constexpr typed_property (const char* name, const property_group* group, const char* description, getter_t getter, setter_t setter, std::optional<value_t>&& default_value = std::nullopt)
+			: base(name, group, description), _getter(getter), _setter(setter), default_value(std::move(default_value))
 		{ }
 
 		virtual bool read_only() const override final { return _setter.read_only(); }
@@ -494,8 +470,8 @@ namespace edge
 	{
 		using base = object_collection_property;
 
-		static_assert (std::is_base_of<object, child_t>::value);
-		static_assert (std::is_base_of<object, parent_t>::value);
+		//static_assert (std::is_base_of<object, child_t>::value);
+		//static_assert (std::is_base_of<object, parent_t>::value);
 
 		using get_child_count_t = size_t(parent_t::*)() const;
 		using get_child_t       = child_t*(parent_t::*)(size_t) const;
@@ -507,9 +483,9 @@ namespace edge
 		insert_child_t    const _insert_child;
 		remove_child_t    const _remove_child;
 
-		constexpr typed_object_collection_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible,
+		constexpr typed_object_collection_property (const char* name, const property_group* group, const char* description,
 			get_child_count_t get_child_count, get_child_t get_child, insert_child_t insert_child = nullptr, remove_child_t remove_child = nullptr)
-		: base (name, group, description, ui_visible)
+		: base (name, group, description)
 			, _get_child_count(get_child_count)
 			, _get_child(get_child)
 			, _insert_child(insert_child)
@@ -599,9 +575,9 @@ namespace edge
 		remove_value_t const _remove_value;
 		changed_t      const _changed;
 
-		constexpr typed_value_collection_property (const char* name, const property_group* group, const char* description, enum ui_visible ui_visible,
+		constexpr typed_value_collection_property (const char* name, const property_group* group, const char* description,
 			get_size_t get_size, get_value_t get_value, set_value_t set_value, insert_value_t insert_value, remove_value_t remove_value, changed_t changed)
-			: base (name, group, description, ui_visible)
+			: base (name, group, description)
 			, _get_size(get_size)
 			, _get_value(get_value)
 			, _set_value(set_value)

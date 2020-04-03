@@ -66,7 +66,7 @@ namespace edge
 
 	void object_item::on_property_changed (object* obj, const property_change_args& args)
 	{
-		if (args.property->_ui_visible == ui_visible::no)
+		if (auto pgv = dynamic_cast<const pg_visible_property_i*>(args.property); pgv && !pgv->pg_visible(_objects))
 			return;
 
 		auto root_item = this->root();
@@ -152,17 +152,14 @@ namespace edge
 
 		for (auto prop : type->make_property_list())
 		{
-			if (prop->_ui_visible == ui_visible::yes)
+			if (auto pgv = dynamic_cast<const pg_visible_property_i*>(prop); !pgv || pgv->pg_visible(_parent->objects()))
 			{
 				if (prop->_group == _group)
 				{
 					std::unique_ptr<pgitem> item;
 
-					auto factories = prop->editor_factories();
-					auto it = std::find_if (factories.begin(), factories.end(), [](auto f) { return dynamic_cast<const pgitem_factory_i*>(f) != nullptr; });
-					if (it != factories.end())
+					if (auto f = dynamic_cast<const pg_custom_item_i*>(prop))
 					{
-						auto f = static_cast<const pgitem_factory_i*>(*it);
 						item = f->create_item(this, prop);
 					}
 					else if (auto value_prop = dynamic_cast<const value_property*>(prop))
@@ -290,7 +287,7 @@ namespace edge
 
 	bool value_item::can_edit() const
 	{
-		return !root()->grid()->read_only() && _value.readable && (dynamic_cast<const custom_editor_property_i*>(_property) || !_property->read_only());
+		return !root()->grid()->read_only() && _value.readable && (dynamic_cast<const pg_custom_editor_i*>(_property) || !_property->read_only());
 	}
 
 	bool value_item::changed_from_default() const
@@ -452,7 +449,7 @@ namespace edge
 		if (auto bool_p = dynamic_cast<const edge::bool_p*>(property()))
 			return ::LoadCursor(nullptr, IDC_HAND);
 
-		if (property()->nvps() || dynamic_cast<const custom_editor_property_i*>(property()))
+		if (property()->nvps() || dynamic_cast<const pg_custom_editor_i*>(property()))
 			return ::LoadCursor(nullptr, IDC_HAND);
 
 		return ::LoadCursor (nullptr, IDC_IBEAM);
@@ -465,7 +462,7 @@ namespace edge
 		if (pd.x < vcx)
 			return;
 
-		if (auto cep = dynamic_cast<const custom_editor_property_i*>(property()))
+		if (auto cep = dynamic_cast<const pg_custom_editor_i*>(property()))
 		{
 			auto editor = cep->create_editor(parent()->parent()->objects());
 			editor->show(grid->window());

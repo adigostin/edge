@@ -203,9 +203,4 @@ namespace edge
 		virtual void on_mouse_down (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, float item_y) override;
 		virtual void on_mouse_up   (mouse_button button, modifier_key mks, POINT pt, D2D1_POINT_2F dip, float item_y) override;
 	};
-
-	struct __declspec(novtable) pgitem_factory_i : property_editor_factory_i
-	{
-		virtual std::unique_ptr<pgitem> create_item (group_item* parent, const property* prop) const = 0;
-	};
 }

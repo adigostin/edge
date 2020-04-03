@@ -16,9 +16,43 @@ namespace edge
 		virtual void cancel() = 0;
 	};
 
-	struct __declspec(novtable) custom_editor_property_i
+	struct __declspec(novtable) pg_custom_editor_i
 	{
 		virtual std::unique_ptr<property_editor_i> create_editor (std::span<object* const> objects) const = 0;
+	};
+
+	struct __declspec(novtable) pg_visible_property_i
+	{
+		virtual bool pg_visible (std::span<const object* const> objects) const = 0;
+	};
+
+	struct __declspec(novtable) pg_hidden : pg_visible_property_i
+	{
+		virtual bool pg_visible (std::span<const object* const> objects) const override { return false; }
+	};
+
+	struct __declspec(novtable) pg_custom_item_i
+	{
+		virtual std::unique_ptr<pgitem> create_item (group_item* parent, const property* prop) const = 0;
+	};
+
+	// Visual C++ seems to have a bug that causes it to generate an incorrect object layout for this class for constexpr variables.
+	// See bug report at https://developercommunity.visualstudio.com/content/problem/974911/bad-code-gen-with-constexpr-variable-of-mi-class.html
+	// The workaround is to make this type non-literal, thus force all variables to be non-constexpr and be initialized by constructor code
+	// (rather than be initialized by the compiler at compile time and placed directly in linker sections, as it happens with constexpr)
+	//
+	// Note that they shouldn't be static inline either, or else we may run into another compiler bug, something about
+	// bad thunks when taking the address of a virtual function during the initialization of a static inline var.
+	//
+	// So whenever you use this class, declare the static variable in the class, and define it outside the class.
+	// TODO: rename to something less dumb.
+	template<typename property_t, typename... interfaces_t>
+	struct prop_wrapper : property_t, interfaces_t...
+	{
+		template<typename... args_t>
+		prop_wrapper (args_t... args)
+			: property_t(std::forward<args_t>(args)...)
+		{ }
 	};
 
 	struct __declspec(novtable) property_grid_i

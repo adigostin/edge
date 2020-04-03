@@ -200,7 +200,7 @@ public:
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_MENUHILIGHT), &rc.selected_back_brush_focused);
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_MENU), &rc.selected_back_brush_not_focused);
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &rc.selected_fore_brush);
-		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_GRAYTEXT), &rc.disabled_fore_brush);
+		dc->CreateSolidColorBrush ({ 0.7f, 0.7f, 0.7f, 1 }, &rc.disabled_fore_brush);
 
 		static constexpr D2D1_GRADIENT_STOP stops[3] =
 		{
