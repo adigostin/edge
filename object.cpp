@@ -36,6 +36,16 @@ namespace edge
 			return nullptr;
 	}
 
+	bool type::has_property (const property* p) const
+	{
+		auto it = std::find(props.begin(), props.end(), p);
+		if (it != props.end())
+			return true;
+		if (base_type)
+			return base_type->has_property(p);
+		return false;
+	}
+
 	bool type::is_derived_from (const type* t) const
 	{
 		return (base_type == t) || base_type->is_derived_from(t);

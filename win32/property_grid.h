@@ -81,6 +81,15 @@ namespace edge
 		virtual void enable_input_output(bool enable) = 0;
 		virtual bool input_output_enabled() const = 0;
 		virtual D2D1_POINT_2F input_of (value_item* vi) const = 0;
+		virtual D2D1_POINT_2F output_of (value_item* vi) const = 0;
+		virtual value_item* find_item (const value_property* prop) const = 0;
+
+		root_item* single_section() const
+		{
+			auto sections = this->sections();
+			assert(sections.size() == 1);
+			return sections.front().get();
+		}
 
 		enum class htcode { none, input, expand, name, value, output };
 
@@ -89,9 +98,11 @@ namespace edge
 			pgitem* item;
 			float   y;
 			htcode  code;
+
+			operator bool() const { return item != nullptr; }
 		};
 
-		virtual htresult item_at (D2D1_POINT_2F pd) const = 0;
+		virtual htresult hit_test (D2D1_POINT_2F pd) const = 0;
 
 		struct property_edited_args
 		{

@@ -95,6 +95,13 @@ namespace edge
 		}
 	}
 
+	object* object_item::single_object() const
+	{
+		auto& objs = this->objects();
+		assert(objs.size() == 1);
+		return objs.front();
+	}
+
 	pgitem* object_item::find_child (const property* prop) const
 	{
 		for (auto& item : children())

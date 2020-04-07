@@ -25,6 +25,7 @@ namespace edge
 
 		std::vector<const property*> make_property_list() const;
 		const property* find_property (const char* name) const;
+		bool has_property (const property* p) const;
 		bool is_derived_from (const type* t) const;
 		bool is_derived_from (const type& t) const;
 

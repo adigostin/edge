@@ -104,7 +104,7 @@ public:
 	{
 		if ((pd.x >= value_column_x()) && (pd.x < _rectd.right))
 		{
-			auto htr = item_at(pd);
+			auto htr = hit_test(pd);
 			if (htr.item)
 				return htr.item->cursor();
 		}
@@ -465,7 +465,7 @@ public:
 		return selected_nvp_index;
 	}
 
-	virtual htresult item_at (D2D1_POINT_2F pd) const override
+	virtual htresult hit_test (D2D1_POINT_2F pd) const override
 	{
 		htresult result = { nullptr };
 
@@ -521,12 +521,45 @@ public:
 		return res.value();
 	}
 
+	virtual D2D1_POINT_2F output_of (value_item* vi) const override
+	{
+		std::optional<D2D1_POINT_2F> res;
+
+		enum_items ([vi, this, &res](pgitem* item, float y, bool& cancel)
+		{
+			if (item == vi)
+			{
+				res = D2D1_POINT_2F{ _rectd.right, y + item->content_height_aligned() / 2 };
+				cancel = true;
+			}
+		});
+
+		assert(res);
+		return res.value();
+	}
+
+	virtual value_item* find_item (const value_property* prop) const override
+	{
+		value_item* res = nullptr;
+
+		enum_items([&res, prop](pgitem* item, float y, bool& cancel)
+		{
+			if (auto vi = dynamic_cast<value_item*>(item); vi && (vi->property() == prop))
+			{
+				res = vi;
+				cancel = true;
+			}
+		});
+
+		return res;
+	}
+
 	virtual handled on_mouse_down (mouse_button button, modifier_key mks, POINT pp, D2D1_POINT_2F pd) override final
 	{
 		if (_text_editor && (_text_editor->mouse_captured() || point_in_rect(_text_editor->rect(), pd)))
 			return _text_editor->on_mouse_down(button, mks, pp, pd);
 
-		auto clicked_item = item_at(pd);
+		auto clicked_item = hit_test(pd);
 
 		auto new_selected_item = (clicked_item.item && clicked_item.item->selectable()) ? clicked_item.item : nullptr;
 		if (_selected_item != new_selected_item)
@@ -550,7 +583,7 @@ public:
 		if (_text_editor && _text_editor->mouse_captured())
 			return _text_editor->on_mouse_up (button, mks, pp, pd);
 
-		auto clicked_item = item_at(pd);
+		auto clicked_item = hit_test(pd);
 		if (clicked_item.item != nullptr)
 		{
 			clicked_item.item->on_mouse_up (button, mks, pp, pd, clicked_item.y);
@@ -581,7 +614,7 @@ public:
 				std::wstring text;
 				std::wstring title;
 
-				auto htres = item_at(pd);
+				auto htres = hit_test(pd);
 				if (htres.item)
 				{
 					title = utf8_to_utf16(htres.item->description_title());

@@ -88,6 +88,8 @@ namespace edge
 
 		const std::vector<object*>& objects() const { return _objects; }
 
+		object* single_object() const;
+
 		pgitem* find_child (const property* prop) const;
 
 	private:
