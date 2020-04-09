@@ -13,16 +13,18 @@
 
 namespace edge
 {
-	struct type
+	class type
 	{
-		const char* const name;
+		const char* const _name;
 		const type* const base_type;
 		std::span<const property* const> const props;
 
+	public:
 		constexpr type(const char* name, const type* base_type, std::span<const property* const> props) noexcept
-			: name(name), base_type(base_type), props(props)
+			: _name(name), base_type(base_type), props(props)
 		{ }
 
+		const char* name() const { return _name; }
 		std::vector<const property*> make_property_list() const;
 		const property* find_property (const char* name) const;
 		bool has_property (const property* p) const;

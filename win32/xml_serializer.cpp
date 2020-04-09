@@ -93,7 +93,7 @@ namespace edge
 		{
 			if (object_element == nullptr)
 			{
-				auto hr = doc->createElement(_bstr_t(obj->type()->name), &object_element);
+				auto hr = doc->createElement(_bstr_t(obj->type()->name()), &object_element);
 				assert(SUCCEEDED(hr));
 
 				if (index_attribute != (size_t)-1)
@@ -179,7 +179,7 @@ namespace edge
 		_bstr_t namebstr;
 		auto hr = elem->get_nodeName(namebstr.GetAddress()); assert(SUCCEEDED(hr));
 		auto name = bstr_to_utf8(namebstr);
-		auto it = std::find_if(known_types.begin(), known_types.end(), [&name](const type* t) { return (t->name == name) || strcmp(t->name, name.c_str()) == 0; });
+		auto it = std::find_if(known_types.begin(), known_types.end(), [&name](const type* t) { return (t->name() == name) || strcmp(t->name(), name.c_str()) == 0; });
 		if (it == known_types.end())
 			assert(false); // error handling for this not implemented
 		auto obj = create_object(elem, *it);
@@ -199,7 +199,7 @@ namespace edge
 			_bstr_t namebstr;
 			auto hr = child_elem->get_nodeName(namebstr.GetAddress()); assert(SUCCEEDED(hr));
 			auto name = bstr_to_utf8(namebstr);
-			auto it = std::find_if(known_types.begin(), known_types.end(), [&name](const type* t) { return (t->name == name) || strcmp(t->name, name.c_str()) == 0; });
+			auto it = std::find_if(known_types.begin(), known_types.end(), [&name](const type* t) { return (t->name() == name) || strcmp(t->name(), name.c_str()) == 0; });
 			if (it == known_types.end())
 				assert(false); // error handling for this not implemented
 			auto child = create_object(child_elem, *it);
