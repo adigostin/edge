@@ -15,7 +15,7 @@ namespace edge
 	{
 		using base = object;
 
-		template<typename child_type>
+		template<typename child_t, typename store_t>
 		friend struct typed_collection_i;
 
 		collection_i* _parent = nullptr;
@@ -47,14 +47,12 @@ namespace edge
 		}
 	};
 
-	template<typename child_t>
+	template<typename child_t, typename store_t = std::vector<std::unique_ptr<child_t>>>
 	struct typed_collection_i : collection_i
 	{
-		static_assert (std::is_base_of<owned_object, child_t>::value);
-
 	private:
-		virtual std::vector<std::unique_ptr<child_t>>& children_store() = 0;
-		virtual object* as_object() = 0;
+		virtual store_t& children_store() = 0;
+		const store_t& children_store() const { return const_cast<typed_collection_i*>(this)->children_store(); }
 
 	protected:
 		virtual void on_child_inserted (size_t index, child_t* child)
@@ -73,14 +71,17 @@ namespace edge
 
 		void insert (size_t index, std::unique_ptr<child_t>&& o)
 		{
+			static_assert (std::is_base_of<owned_object, child_t>::value);
+
 			auto& children = children_store();
 			assert (index <= children.size());
 			child_t* raw = o.get();
-			children.insert (children.begin() + index, std::move(o));
+			auto it = children.begin() + index;
+			children.insert (it, std::move(o));
 			assert (raw->_parent == nullptr);
 			raw->_parent = this;
 			this->on_child_inserted (index, raw);
-			static_cast<owned_object*>(raw)->on_added_to_parent();
+			raw->on_added_to_parent();
 		}
 
 		void append (std::unique_ptr<child_t>&& o)
@@ -90,10 +91,13 @@ namespace edge
 
 		std::unique_ptr<child_t> remove(size_t index)
 		{
+			static_assert (std::is_base_of<owned_object, child_t>::value);
+
 			auto& children = children_store();
 			assert (index < children.size());
-			child_t* raw = children[index].get();
-			static_cast<owned_object*>(raw)->on_removing_from_parent();
+			auto it = children.begin() + index;
+			child_t* raw = (*it).get();
+			raw->on_removing_from_parent();
 			this->on_child_removing (index, raw);
 			assert (raw->_parent == this);
 			raw->_parent = nullptr;
@@ -106,5 +110,7 @@ namespace edge
 		{
 			return remove(children_store().size() - 1);
 		}
+
+		child_t* last() const { return children_store().back().get(); }
 	};
 }
