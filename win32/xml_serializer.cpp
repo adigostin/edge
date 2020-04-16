@@ -113,7 +113,7 @@ namespace edge
 			if (auto value_prop = dynamic_cast<const value_property*>(prop))
 			{
 				bool is_factory_prop = std::any_of (obj->type()->factory_props().begin(), obj->type()->factory_props().end(), [value_prop](auto p) { return p == value_prop; });
-				if (is_factory_prop || (!value_prop->read_only() && value_prop->changed_from_default(obj)))
+				if (is_factory_prop || (value_prop->has_setter() && value_prop->changed_from_default(obj)))
 				{
 					ensure_object_element_created();
 					auto value = value_prop->get_to_string(obj);

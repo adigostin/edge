@@ -22,6 +22,7 @@ namespace edge
 		com_ptr<ID2D1SolidColorBrush> selected_back_brush_not_focused;
 		com_ptr<ID2D1SolidColorBrush> selected_fore_brush;
 		com_ptr<ID2D1SolidColorBrush> disabled_fore_brush;
+		com_ptr<ID2D1SolidColorBrush> data_bind_fore_brush;
 		com_ptr<ID2D1LinearGradientBrush> item_gradient_brush;
 		com_ptr<ID2D1PathGeometry> triangle_geo;
 	};
@@ -107,6 +108,8 @@ namespace edge
 
 		text_layout_with_metrics _layout;
 
+		std::unique_ptr<pgitem> make_child_item (const property* prop);
+
 	public:
 		group_item (object_item* parent, const property_group* group);
 
@@ -170,7 +173,7 @@ namespace edge
 		value_item (group_item* parent, const value_property* property);
 
 		const value_property* property() const { return _property; }
-		virtual void render_value (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const = 0;
+		virtual void render_value (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused, bool data_bound) const = 0;
 
 		const text_layout_with_metrics& name_layout() const { return _name; }
 		const value_layout& value() const { return _value; }
@@ -198,7 +201,7 @@ namespace edge
 
 	public:
 		using base::base;
-		virtual void render_value (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const override final;
+		virtual void render_value (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused, bool data_bound) const override final;
 
 	protected:
 		virtual HCURSOR cursor() const override final;

@@ -28,12 +28,22 @@ namespace edge
 
 	struct __declspec(novtable) pg_hidden : pg_visible_property_i
 	{
-		virtual bool pg_visible (std::span<const object* const> objects) const override { return false; }
+		virtual bool pg_visible (std::span<const object* const> objects) const override final { return false; }
+	};
+
+	struct __declspec(novtable) pg_editable_property_i
+	{
+		virtual bool pg_editable (std::span<const object* const> objects) const = 0;
 	};
 
 	struct __declspec(novtable) pg_custom_item_i
 	{
 		virtual std::unique_ptr<pgitem> create_item (group_item* parent, const property* prop) const = 0;
+	};
+
+	struct __declspec(novtable) pg_bindable_property_i
+	{
+		virtual bool bound (const object* o) const = 0;
 	};
 
 	// Visual C++ seems to have a bug that causes it to generate an incorrect object layout for this class for constexpr variables.
@@ -78,8 +88,6 @@ namespace edge
 		virtual handled on_key_up (uint32_t vkey, modifier_key mks) = 0;
 		virtual handled on_char_key (uint32_t ch) = 0;
 		virtual HCURSOR cursor_at (POINT pp, D2D1_POINT_2F pd) const = 0;
-		virtual void enable_input_output(bool enable) = 0;
-		virtual bool input_output_enabled() const = 0;
 		virtual D2D1_POINT_2F input_of (value_item* vi) const = 0;
 		virtual D2D1_POINT_2F output_of (value_item* vi) const = 0;
 		virtual value_item* find_item (const value_property* prop) const = 0;

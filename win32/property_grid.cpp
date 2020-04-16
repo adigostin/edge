@@ -30,7 +30,6 @@ class edge::property_grid : public edge::event_manager, public property_grid_i
 	HWND _tooltip = nullptr;
 	POINT _last_tt_location = { -1, -1 };
 	float _border_width_not_aligned = 0;
-	bool _input_output_enabled = false;
 
 public:
 	property_grid (d2d_window_i* window, const RECT& rectp)
@@ -201,6 +200,7 @@ public:
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_MENU), &rc.selected_back_brush_not_focused);
 		dc->CreateSolidColorBrush (GetD2DSystemColor (COLOR_WINDOWTEXT), &rc.selected_fore_brush);
 		dc->CreateSolidColorBrush ({ 0.7f, 0.7f, 0.7f, 1 }, &rc.disabled_fore_brush);
+		dc->CreateSolidColorBrush ({ 0, 0.5f, 0, 1 }, &rc.data_bind_fore_brush);
 
 		static constexpr D2D1_GRADIENT_STOP stops[3] =
 		{
@@ -480,10 +480,10 @@ public:
 
 				if (pd.x < name_column_x(item->indent()))
 				{
-					if (auto vi = dynamic_cast<value_item*>(item); _input_output_enabled && vi && !vi->property()->read_only())
+					result.code = htcode::expand;
+
+					if (auto vi = dynamic_cast<value_item*>(item); vi && dynamic_cast<const pg_bindable_property_i*>(vi->property()))
 						result.code = htcode::input;
-					else
-						result.code = htcode::expand;
 				}
 				else if (pd.x < value_column_x())
 					result.code = htcode::name;
@@ -496,13 +496,6 @@ public:
 
 		return result;
 	}
-
-	virtual void enable_input_output(bool enable) override
-	{
-		_input_output_enabled = enable;
-	}
-
-	virtual bool input_output_enabled() const override { return _input_output_enabled; }
 
 	virtual D2D1_POINT_2F input_of (value_item* vi) const override
 	{

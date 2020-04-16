@@ -92,7 +92,7 @@ namespace edge
 		using property::property;
 
 		virtual const char* type_name() const = 0;
-		virtual bool read_only() const = 0;
+		virtual bool has_setter() const = 0;
 		virtual void get_to_string (const object* from, std::string& to) const = 0;
 		virtual void set_from_string (std::string_view from, object* to) const = 0;
 		virtual void serialize (const object* from, out_stream_i* to) const = 0;
@@ -118,7 +118,6 @@ namespace edge
 		using base = value_property;
 		using base::base;
 
-		using traits_t = property_traits;
 		using value_t  = typename property_traits::value_t;
 
 	private:
@@ -272,7 +271,7 @@ namespace edge
 					assert(false);
 			}
 
-			bool read_only() const { return type == none; }
+			bool is_null() const { return type == none; }
 		};
 
 		getter_t const _getter;
@@ -283,7 +282,7 @@ namespace edge
 			: base(name, group, description), _getter(getter), _setter(setter), default_value(std::move(default_value))
 		{ }
 
-		virtual bool read_only() const override final { return _setter.read_only(); }
+		virtual bool has_setter() const override final { return !_setter.is_null(); }
 
 		virtual value_t get (const object* from) const override final { return _getter.get(from); }
 

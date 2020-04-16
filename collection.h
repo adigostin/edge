@@ -55,19 +55,20 @@ namespace edge
 		const store_t& children_store() const { return const_cast<typed_collection_i*>(this)->children_store(); }
 
 	protected:
-		virtual void on_child_inserted (size_t index, child_t* child)
-		{
-		}
-
-		virtual void on_child_removing (size_t index, child_t* child)
-		{
-		}
+		virtual void on_child_inserting (size_t index, child_t* child) { }
+		virtual void on_child_inserted (size_t index, child_t* child) { }
+		virtual void on_child_removing (size_t index, child_t* child) { }
+		virtual void on_child_removed (size_t index, child_t* child) { }
 
 	public:
 		const std::vector<std::unique_ptr<child_t>>& children() const
 		{
 			return const_cast<typed_collection_i*>(this)->children_store();
 		}
+
+		size_t child_count() const { return children_store().size(); }
+
+		child_t* child_at(size_t index) const { return children_store()[index].get(); }
 
 		void insert (size_t index, std::unique_ptr<child_t>&& o)
 		{
@@ -76,11 +77,13 @@ namespace edge
 			auto& children = children_store();
 			assert (index <= children.size());
 			child_t* raw = o.get();
-			auto it = children.begin() + index;
-			children.insert (it, std::move(o));
 			assert (raw->_parent == nullptr);
+
+			this->on_child_inserting(index, raw);
+			children.insert (children.begin() + index, std::move(o));
 			raw->_parent = this;
 			this->on_child_inserted (index, raw);
+
 			raw->on_added_to_parent();
 		}
 
@@ -97,12 +100,16 @@ namespace edge
 			assert (index < children.size());
 			auto it = children.begin() + index;
 			child_t* raw = (*it).get();
-			raw->on_removing_from_parent();
-			this->on_child_removing (index, raw);
 			assert (raw->_parent == this);
+
+			raw->on_removing_from_parent();
+
+			this->on_child_removing (index, raw);
 			raw->_parent = nullptr;
 			auto result = std::move (children[index]);
 			children.erase (children.begin() + index);
+			this->on_child_removed (index, raw);
+
 			return result;
 		}
 

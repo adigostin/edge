@@ -151,6 +151,18 @@ namespace edge
 		expand();
 	}
 
+	std::unique_ptr<pgitem> group_item::make_child_item (const property* prop)
+	{
+		if (auto f = dynamic_cast<const pg_custom_item_i*>(prop))
+			return f->create_item(this, prop);
+
+		if (auto value_prop = dynamic_cast<const value_property*>(prop))
+			return std::make_unique<default_value_pgitem>(this, value_prop);
+
+		// TODO: placeholder pg item for unknown types of properties
+		throw not_implemented_exception();
+	}
+
 	std::vector<std::unique_ptr<pgitem>> group_item::create_children()
 	{
 		std::vector<std::unique_ptr<pgitem>> items;
@@ -162,25 +174,7 @@ namespace edge
 			if (auto pgv = dynamic_cast<const pg_visible_property_i*>(prop); !pgv || pgv->pg_visible(_parent->objects()))
 			{
 				if (prop->_group == _group)
-				{
-					std::unique_ptr<pgitem> item;
-
-					if (auto f = dynamic_cast<const pg_custom_item_i*>(prop))
-					{
-						item = f->create_item(this, prop);
-					}
-					else if (auto value_prop = dynamic_cast<const value_property*>(prop))
-					{
-						item = std::make_unique<default_value_pgitem>(this, value_prop);
-					}
-					else
-					{
-						// TODO: placeholder pg item for unknown types of properties
-						assert(false);
-					}
-
-					items.push_back(std::move(item));
-				}
+					items.push_back(make_child_item(prop));
 			}
 		}
 
@@ -294,7 +288,17 @@ namespace edge
 
 	bool value_item::can_edit() const
 	{
-		return !root()->grid()->read_only() && _value.readable && (dynamic_cast<const pg_custom_editor_i*>(_property) || !_property->read_only());
+		// TODO: Allow editing and setting a property that couldn't be read.
+		if (!_value.readable)
+			return false;
+
+		if (dynamic_cast<const pg_custom_editor_i*>(_property))
+			return true;
+
+		if (auto ep = dynamic_cast<const pg_editable_property_i*>(_property))
+			return ep->pg_editable(parent()->parent()->objects());
+
+		return _property->has_setter();
 	}
 
 	bool value_item::changed_from_default() const
@@ -382,10 +386,18 @@ namespace edge
 			rc.dc->FillRectangle (&fill_rect, rc.item_gradient_brush);
 		}
 
-		if (grid->input_output_enabled() && !_property->read_only())
-		{
-			bool filled = false;
+		bool bindable = false;
+		bool bound = false;
 
+		if (auto bp = dynamic_cast<const pg_bindable_property_i*>(_property))
+		{
+			bindable = true;
+			auto& objs = parent()->parent()->objects();
+			bound = std::any_of (objs.begin(), objs.end(), [bp](object* o) { return bp->bound(o); });
+		}
+
+		if (bindable)
+		{
 			float line_width_not_aligned = 1.6f;
 			LONG line_width_pixels = grid->window()->lengthd_to_lengthp (line_width_not_aligned, 0);
 			float line_width = grid->window()->lengthp_to_lengthd(line_width_pixels);
@@ -395,28 +407,22 @@ namespace edge
 			float padding = line_width;
 			rc.dc->SetTransform (Matrix3x2F::Translation(rectd.left + bw + padding + line_width / 2, pd.y) * oldtr);
 
-			if (filled)
-			{
-				com_ptr<ID2D1SolidColorBrush> green_fill_brush;
-				rc.dc->CreateSolidColorBrush({ 0, 0.75f, 0.25f, 1 }, &green_fill_brush);
-				rc.dc->FillGeometry(rc.triangle_geo, green_fill_brush);
-			}
+			if (bound)
+				rc.dc->FillGeometry(rc.triangle_geo, rc.data_bind_fore_brush);
 
-			com_ptr<ID2D1SolidColorBrush> green_outline_brush;
-			rc.dc->CreateSolidColorBrush({ 0, 0.5f, 0, 1 }, &green_outline_brush);
-			rc.dc->DrawGeometry(rc.triangle_geo, green_outline_brush, line_width);
+			rc.dc->DrawGeometry(rc.triangle_geo, rc.data_bind_fore_brush, line_width);
 
 			rc.dc->SetTransform(&oldtr);
 		}
 
 		float name_line_x = rectd.left + bw + indent_width + lt / 2;
 		rc.dc->DrawLine ({ name_line_x, pd.y }, { name_line_x, pd.y + height }, rc.disabled_fore_brush, lt);
-		auto fore = selected ? rc.selected_fore_brush.get() : rc.fore_brush.get();
+		auto fore = (bound ? rc.data_bind_fore_brush : (selected ? rc.selected_fore_brush : rc.fore_brush)).get();
 		rc.dc->DrawTextLayout ({ rectd.left + bw + indent_width + lt + text_lr_padding, pd.y }, name_layout(), fore);
 
 		float linex = grid->value_column_x() + lt / 2;
 		rc.dc->DrawLine ({ linex, pd.y }, { linex, pd.y + height }, rc.disabled_fore_brush, lt);
-		this->render_value (rc, { grid->value_column_x(), pd.y }, selected, focused);
+		this->render_value (rc, { grid->value_column_x(), pd.y }, selected, focused, bound);
 	}
 
 	std::string value_item::description_title() const
@@ -439,24 +445,36 @@ namespace edge
 	#pragma endregion
 
 	#pragma region default_value_pgitem
-	void default_value_pgitem::render_value (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused) const
+	void default_value_pgitem::render_value (const render_context& rc, D2D1_POINT_2F pd, bool selected, bool focused, bool data_bound) const
 	{
 		if (auto& tl = value().tl)
 		{
-			auto fore = !can_edit() ? rc.disabled_fore_brush.get() : (selected ? rc.selected_fore_brush.get() : rc.fore_brush.get());
-			rc.dc->DrawTextLayout ({ pd.x + root()->grid()->line_thickness() + text_lr_padding, pd.y }, value().tl, fore);
+			ID2D1Brush* brush;
+			if (data_bound)
+				brush = rc.data_bind_fore_brush;
+			else if (root()->grid()->read_only() || !can_edit())
+				brush = rc.disabled_fore_brush;
+			else if (selected)
+				brush = rc.selected_fore_brush.get();
+			else
+				brush = rc.fore_brush;
+
+			rc.dc->DrawTextLayout ({ pd.x + root()->grid()->line_thickness() + text_lr_padding, pd.y }, value().tl, brush);
 		}
 	}
 
 	HCURSOR default_value_pgitem::cursor() const
 	{
-		if (!can_edit())
+		if (root()->grid()->read_only() || !can_edit())
 			return ::LoadCursor(nullptr, IDC_ARROW);
 
 		if (auto bool_p = dynamic_cast<const edge::bool_p*>(property()))
 			return ::LoadCursor(nullptr, IDC_HAND);
 
-		if (property()->nvps() || dynamic_cast<const pg_custom_editor_i*>(property()))
+		if (property()->nvps())
+			return ::LoadCursor(nullptr, IDC_HAND);
+
+		if (dynamic_cast<const pg_custom_editor_i*>(property()))
 			return ::LoadCursor(nullptr, IDC_HAND);
 
 		return ::LoadCursor (nullptr, IDC_IBEAM);
@@ -476,7 +494,7 @@ namespace edge
 			return;
 		}
 
-		if (property()->read_only())
+		if (grid->read_only() || !can_edit())
 			return;
 
 		if (auto nvps = property()->nvps())
