@@ -44,7 +44,6 @@
     <ClInclude Include="win32\edge_win32.h">
       <Filter>win32</Filter>
     </ClInclude>
-    <ClInclude Include="collection.h" />
     <ClInclude Include="tcb\span.hpp">
       <Filter>tcb</Filter>
     </ClInclude>

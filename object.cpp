@@ -55,16 +55,12 @@ namespace edge
 
 	void object::on_property_changing (const property_change_args& args)
 	{
-		#ifdef _WIN32
 		this->event_invoker<property_changing_e>()(this, args);
-		#endif
 	}
 
 	void object::on_property_changed (const property_change_args& args)
 	{
-		#ifdef _WIN32
 		this->event_invoker<property_changed_e>()(this, args);
-		#endif
 	}
 
 	const type object::_type = { "object", nullptr, { } };
