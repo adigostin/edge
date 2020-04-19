@@ -6,6 +6,8 @@
 #include "xml_serializer.h"
 #include "utility_functions.h"
 
+#pragma comment (lib, "msxml6.lib")
+
 namespace edge
 {
 	static const _bstr_t entry_elem_name = "Entry";
@@ -135,6 +137,11 @@ namespace edge
 			else if (auto vc_prop = dynamic_cast<const value_collection_property*>(prop))
 			{
 				prop_element = serialize_property (doc, obj, vc_prop);
+			}
+			else if (auto obj_prop = dynamic_cast<const object_property*>(prop))
+			{
+				if (auto value = obj_prop->get(obj))
+					prop_element = serialize_internal (doc, value, false, -1);
 			}
 			else
 				assert(false); // not implemented
@@ -339,7 +346,7 @@ namespace edge
 		return deserialize_to_internal (element, obj, false, known_types);
 	}
 
-	HRESULT format_and_save_to_file (IXMLDOMDocument3* doc, const wchar_t* file_path)
+	HRESULT format_and_save_to_file (IXMLDOMDocument3* doc, std::string_view file_path_u8)
 	{
 		/*
 		static const char StylesheetText[] =
@@ -410,8 +417,10 @@ namespace edge
 		hr = pXMLFormattedDoc->save(_variant_t(file_path));
 		return hr;
 		*/
+		auto file_path = utf8_to_utf16(file_path_u8);
+
 		com_ptr<IStream> stream;
-		auto hr = SHCreateStreamOnFileEx (file_path, STGM_WRITE | STGM_SHARE_DENY_WRITE | STGM_CREATE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &stream);
+		auto hr = SHCreateStreamOnFileEx (file_path.c_str(), STGM_WRITE | STGM_SHARE_DENY_WRITE | STGM_CREATE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &stream);
 		if (FAILED(hr))
 			return hr;
 

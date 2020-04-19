@@ -449,6 +449,45 @@ namespace edge
 
 	// ========================================================================
 
+	struct object_property : property
+	{
+		using base = property;
+
+	public:
+		using base::base;
+		virtual object* get (const object* obj) const = 0;
+		virtual std::unique_ptr<object> set (object* obj, std::unique_ptr<object>&& value) const = 0;
+	};
+
+	template<typename object_t>
+	struct typed_object_property : object_property
+	{
+		using base = object_property;
+
+		using getter_t = object_t* (object::*)() const;
+		using setter_t = std::unique_ptr<object_t> (object::*)(std::unique_ptr<object_t>&& value);
+
+		getter_t const _getter;
+		setter_t const _setter;
+
+		typed_object_property (const char* name, const property_group* group, const char* description, getter_t getter, setter_t setter)
+			: base (name, group, description), _getter(getter), _setter(setter)
+		{
+			static_assert (std::is_base_of<object, object_t>::value);
+		}
+
+		std::unique_ptr<object_t> set (object* obj, std::unique_ptr<object_t>&& value) const { (obj->*_setter)(std::move(value)); }
+
+		virtual object_t* get (const object* obj) const override final { return (obj->*_getter)(); }
+
+		virtual std::unique_ptr<object> set (object* obj, std::unique_ptr<object>&& value) const override final
+		{
+			return set (obj, std::unique_ptr<object_t>(static_cast<object_t*>(value.release())));
+		}
+	};
+
+	// ========================================================================
+
 	struct collection_property : property
 	{
 		using property::property;
@@ -522,6 +561,8 @@ namespace edge
 			return std::unique_ptr<object>(raw_child);
 		}
 	};
+
+	// ========================================================================
 
 	struct value_collection_property : collection_property
 	{

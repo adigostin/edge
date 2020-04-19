@@ -3,6 +3,7 @@
 // Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
 
 #pragma once
+#include "utility_functions.h"
 
 namespace edge
 {
@@ -230,4 +231,15 @@ namespace edge
 		wcscpy_s (res.get(), len + 1, null_terminated);
 		return res;
 	}
+
+	class com_exception : public std::runtime_error
+	{
+		HRESULT const _hr;
+
+	public:
+		com_exception (HRESULT hr)
+			: runtime_error(utf16_to_utf8(_com_error(hr).ErrorMessage()))
+			, _hr(hr)
+		{ }
+	};
 }
