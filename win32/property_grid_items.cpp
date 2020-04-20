@@ -298,7 +298,9 @@ namespace edge
 		if (auto ep = dynamic_cast<const pg_editable_property_i*>(_property))
 			return ep->pg_editable(parent()->parent()->objects());
 
-		return _property->has_setter();
+		auto& objs = parent()->parent()->objects();
+		bool can_set = std::all_of (objs.begin(), objs.end(), [prop=_property](object* o) { return prop->can_set(o); });
+		return can_set;
 	}
 
 	bool value_item::changed_from_default() const

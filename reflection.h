@@ -92,7 +92,7 @@ namespace edge
 		using property::property;
 
 		virtual const char* type_name() const = 0;
-		virtual bool has_setter() const = 0;
+		virtual bool can_set (const object* obj) const = 0;
 		virtual void get_to_string (const object* from, std::string& to) const = 0;
 		virtual void set_from_string (std::string_view from, object* to) const = 0;
 		virtual void serialize (const object* from, out_stream_i* to) const = 0;
@@ -282,7 +282,7 @@ namespace edge
 			: base(name, group, description), _getter(getter), _setter(setter), default_value(std::move(default_value))
 		{ }
 
-		virtual bool has_setter() const override final { return !_setter.is_null(); }
+		virtual bool can_set (const object* obj) const override final { return !_setter.is_null(); }
 
 		virtual value_t get (const object* from) const override final { return _getter.get(from); }
 
