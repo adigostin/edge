@@ -358,7 +358,7 @@ namespace edge
 
 	struct temp_string_property_traits
 	{
-		static const char type_name[];
+		static constexpr char type_name[] = "temp_string";
 		using value_t = std::string;
 		static void to_string (value_t from, std::string& to) { to = from; }
 		static void from_string (std::string_view from, value_t& to) { to = from; }

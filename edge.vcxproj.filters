@@ -47,6 +47,7 @@
     <ClInclude Include="tcb\span.hpp">
       <Filter>tcb</Filter>
     </ClInclude>
+    <ClInclude Include="ntbs.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="object.cpp" />

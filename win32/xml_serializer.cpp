@@ -95,7 +95,8 @@ namespace edge
 		{
 			if (object_element == nullptr)
 			{
-				auto hr = doc->createElement(_bstr_t(obj->type()->name()), &object_element);
+				const char* name = obj->type()->name();
+				auto hr = doc->createElement(_bstr_t(name), &object_element);
 				assert(SUCCEEDED(hr));
 
 				if (index_attribute != (size_t)-1)

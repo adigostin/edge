@@ -291,8 +291,6 @@ namespace edge
 
 	// ========================================================================
 
-	const char temp_string_property_traits::type_name[] = "temp_string";
-
 	void temp_string_property_traits::serialize (value_t from, out_stream_i* to)
 	{
 		assert(false); // not implemented
