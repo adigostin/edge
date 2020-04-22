@@ -19,8 +19,8 @@ namespace edge
 
 		struct handler
 		{
-			void*            callback;
-			void*            callback_arg;
+			void* callback;
+			void* callback_arg;
 		};
 
 		struct type_and_handler
@@ -66,7 +66,7 @@ namespace edge
 			void add_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
 				auto type = std::type_index(typeid(event_t));
-				_em->handlers.push_back( { type, { callback, callback_arg } });
+				_em->handlers.push_back( { type, { reinterpret_cast<void*>(callback), callback_arg } });
 			}
 
 			void remove_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
@@ -75,7 +75,7 @@ namespace edge
 
 				for (auto it = _em->handlers.begin(); it != _em->handlers.end(); it++)
 				{
-					if ((it->type == type) && (it->handler.callback == callback) && (it->handler.callback_arg == callback_arg))
+					if ((it->type == type) && (it->handler.callback == reinterpret_cast<void*>(callback)) && (it->handler.callback_arg == callback_arg))
 					{
 						_em->handlers.erase(it);
 						return;
@@ -179,12 +179,12 @@ namespace edge
 					void* arg;
 					if (i < std::size(first))
 					{
-						callback = (callback_t)first[i].callback;
+						callback = reinterpret_cast<callback_t>(first[i].callback);
 						arg = first[i].callback_arg;
 					}
 					else
 					{
-						callback = (callback_t)rest[i - std::size(first)].callback;
+						callback = reinterpret_cast<callback_t>(rest[i - std::size(first)].callback);
 						arg = rest[i - std::size(first)].callback_arg;
 					}
 
