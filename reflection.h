@@ -3,6 +3,7 @@
 // Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
 
 #pragma once
+#include <exception> // For now this need to be included first, required for CrossStudio
 #include <string>
 #include <string_view>
 #include <memory>
@@ -41,13 +42,12 @@ namespace edge
 	public:
 		string_convert_exception (const char* str);
 		string_convert_exception (std::string_view str, const char* type_name);
-		virtual char const* what() const override { return _message.c_str(); }
+		virtual char const* what() const noexcept override { return _message.c_str(); }
 	};
 
-	class not_implemented_exception : public std::runtime_error
+	class not_implemented_exception : public std::exception
 	{
-	public:
-		not_implemented_exception() : std::runtime_error("Not implemented") { }
+		virtual const char* what() const noexcept override { return "Not implemented"; }
 	};
 
 	// Note that we want this type to be polymorphic so we can dynamic_cast<> on it.

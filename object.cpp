@@ -38,11 +38,15 @@ namespace edge
 
 	bool type::has_property (const property* p) const
 	{
-		auto it = std::find(props.begin(), props.end(), p);
-		if (it != props.end())
-			return true;
+		for (auto prop : props)
+		{
+			if (prop == p)
+				return true;
+		}
+
 		if (base_type)
 			return base_type->has_property(p);
+
 		return false;
 	}
 

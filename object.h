@@ -153,7 +153,7 @@ namespace edge
 		virtual void on_removing_from_parent() { this->event_invoker<removing_from_parent_e>()(); }
 		virtual void on_removed_from_parent () { this->event_invoker<removed_from_parent_e>()(); }
 
-		static const type _type;
+		static const edge::type _type;
 	public:
 		virtual const concrete_type* type() const = 0;
 	};

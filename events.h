@@ -4,8 +4,9 @@
 
 #pragma once
 #include <typeindex>
-#include <unordered_map>
+#include <vector>
 #include <array>
+#include "assert.h"
 
 namespace edge
 {
@@ -18,17 +19,23 @@ namespace edge
 
 		struct handler
 		{
-			void* callback;
-			void* callback_arg;
+			void*            callback;
+			void*            callback_arg;
+		};
+
+		struct type_and_handler
+		{
+			std::type_index  type;
+			struct handler   handler;
 		};
 
 		// TODO: Make this a pointer to save RAM.
-		std::unordered_multimap<std::type_index, handler> _events;
+		std::vector<type_and_handler> handlers;
 
 	protected:
 		~event_manager()
 		{
-			assert(_events.empty());
+			assert(handlers.empty());
 		}
 
 		template<typename event_t>
@@ -41,7 +48,7 @@ namespace edge
 	// Note that this currently works only with a single thread;
 	// don't try to do something with events in more than one thread.
 	template<typename event_t, typename... args_t>
-	struct event abstract
+	struct event
 	{
 		using callback_t = void(*)(void* callback_arg, args_t... args);
 
@@ -59,22 +66,23 @@ namespace edge
 			void add_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
 				auto type = std::type_index(typeid(event_t));
-				_em->_events.insert({ type, { callback, callback_arg } });
+				_em->handlers.push_back( { type, { callback, callback_arg } });
 			}
 
 			void remove_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
 				auto type = std::type_index(typeid(event_t));
-				auto range = _em->_events.equal_range(type);
 
-				auto it = std::find_if(range.first, range.second, [=](const std::pair<std::type_index, event_manager::handler>& p)
+				for (auto it = _em->handlers.begin(); it != _em->handlers.end(); it++)
+				{
+					if ((it->type == type) && (it->handler.callback == callback) && (it->handler.callback_arg == callback_arg))
 					{
-						return (p.second.callback == callback) && (p.second.callback_arg == callback_arg);
-					});
+						_em->handlers.erase(it);
+						return;
+					}
+				}
 
-				assert(it != range.second); // handler to remove not found
-
-				_em->_events.erase(it);
+				assert(false); // handler to remove not found
 			}
 
 		private:
@@ -130,41 +138,57 @@ namespace edge
 				: _em(em)
 			{ }
 
-			bool has_handlers() const { return _em->_events.find(std::type_index(typeid(event_t))) != _em->_events.end(); }
+			bool has_handlers() const
+			{
+				auto type = std::type_index(typeid(event_t));
+				for (auto& h : _em->handlers)
+				{
+					if (h.type == type)
+						return true;
+				}
+
+				return false;
+			}
 
 			void operator()(args_t... args)
 			{
-				const size_t count = _em->_events.count(std::type_index(typeid(event_t)));
-				if (count)
+				auto type = std::type_index(typeid(event_t));
+
+				event_manager::handler first[8];
+				size_t count = 0;
+				std::vector<event_manager::handler> rest;
+
+				// Note that this function must be reentrant (one event handler can invoke
+				// another event, or add/remove events), that's why these stack copies.
+
+				for (auto& p : _em->handlers)
 				{
-					auto range = _em->_events.equal_range(std::type_index(typeid(event_t)));
-
-					// Note that this function must be reentrant (one event handler can invoke
-					// another event, or add/remove events), that's why these stack copies.
-					std::vector<event_manager::handler> long_list;
-					event_manager::handler short_list[8];
-
-					std::span<const event_manager::handler> handlers;
-					if (count <= std::size(short_list))
+					if (p.type == type)
 					{
-						size_t size = 0;
-						for (auto it = range.first; it != range.second; it++)
-							short_list[size++] = it->second;
-						handlers = { &short_list[0], &short_list[size] };
+						if (count < std::size(first))
+							first[count] = p.handler;
+						else
+							rest[count - std::size(first)] = p.handler;
+						count++;
+					}
+				}
+
+				for (size_t i = 0; i < count; i++)
+				{
+					callback_t callback;
+					void* arg;
+					if (i < std::size(first))
+					{
+						callback = (callback_t)first[i].callback;
+						arg = first[i].callback_arg;
 					}
 					else
 					{
-						for (auto it = range.first; it != range.second; it++)
-							long_list.push_back(it->second);
-						handlers = long_list;
+						callback = (callback_t)rest[i - std::size(first)].callback;
+						arg = rest[i - std::size(first)].callback_arg;
 					}
 
-					for (auto& h : handlers)
-					{
-						auto callback = (callback_t)h.callback;
-						auto arg = h.callback_arg;
-						callback (arg, std::forward<args_t>(args)...);
-					}
+					callback (arg, std::forward<args_t>(args)...);
 				}
 			}
 		};
