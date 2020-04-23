@@ -353,7 +353,7 @@ namespace edge
 		return deserialize_to_internal (element, obj, false, known_types);
 	}
 
-	HRESULT format_and_save_to_file (IXMLDOMDocument3* doc, std::string_view file_path_u8)
+	HRESULT format_and_save_to_file (IXMLDOMDocument3* doc, const wchar_t* file_path)
 	{
 		/*
 		static const char StylesheetText[] =
@@ -424,10 +424,8 @@ namespace edge
 		hr = pXMLFormattedDoc->save(_variant_t(file_path));
 		return hr;
 		*/
-		auto file_path = utf8_to_utf16(file_path_u8);
-
 		com_ptr<IStream> stream;
-		auto hr = SHCreateStreamOnFileEx (file_path.c_str(), STGM_WRITE | STGM_SHARE_DENY_WRITE | STGM_CREATE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &stream);
+		auto hr = SHCreateStreamOnFileEx (file_path, STGM_WRITE | STGM_SHARE_DENY_WRITE | STGM_CREATE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &stream);
 		if (FAILED(hr))
 			return hr;
 

@@ -3,7 +3,6 @@
 // Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
 
 #pragma once
-#include <typeindex>
 #include <vector>
 #include <array>
 #include "assert.h"
@@ -23,14 +22,14 @@ namespace edge
 			void* callback_arg;
 		};
 
-		struct type_and_handler
+		struct id_and_handler
 		{
-			std::type_index  type;
-			struct handler   handler;
+			const char* id;
+			struct handler handler;
 		};
 
 		// TODO: Make this a pointer to save RAM.
-		std::vector<type_and_handler> handlers;
+		std::vector<id_and_handler> handlers;
 
 	protected:
 		~event_manager()
@@ -52,6 +51,10 @@ namespace edge
 	{
 		using callback_t = void(*)(void* callback_arg, args_t... args);
 
+	private:
+		static constexpr char id = 0; // the address of this field is used within this file to tell between different events, even if they have handlers with the same signature
+
+	public:
 		event() = delete; // this class and classes derived from it are not meant to be instantiated.
 
 		class subscriber
@@ -65,17 +68,14 @@ namespace edge
 
 			void add_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
-				auto type = std::type_index(typeid(event_t));
-				_em->handlers.push_back( { type, { reinterpret_cast<void*>(callback), callback_arg } });
+				_em->handlers.push_back( { &id, { reinterpret_cast<void*>(callback), callback_arg } });
 			}
 
 			void remove_handler (void(*callback)(void* callback_arg, args_t... args), void* callback_arg)
 			{
-				auto type = std::type_index(typeid(event_t));
-
 				for (auto it = _em->handlers.begin(); it != _em->handlers.end(); it++)
 				{
-					if ((it->type == type) && (it->handler.callback == reinterpret_cast<void*>(callback)) && (it->handler.callback_arg == callback_arg))
+					if ((it->id == &id) && (it->handler.callback == reinterpret_cast<void*>(callback)) && (it->handler.callback_arg == callback_arg))
 					{
 						_em->handlers.erase(it);
 						return;
@@ -140,10 +140,9 @@ namespace edge
 
 			bool has_handlers() const
 			{
-				auto type = std::type_index(typeid(event_t));
 				for (auto& h : _em->handlers)
 				{
-					if (h.type == type)
+					if (h.id == &id)
 						return true;
 				}
 
@@ -152,8 +151,6 @@ namespace edge
 
 			void operator()(args_t... args)
 			{
-				auto type = std::type_index(typeid(event_t));
-
 				event_manager::handler first[8];
 				size_t count = 0;
 				std::vector<event_manager::handler> rest;
@@ -163,12 +160,12 @@ namespace edge
 
 				for (auto& p : _em->handlers)
 				{
-					if (p.type == type)
+					if (p.id == &id)
 					{
 						if (count < std::size(first))
 							first[count] = p.handler;
 						else
-							rest[count - std::size(first)] = p.handler;
+							rest.push_back(p.handler);
 						count++;
 					}
 				}
