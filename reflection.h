@@ -3,7 +3,6 @@
 // Copyright (c) 2011-2020 Adi Gostin, distributed under Apache License v2.0.
 
 #pragma once
-#include <exception> // For now this need to be included first, required for CrossStudio
 #include <string>
 #include <string_view>
 #include <memory>
