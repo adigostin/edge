@@ -502,60 +502,61 @@ namespace edge
 		virtual std::unique_ptr<object> remove_child (object* parent, size_t index) const = 0;
 	};
 
-	template<typename parent_t, typename child_t>
+	template<typename child_t>
 	struct typed_object_collection_property : object_collection_property
 	{
 		using base = object_collection_property;
 
-		//static_assert (std::is_base_of<object, child_t>::value);
-		//static_assert (std::is_base_of<object, parent_t>::value);
-
-		using get_child_count_t = size_t(parent_t::*)() const;
-		using get_child_t       = child_t*(parent_t::*)(size_t) const;
-		using insert_child_t    = void(parent_t::*)(size_t, std::unique_ptr<child_t>&&);
-		using remove_child_t    = std::unique_ptr<child_t>(parent_t::*)(size_t);
+		using get_child_count_t = size_t(object::*)() const;
+		using get_child_t       = child_t*(object::*)(size_t) const;
+		using insert_child_t    = void(object::*)(size_t, std::unique_ptr<child_t>&&);
+		using remove_child_t    = std::unique_ptr<child_t>(object::*)(size_t);
 
 		get_child_count_t const _get_child_count;
 		get_child_t       const _get_child;
 		insert_child_t    const _insert_child;
 		remove_child_t    const _remove_child;
 
-		constexpr typed_object_collection_property (const char* name, const property_group* group, const char* description,
-			get_child_count_t get_child_count, get_child_t get_child, insert_child_t insert_child = nullptr, remove_child_t remove_child = nullptr)
+		template<typename count_getter_, typename getter_, typename inserter_ = nullptr_t, typename remover_ = nullptr_t>
+		constexpr typed_object_collection_property (
+			const char*           name,
+			const property_group* group,
+			const char*           description,
+			count_getter_         get_child_count,
+			getter_               get_child,
+			inserter_             insert_child = nullptr,
+			remover_              remove_child = nullptr)
 		: base (name, group, description)
-			, _get_child_count(get_child_count)
-			, _get_child(get_child)
-			, _insert_child(insert_child)
-			, _remove_child(remove_child)
+			, _get_child_count(static_cast<get_child_count_t>(get_child_count))
+			, _get_child(static_cast<get_child_t>(get_child))
+			, _insert_child(static_cast<insert_child_t>(insert_child))
+			, _remove_child(static_cast<remove_child_t>(remove_child))
 		{
+			static_assert (std::is_base_of<object, child_t>::value);
 			assert (!((insert_child == nullptr) ^ (remove_child == nullptr))); // both must be null or both must be non-null
 		}
 
 		virtual size_t size (const object* obj) const override
 		{
-			auto typed_parent = static_cast<const parent_t*>(obj);
-			return (typed_parent->*_get_child_count)();
+			return (obj->*_get_child_count)();
 		}
 
-		virtual object* child_at (const object* parent, size_t index) const override
+		virtual object* child_at (const object* obj, size_t index) const override
 		{
-			auto typed_parent = static_cast<const parent_t*>(parent);
-			return (typed_parent->*_get_child)(index);
+			return (obj->*_get_child)(index);
 		}
 
 		virtual bool can_insert_remove() const override { return _insert_child != nullptr; }
 
-		virtual void insert_child (object* parent, size_t index, std::unique_ptr<object>&& child) const override
+		virtual void insert_child (object* obj, size_t index, std::unique_ptr<object>&& child) const override
 		{
-			auto typed_parent = static_cast<parent_t*>(parent);
 			auto raw_child = static_cast<child_t*>(child.release());
-			(typed_parent->*_insert_child)(index, std::unique_ptr<child_t>(raw_child));
+			(obj->*_insert_child)(index, std::unique_ptr<child_t>(raw_child));
 		}
 
-		virtual std::unique_ptr<object> remove_child (object* parent, size_t index) const override
+		virtual std::unique_ptr<object> remove_child (object* obj, size_t index) const override
 		{
-			auto typed_parent = static_cast<parent_t*>(parent);
-			auto typed_child = (typed_parent->*_remove_child)(index);
+			auto typed_child = (obj->*_remove_child)(index);
 			auto raw_child = typed_child.release();
 			return std::unique_ptr<object>(raw_child);
 		}
