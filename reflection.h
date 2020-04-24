@@ -487,87 +487,11 @@ namespace edge
 
 	// ========================================================================
 
-	struct collection_property : property
+	struct value_collection_property : property
 	{
 		using property::property;
 		virtual size_t size (const object* obj) const = 0;
 		virtual bool can_insert_remove() const = 0;
-	};
-
-	struct object_collection_property : collection_property
-	{
-		using collection_property::collection_property;
-		virtual object* child_at (const object* parent, size_t index) const = 0;
-		virtual void insert_child (object* parent, size_t index, std::unique_ptr<object>&& child) const = 0;
-		virtual std::unique_ptr<object> remove_child (object* parent, size_t index) const = 0;
-	};
-
-	template<typename child_t>
-	struct typed_object_collection_property : object_collection_property
-	{
-		using base = object_collection_property;
-
-		using get_child_count_t = size_t(object::*)() const;
-		using get_child_t       = child_t*(object::*)(size_t) const;
-		using insert_child_t    = void(object::*)(size_t, std::unique_ptr<child_t>&&);
-		using remove_child_t    = std::unique_ptr<child_t>(object::*)(size_t);
-
-		get_child_count_t const _get_child_count;
-		get_child_t       const _get_child;
-		insert_child_t    const _insert_child;
-		remove_child_t    const _remove_child;
-
-		template<typename count_getter_, typename getter_, typename inserter_ = nullptr_t, typename remover_ = nullptr_t>
-		constexpr typed_object_collection_property (
-			const char*           name,
-			const property_group* group,
-			const char*           description,
-			count_getter_         get_child_count,
-			getter_               get_child,
-			inserter_             insert_child = nullptr,
-			remover_              remove_child = nullptr)
-		: base (name, group, description)
-			, _get_child_count(static_cast<get_child_count_t>(get_child_count))
-			, _get_child(static_cast<get_child_t>(get_child))
-			, _insert_child(static_cast<insert_child_t>(insert_child))
-			, _remove_child(static_cast<remove_child_t>(remove_child))
-		{
-			static_assert (std::is_base_of<object, child_t>::value);
-			assert (!((insert_child == nullptr) ^ (remove_child == nullptr))); // both must be null or both must be non-null
-		}
-
-		virtual size_t size (const object* obj) const override
-		{
-			return (obj->*_get_child_count)();
-		}
-
-		virtual object* child_at (const object* obj, size_t index) const override
-		{
-			return (obj->*_get_child)(index);
-		}
-
-		virtual bool can_insert_remove() const override { return _insert_child != nullptr; }
-
-		virtual void insert_child (object* obj, size_t index, std::unique_ptr<object>&& child) const override
-		{
-			auto raw_child = static_cast<child_t*>(child.release());
-			(obj->*_insert_child)(index, std::unique_ptr<child_t>(raw_child));
-		}
-
-		virtual std::unique_ptr<object> remove_child (object* obj, size_t index) const override
-		{
-			auto typed_child = (obj->*_remove_child)(index);
-			auto raw_child = typed_child.release();
-			return std::unique_ptr<object>(raw_child);
-		}
-	};
-
-	// ========================================================================
-
-	struct value_collection_property : collection_property
-	{
-		using collection_property::collection_property;
-
 		virtual void get_value (const object* from_obj, size_t from_index, std::string& to) const = 0;
 		virtual void set_value (std::string_view from, object* to_obj, size_t to_index) const = 0;
 		virtual void insert_value (std::string_view from, object* to_obj, size_t to_index) const = 0;

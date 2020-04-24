@@ -5,6 +5,7 @@
 #include "pch.h"
 #include "xml_serializer.h"
 #include "utility_functions.h"
+#include "../collections.h"
 
 #pragma comment (lib, "msxml6.lib")
 
@@ -17,9 +18,11 @@ namespace edge
 	static com_ptr<IXMLDOMElement> serialize_internal (IXMLDOMDocument* doc, const object* obj, bool force_serialize_unchanged, size_t index_attribute);
 	static void deserialize_to_internal (IXMLDOMElement* element, object* obj, bool ignore_index_attribute, std::span<const concrete_type* const> known_types);
 
-	static com_ptr<IXMLDOMElement> serialize_property (IXMLDOMDocument* doc, const object* obj, const object_collection_property* prop)
+	static com_ptr<IXMLDOMElement> serialize_object_collection (IXMLDOMDocument* doc, const object* obj, const object_collection_property* prop)
 	{
-		size_t size = prop->size(obj);
+		auto collection = prop->collection_cast(obj);
+
+		size_t size = collection->size();
 		if (size == 0)
 			return nullptr;
 
@@ -36,7 +39,7 @@ namespace edge
 
 		bool force_serialize_unchanged;
 		bool add_index_attribute;
-		if (prop->can_insert_remove())
+		if (!prop->preallocated)
 		{
 			// variable-size collection - always serialize all children
 			force_serialize_unchanged = true;
@@ -51,7 +54,7 @@ namespace edge
 
 		for (size_t i = 0; i < size; i++)
 		{
-			auto child = prop->child_at(obj, i);
+			auto child = collection->child_at(i);
 			auto child_elem = serialize_internal(doc, child, force_serialize_unchanged, add_index_attribute ? i : -1);
 			if (child_elem != nullptr)
 			{
@@ -63,7 +66,7 @@ namespace edge
 		return collection_element;
 	}
 
-	static com_ptr<IXMLDOMElement> serialize_property (IXMLDOMDocument* doc, const object* obj, const value_collection_property* prop)
+	static com_ptr<IXMLDOMElement> serialize_value_collection (IXMLDOMDocument* doc, const object* obj, const value_collection_property* prop)
 	{
 		size_t size = prop->size(obj);
 		if (size == 0)
@@ -139,11 +142,11 @@ namespace edge
 			com_ptr<IXMLDOMElement> prop_element;
 			if (auto oc_prop = dynamic_cast<const object_collection_property*>(prop))
 			{
-				prop_element = serialize_property (doc, obj, oc_prop);
+				prop_element = serialize_object_collection (doc, obj, oc_prop);
 			}
 			else if (auto vc_prop = dynamic_cast<const value_collection_property*>(prop))
 			{
-				prop_element = serialize_property (doc, obj, vc_prop);
+				prop_element = serialize_value_collection (doc, obj, vc_prop);
 			}
 			else if (auto obj_prop = dynamic_cast<const object_property*>(prop))
 			{
@@ -201,9 +204,10 @@ namespace edge
 		return obj;
 	}
 
-	static void deserialize_to_new_object_collection (IXMLDOMElement* collection_elem, object* o, const object_collection_property* prop, std::span<const concrete_type* const> known_types)
+	static void deserialize_to_new_object_collection (IXMLDOMElement* collection_elem, object* obj, const object_collection_property* prop, std::span<const concrete_type* const> known_types)
 	{
-		size_t index = 0;
+		auto collection = prop->collection_cast(obj);
+
 		com_ptr<IXMLDOMNode> child_node;
 		auto hr = collection_elem->get_firstChild(&child_node); assert(SUCCEEDED(hr));
 		while (child_node != nullptr)
@@ -218,15 +222,16 @@ namespace edge
 				assert(false); // error handling for this not implemented
 			auto child = create_object(child_elem, *it);
 			auto child_raw = child.get();
-			prop->insert_child (o, index, std::move(child));
+			collection->append(std::move(child));
 			deserialize_to_internal (child_elem, child_raw, false, known_types);
-			index++;
 			hr = child_node->get_nextSibling(&child_node); assert(SUCCEEDED(hr));
 		}
 	}
 
 	static void deserialize_to_existing_object_collection (IXMLDOMElement* collection_elem, object* obj, const object_collection_property* prop, std::span<const concrete_type* const> known_types)
 	{
+		auto collection = prop->collection_cast(obj);
+
 		size_t child_node_index = 0;
 		com_ptr<IXMLDOMNode> child_node;
 		auto hr = collection_elem->get_firstChild(&child_node); assert(SUCCEEDED(hr));
@@ -239,7 +244,7 @@ namespace edge
 			if (hr == S_OK)
 				size_t_property_traits::from_string(bstr_to_utf8(index_attr_value.bstrVal), index);
 
-			auto child = prop->child_at(obj, index);
+			auto child = collection->child_at(index);
 			deserialize_to_internal (child_elem, child, true, known_types);
 
 			child_node_index++;
@@ -333,7 +338,7 @@ namespace edge
 			}
 			else if (auto oc_prop = dynamic_cast<const object_collection_property*>(prop))
 			{
-				if (oc_prop->can_insert_remove())
+				if (!oc_prop->preallocated)
 					deserialize_to_new_object_collection (child_elem, obj, oc_prop, known_types);
 				else
 					deserialize_to_existing_object_collection (child_elem, obj, oc_prop, known_types);

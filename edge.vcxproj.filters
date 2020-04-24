@@ -48,6 +48,7 @@
       <Filter>tcb</Filter>
     </ClInclude>
     <ClInclude Include="ntbs.hpp" />
+    <ClInclude Include="collections.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="object.cpp" />

@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="assert.h" />
+    <ClInclude Include="collections.h" />
     <ClInclude Include="ntbs.hpp" />
     <ClInclude Include="object.h" />
     <ClInclude Include="events.h" />
