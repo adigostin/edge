@@ -22,8 +22,8 @@ namespace edge
 	{
 		auto collection = prop->collection_cast(obj);
 
-		size_t size = collection->size();
-		if (size == 0)
+		size_t child_count = collection->child_count();
+		if (child_count == 0)
 			return nullptr;
 
 		HRESULT hr;
@@ -52,7 +52,7 @@ namespace edge
 			add_index_attribute = true;
 		}
 
-		for (size_t i = 0; i < size; i++)
+		for (size_t i = 0; i < child_count; i++)
 		{
 			auto child = collection->child_at(i);
 			auto child_elem = serialize_internal(doc, child, force_serialize_unchanged, add_index_attribute ? i : -1);

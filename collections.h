@@ -6,10 +6,10 @@ namespace edge
 {
 	struct object_collection_i : owner_i
 	{
-		virtual size_t size() const = 0;
+		virtual size_t child_count() const = 0;
 		virtual object* child_at(size_t index) const = 0;
 		virtual void insert (size_t index, std::unique_ptr<object>&& child) = 0;
-		void append (std::unique_ptr<object>&& child) { insert(size(), std::move(child)); }
+		void append (std::unique_ptr<object>&& child) { insert(child_count(), std::move(child)); }
 	};
 
 	template<typename child_t>
@@ -28,7 +28,7 @@ namespace edge
 	public:
 		const std::vector<std::unique_ptr<child_t>>& children() const { return children_store(); }
 
-		virtual size_t size() const override final { return children_store().size(); }
+		virtual size_t child_count() const override final { return children_store().size(); }
 
 		virtual child_t* child_at (size_t index) const override final { return children_store()[index].get(); }
 
