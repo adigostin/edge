@@ -49,12 +49,12 @@ namespace edge
 			child_t* raw = o.get();
 			assert (raw->_parent == nullptr);
 
-			static_cast<object*>(raw)->on_inserting_to_parent();
+			static_cast<object*>(raw)->on_inserting_into_parent();
 			this->on_child_inserting(index, raw);
 			children.insert (children.begin() + index, std::move(o));
 			static_cast<object*>(raw)->_parent = this;
 			this->on_child_inserted (index, raw);
-			static_cast<object*>(raw)->on_inserted_to_parent();
+			static_cast<object*>(raw)->on_inserted_into_parent();
 		}
 
 		void append (std::unique_ptr<child_t>&& o)

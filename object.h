@@ -134,23 +134,23 @@ namespace edge
 		struct property_changing_e : event<property_changing_e, object*, const property_change_args&> { };
 		struct property_changed_e  : event<property_changed_e , object*, const property_change_args&> { };
 		// TODO: combine these four into a single ownership_change_e (enum ownership_change_type)
-		struct inserting_to_parent_e : public event<inserting_to_parent_e> { };
-		struct inserted_to_parent_e : public event<inserted_to_parent_e> { };
+		struct inserting_into_parent_e : public event<inserting_into_parent_e> { };
+		struct inserted_into_parent_e : public event<inserted_into_parent_e> { };
 		struct removing_from_parent_e : public event<removing_from_parent_e> { };
 		struct removed_from_parent_e : public event<removed_from_parent_e> { };
 
 		property_changing_e::subscriber property_changing() { return property_changing_e::subscriber(this); }
 		property_changed_e::subscriber property_changed() { return property_changed_e::subscriber(this); }
-		inserting_to_parent_e::subscriber inserting_to_parent() { return inserting_to_parent_e::subscriber(this); }
-		inserted_to_parent_e::subscriber inserted_to_parent() { return inserted_to_parent_e::subscriber(this); }
+		inserting_into_parent_e::subscriber inserting_into_parent() { return inserting_into_parent_e::subscriber(this); }
+		inserted_into_parent_e::subscriber inserted_into_parent() { return inserted_into_parent_e::subscriber(this); }
 		removing_from_parent_e::subscriber removing_from_parent() { return removing_from_parent_e::subscriber(this); }
 		removed_from_parent_e::subscriber removed_from_parent() { return removed_from_parent_e::subscriber(this); }
 
 	protected:
 		virtual void on_property_changing (const property_change_args&);
 		virtual void on_property_changed (const property_change_args&);
-		virtual void on_inserting_to_parent () { this->event_invoker<inserting_to_parent_e>()(); }
-		virtual void on_inserted_to_parent  () { this->event_invoker<inserted_to_parent_e>()(); }
+		virtual void on_inserting_into_parent () { this->event_invoker<inserting_into_parent_e>()(); }
+		virtual void on_inserted_into_parent  () { this->event_invoker<inserted_into_parent_e>()(); }
 		virtual void on_removing_from_parent() { this->event_invoker<removing_from_parent_e>()(); }
 		virtual void on_removed_from_parent () { this->event_invoker<removed_from_parent_e>()(); }
 
