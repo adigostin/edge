@@ -22,7 +22,7 @@ namespace edge
 	class object;
 	class type;
 	struct concrete_type;
-	template<typename object_type, typename... factory_arg_property_traits> struct xtype;
+	template<typename... factory_arg_property_traits> struct xtype;
 
 	struct property_group
 	{

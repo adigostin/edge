@@ -40,34 +40,31 @@ namespace edge
 		virtual std::unique_ptr<object> create (std::span<std::string_view> string_values) const = 0;
 	};
 
-	template<typename object_type, typename... factory_arg_property_traits>
+	template<typename... factory_arg_property_traits>
 	struct xtype : concrete_type
 	{
 		static constexpr size_t parameter_count = sizeof...(factory_arg_property_traits);
 
-		// Commented out because VC++ seems to have problems on this when compiling some inline constexpr xtype constructors.
-		// static_assert (std::is_base_of<object, object_type>::value);
+		using factory_t = std::unique_ptr<object>(typename factory_arg_property_traits::value_t... factory_args);
 
-		using factory_t = std::unique_ptr<object_type>(*)(typename factory_arg_property_traits::value_t... factory_args);
-
-		factory_t const _factory;
+		factory_t* const _factory;
 		std::array<const value_property*, parameter_count> const _factory_props;
 
 	public:
 		constexpr xtype (const char* name, const type* base, std::span<const property* const> props,
-			factory_t factory = nullptr, const static_value_property<factory_arg_property_traits>*... factory_props)
+			factory_t* factory = nullptr, const static_value_property<factory_arg_property_traits>*... factory_props)
 			: concrete_type(name, base, props)
 			, _factory(factory)
 			, _factory_props(std::array<const value_property*, parameter_count>{ factory_props... })
 		{ }
 
-		factory_t factory() const { return _factory; }
+		factory_t* factory() const { return _factory; }
 
 		virtual std::span<const value_property* const> factory_props() const override { return _factory_props; }
 
-		std::unique_ptr<object_type> create (typename factory_arg_property_traits::value_t... factory_args) const
+		std::unique_ptr<object> create (typename factory_arg_property_traits::value_t... factory_args) const
 		{
-			return std::unique_ptr<object_type>(_factory(factory_args...));
+			return _factory(factory_args...);
 		}
 
 	private:
