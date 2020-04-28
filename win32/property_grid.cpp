@@ -757,6 +757,11 @@ public:
 
 		return handled(false);
 	}
+
+	virtual bool editing_text() const override final
+	{
+		return _text_editor != nullptr;
+	}
 };
 
 extern std::unique_ptr<property_grid_i> edge::property_grid_factory (d2d_window_i* window, const RECT& rectp)

@@ -20,6 +20,7 @@ namespace edge
 		lbutton = 1,    // MK_LBUTTON
 		rbutton = 2,    // MK_RBUTTON
 		mbutton = 0x10, // MK_MBUTTON
+		shift_control_alt = shift | control | alt,
 	};
 	//DEFINE_ENUM_FLAG_OPERATORS(modifier_key);
 	inline constexpr modifier_key operator& (modifier_key a, modifier_key b) noexcept { return (modifier_key) ((std::underlying_type_t<modifier_key>)a & (std::underlying_type_t<modifier_key>)b); }

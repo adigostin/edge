@@ -93,6 +93,31 @@ namespace edge
 		{
 			return remove(children_store().size() - 1);
 		}
+
+		std::unique_ptr<child_t> remove(child_t* child)
+		{
+			auto& children = this->children();
+			for (size_t i = 0; i < children.size(); i++)
+			{
+				if (children[i].get() == child)
+					return remove(i);
+			}
+
+			assert(false);
+		}
+
+		size_t index_of (child_t* child) const
+		{
+			auto& children = this->children();
+			for (size_t i = 0; i < children.size(); i++)
+			{
+				if (children[i].get() == child)
+					return i;
+			}
+
+			assert(false);
+			return -1;
+		}
 	};
 
 	// ========================================================================

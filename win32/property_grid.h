@@ -91,6 +91,7 @@ namespace edge
 		virtual D2D1_POINT_2F input_of (value_item* vi) const = 0;
 		virtual D2D1_POINT_2F output_of (value_item* vi) const = 0;
 		virtual value_item* find_item (const value_property* prop) const = 0;
+		virtual bool editing_text() const = 0;
 
 		root_item* single_section() const
 		{
