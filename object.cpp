@@ -57,6 +57,9 @@ namespace edge
 
 	bool type::is_derived_from (const type& t) const { return is_derived_from(&t); }
 
+	// ========================================================================
+	// object
+
 	void object::on_property_changing (const property_change_args& args)
 	{
 		this->event_invoker<property_changing_e>()(this, args);
@@ -68,4 +71,39 @@ namespace edge
 	}
 
 	const type object::_type = { "object", nullptr, { } };
+
+	// ========================================================================
+	// parent_i
+
+	void parent_i::call_inserting_into_parent(object* child)
+	{
+		child->on_inserting_into_parent();
+	}
+
+	void parent_i::set_parent(object* child)
+	{
+		assert (child->_parent == nullptr);
+		child->_parent = this;
+	}
+
+	void parent_i::call_inserted_into_parent(object* child)
+	{
+		child->on_inserted_into_parent();
+	}
+
+	void parent_i::call_removing_from_parent(object* child)
+	{
+		child->on_removing_from_parent();
+	}
+
+	void parent_i::clear_parent(object* child)
+	{
+		assert (child->_parent == this);
+		child->_parent = nullptr;
+	}
+
+	void parent_i::call_removed_from_parent(object* child)
+	{
+		child->on_removed_from_parent();
+	}
 }

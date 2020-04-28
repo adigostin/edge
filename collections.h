@@ -4,7 +4,7 @@
 
 namespace edge
 {
-	struct object_collection_i : owner_i
+	struct object_collection_i : parent_i
 	{
 		virtual size_t child_count() const = 0;
 		virtual object* child_at(size_t index) const = 0;
@@ -18,6 +18,14 @@ namespace edge
 	private:
 		virtual std::vector<std::unique_ptr<child_t>>& children_store() = 0;
 		const std::vector<std::unique_ptr<child_t>>& children_store() const { return const_cast<typed_object_collection_i*>(this)->children_store(); }
+
+		void call_inserting_into_parent(object* child) = delete;
+		void set_parent(object* child) = delete;
+		void call_inserted_into_parent(object* child) = delete;
+
+		void call_removing_from_parent(object* child) = delete;
+		void clear_parent(object* child) = delete;
+		void call_removed_from_parent(object* child) = delete;
 
 	protected:
 		virtual void on_child_inserting (size_t index, child_t* child) { }
@@ -47,14 +55,13 @@ namespace edge
 			auto& children = children_store();
 			assert (index <= children.size());
 			child_t* raw = o.get();
-			assert (raw->_parent == nullptr);
 
-			static_cast<object*>(raw)->on_inserting_into_parent();
+			this->parent_i::call_inserting_into_parent(raw);
 			this->on_child_inserting(index, raw);
 			children.insert (children.begin() + index, std::move(o));
-			static_cast<object*>(raw)->_parent = this;
+			this->parent_i::set_parent(raw);
 			this->on_child_inserted (index, raw);
-			static_cast<object*>(raw)->on_inserted_into_parent();
+			this->parent_i::call_inserted_into_parent(raw);
 		}
 
 		void append (std::unique_ptr<child_t>&& o)
@@ -70,15 +77,14 @@ namespace edge
 			assert (index < children.size());
 			auto it = children.begin() + index;
 			child_t* raw = (*it).get();
-			assert (raw->_parent == this);
 
-			static_cast<object*>(raw)->on_removing_from_parent();
+			this->parent_i::call_removing_from_parent(raw);
 			this->on_child_removing (index, raw);
-			static_cast<object*>(raw)->_parent = nullptr;
+			this->parent_i::clear_parent(raw);
 			auto result = std::move (children[index]);
 			children.erase (children.begin() + index);
 			this->on_child_removed (index, raw);
-			static_cast<object*>(raw)->on_removed_from_parent();
+			this->parent_i::call_removed_from_parent(raw);
 
 			return result;
 		}

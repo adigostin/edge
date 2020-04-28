@@ -110,27 +110,31 @@ namespace edge
 		{ }
 	};
 
-	struct owner_i
-	{
-	};
-
+	struct parent_i;
 	// TODO: make event_manager a member var, possibly a pointer
 	class object : public event_manager
 	{
-		owner_i* _parent = nullptr;
+		parent_i* _parent = nullptr;
 
-		// TODO: remove this reference to collection (the object class shouldn't be aware of any "collection")
-		template<typename child_t>
-		friend struct typed_object_collection_i;
+		friend parent_i;
 
 	public:
+		object() = default;
+
+		// We explicitly define the copy constructors and copy-assignment operator cause we don't want _parent to be copied too.
+		object(const object&) { }
+		object& operator=(const object&) { return *this; }
+
+		// The move constructor and move-assignment operator don't make sense for an ownable object.
+		object(object&& other) = delete;
+		object& operator=(object&& other) = delete;
+
 		virtual ~object() = default;
 
-		owner_i* parent() const { return _parent; }
+		parent_i* parent() const { return _parent; }
 
 		struct property_changing_e : event<property_changing_e, object*, const property_change_args&> { };
 		struct property_changed_e  : event<property_changed_e , object*, const property_change_args&> { };
-		// TODO: combine these four into a single ownership_change_e (enum ownership_change_type)
 		struct inserting_into_parent_e : public event<inserting_into_parent_e> { };
 		struct inserted_into_parent_e : public event<inserted_into_parent_e> { };
 		struct removing_from_parent_e : public event<removing_from_parent_e> { };
@@ -155,4 +159,17 @@ namespace edge
 	public:
 		virtual const concrete_type* type() const = 0;
 	};
+
+	struct parent_i
+	{
+	protected:
+		void call_inserting_into_parent(object* child);
+		void set_parent(object* child);
+		void call_inserted_into_parent(object* child);
+
+		void call_removing_from_parent(object* child);
+		void clear_parent(object* child);
+		void call_removed_from_parent(object* child);
+	};
+
 }
