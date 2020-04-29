@@ -4,13 +4,21 @@
 
 namespace edge
 {
+	struct object_collection_property;
+
 	struct object_collection_i : parent_i
 	{
 		virtual size_t child_count() const = 0;
 		virtual object* child_at(size_t index) const = 0;
 		virtual void insert (size_t index, std::unique_ptr<object>&& child) = 0;
 		void append (std::unique_ptr<object>&& child) { insert(child_count(), std::move(child)); }
+		virtual const object_collection_property* collection_property() const = 0;
+		virtual void call_property_changing (const property_change_args& args) = 0;
+		virtual void call_property_changed  (const property_change_args& args) = 0;
 	};
+
+	template<typename child_t>
+	struct typed_object_collection_property;
 
 	template<typename child_t>
 	struct typed_object_collection_i : object_collection_i
@@ -18,6 +26,8 @@ namespace edge
 	private:
 		virtual std::vector<std::unique_ptr<child_t>>& children_store() = 0;
 		const std::vector<std::unique_ptr<child_t>>& children_store() const { return const_cast<typed_object_collection_i*>(this)->children_store(); }
+
+		virtual const typed_object_collection_property<child_t>* collection_property() const = 0;
 
 		void call_inserting_into_parent(object* child) = delete;
 		void set_parent(object* child) = delete;
@@ -56,10 +66,14 @@ namespace edge
 			assert (index <= children.size());
 			child_t* raw = o.get();
 
+			property_change_args args = { this->collection_property(), index, collection_property_change_type::insert };
+
 			this->parent_i::call_inserting_into_parent(raw);
 			this->on_child_inserting(index, raw);
+			this->call_property_changing(args);
 			children.insert (children.begin() + index, std::move(o));
 			this->parent_i::set_parent(raw);
+			this->call_property_changed(args);
 			this->on_child_inserted (index, raw);
 			this->parent_i::call_inserted_into_parent(raw);
 		}
@@ -78,11 +92,15 @@ namespace edge
 			auto it = children.begin() + index;
 			child_t* raw = (*it).get();
 
+			property_change_args args = { this->collection_property(), index, collection_property_change_type::remove };
+
 			this->parent_i::call_removing_from_parent(raw);
 			this->on_child_removing (index, raw);
+			this->call_property_changing(args);
 			this->parent_i::clear_parent(raw);
 			auto result = std::move (children[index]);
 			children.erase (children.begin() + index);
+			this->call_property_changed (args);
 			this->on_child_removed (index, raw);
 			this->parent_i::call_removed_from_parent(raw);
 
@@ -103,7 +121,7 @@ namespace edge
 					return remove(i);
 			}
 
-			assert(false);
+			assert(false); return nullptr;
 		}
 
 		size_t index_of (child_t* child) const
