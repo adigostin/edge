@@ -12,7 +12,7 @@
 #include <optional>
 
 #define TCB_SPAN_NAMESPACE_NAME std
-#define TCB_SPAN_NO_CONTRACT_CHECKING 1
+#define TCB_SPAN_NO_CONTRACT_CHECKING
 #include "tcb/span.hpp"
 
 #include "assert.h"
@@ -475,7 +475,11 @@ namespace edge
 			static_assert (std::is_base_of<object, object_t>::value);
 		}
 
-		std::unique_ptr<object_t> set (object* obj, std::unique_ptr<object_t>&& value) const { (obj->*_setter)(std::move(value)); }
+		std::unique_ptr<object_t> set (object* obj, std::unique_ptr<object_t>&& value) const
+		{
+			(obj->*_setter)(std::move(value));
+			assert(false); return nullptr; // TODO: return old value
+		}
 
 		virtual object_t* get (const object* obj) const override final { return (obj->*_getter)(); }
 
