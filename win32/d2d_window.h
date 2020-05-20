@@ -18,7 +18,7 @@ namespace edge
 		bool _forceFullPresentation;
 		com_ptr<IDWriteFactory> const _dwrite_factory;
 		com_ptr<ID3D11Device1> _d3d_device;
-		com_ptr<ID3D11DeviceContext1> _d3d_dc;
+		com_ptr<ID3D11DeviceContext> _d3d_dc;
 		com_ptr<IDXGIDevice2> _dxgi_device;
 		com_ptr<IDXGIAdapter> _dxgi_adapter;
 		com_ptr<IDXGIFactory2> _dxgi_factory;
@@ -54,9 +54,9 @@ namespace edge
 	public:
 		d2d_window (DWORD exStyle, DWORD style,
 				   const RECT& rect, HWND hWndParent, int child_control_id,
-				   ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory);
+				   ID3D11DeviceContext* d3d_dc, IDWriteFactory* dwrite_factory);
 
-		ID3D11DeviceContext1* d3d_dc() const { return _d3d_dc; }
+		ID3D11DeviceContext* d3d_dc() const { return _d3d_dc; }
 		ID2D1Factory1* d2d_factory() const { return _d2d_factory; }
 
 		// d2d_window_i

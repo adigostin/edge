@@ -4,6 +4,10 @@
 
 #include "pch.h"
 #include "utility_functions.h"
+#include "com_ptr.h"
+
+#pragma comment (lib, "Shlwapi")
+#pragma comment (lib, "Shell32")
 
 using namespace D2D1;
 
@@ -194,5 +198,65 @@ namespace edge
 		float r = std::max (aa.right, bb.right);
 		float b = std::max (aa.bottom, bb.bottom);
 		return { l, t, r, b };
+	}
+
+	bool try_choose_file_path (open_or_save which, HWND fileDialogParentHWnd, const wchar_t* pathToInitializeDialogTo, std::wstring& sbOut)
+	{
+		com_ptr<IFileDialog> dialog;
+		HRESULT hr = CoCreateInstance ((which == open_or_save::save) ? CLSID_FileSaveDialog : CLSID_FileOpenDialog, nullptr, CLSCTX_ALL, __uuidof(dialog), (void**) &dialog);
+		if (FAILED(hr))
+			throw com_exception(hr);
+
+		static const COMDLG_FILTERSPEC ProjectFileDialogFileTypes[] =
+		{
+			{ L"Dash Files", L"*.dash" },
+			{ L"All Files",     L"*.*" },
+		};
+		static const wchar_t ProjectFileExtensionWithoutDot[] = L"dash";
+
+		//DWORD options;
+		//hr = dialog->GetOptions (&options); rassert_hr(hr);
+		//hr = dialog->SetOptions (options | FOS_FORCEFILESYSTEM); rassert_hr(hr);
+		hr = dialog->SetFileTypes (std::size(ProjectFileDialogFileTypes), ProjectFileDialogFileTypes);
+		if (FAILED(hr))
+			throw com_exception(hr);
+
+		hr = dialog->SetDefaultExtension (ProjectFileExtensionWithoutDot);
+		if (FAILED(hr))
+			throw com_exception(hr);
+
+		if ((pathToInitializeDialogTo != nullptr) && (pathToInitializeDialogTo[0] != 0))
+		{
+			auto filePtr = PathFindFileName(pathToInitializeDialogTo);
+			hr = dialog->SetFileName(filePtr);
+			if (FAILED(hr))
+				throw com_exception(hr);
+
+			std::wstring dir (pathToInitializeDialogTo, filePtr - pathToInitializeDialogTo);
+			com_ptr<IShellItem> si;
+			hr = SHCreateItemFromParsingName (dir.c_str(), nullptr, IID_PPV_ARGS(&si));
+			if (SUCCEEDED(hr))
+				dialog->SetFolder(si);
+		}
+
+		hr = dialog->Show(fileDialogParentHWnd);
+		if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+			return false;
+		if (FAILED(hr))
+			throw com_exception(hr);
+
+		com_ptr<IShellItem> item;
+		hr = dialog->GetResult (&item);
+		if (FAILED(hr))
+			throw com_exception(hr);
+
+		co_task_mem_ptr<wchar_t> filePath;
+		hr = item->GetDisplayName (SIGDN_FILESYSPATH, &filePath);
+		if (FAILED(hr))
+			throw com_exception(hr);
+		sbOut = filePath.get();
+
+		SHAddToRecentDocs(SHARD_PATHW, sbOut.c_str());
+		return true;
 	}
 }

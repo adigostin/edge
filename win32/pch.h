@@ -33,7 +33,9 @@
 #include <d3d11_1.h>
 #include <dwrite.h>
 #include <MsXml6.h>
+#include <ShlObj_core.h>
 #include <Shlwapi.h>
+#include <ShObjIdl_core.h>
 #include <Unknwn.h>
 #include <VersionHelpers.h>
 #include <wincodec.h>

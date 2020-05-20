@@ -18,7 +18,7 @@ namespace edge
 {
 	d2d_window::d2d_window (DWORD exStyle, DWORD style,
 						  const RECT& rect, HWND hWndParent, int child_control_id,
-						  ID3D11DeviceContext1* d3d_dc, IDWriteFactory* dwrite_factory)
+						  ID3D11DeviceContext* d3d_dc, IDWriteFactory* dwrite_factory)
 		: window(exStyle, style, rect, hWndParent, child_control_id)
 		, _d3d_dc(d3d_dc)
 		, _dwrite_factory(dwrite_factory)

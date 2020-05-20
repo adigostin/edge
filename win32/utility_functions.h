@@ -45,6 +45,9 @@ namespace edge
 	std::string bstr_to_utf8 (BSTR bstr);
 	D2D1_RECT_F make_positive (const D2D1_RECT_F& r);
 	D2D1_RECT_F union_rects (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
+
+	enum class open_or_save { open, save };
+	bool try_choose_file_path (open_or_save which, HWND fileDialogParentHWnd, const wchar_t* pathToInitializeDialogTo, std::wstring& sbOut);
 }
 
 struct timer_queue_timer_deleter
