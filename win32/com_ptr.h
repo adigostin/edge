@@ -232,14 +232,23 @@ namespace edge
 		return res;
 	}
 
-	class com_exception : public std::runtime_error
+	class com_exception : public std::exception
 	{
 		HRESULT const _hr;
+		std::string const _message;
 
 	public:
 		com_exception (HRESULT hr)
-			: runtime_error(utf16_to_utf8(_com_error(hr).ErrorMessage()))
-			, _hr(hr)
+			: _hr(hr)
+			, _message(utf16_to_utf8(_com_error(hr).ErrorMessage()))
 		{ }
+
+		virtual const char* what() const override { return _message.c_str(); }
 	};
+
+	void inline throw_if_failed (HRESULT hr)
+	{
+		if (FAILED(hr))
+			throw com_exception(hr);
+	}
 }

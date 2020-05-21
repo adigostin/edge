@@ -200,63 +200,96 @@ namespace edge
 		return { l, t, r, b };
 	}
 
-	bool try_choose_file_path (open_or_save which, HWND fileDialogParentHWnd, const wchar_t* pathToInitializeDialogTo, std::wstring& sbOut)
+	// ========================================================================
+
+	enum class open_or_save { open, save };
+
+	static std::wstring try_choose_file_path (open_or_save which, HWND parent_hwnd, const wchar_t* initial_path,
+		std::span<const COMDLG_FILTERSPEC> file_types, const wchar_t* file_extension_without_dot)
 	{
 		com_ptr<IFileDialog> dialog;
 		HRESULT hr = CoCreateInstance ((which == open_or_save::save) ? CLSID_FileSaveDialog : CLSID_FileOpenDialog, nullptr, CLSCTX_ALL, __uuidof(dialog), (void**) &dialog);
-		if (FAILED(hr))
-			throw com_exception(hr);
-
-		static const COMDLG_FILTERSPEC ProjectFileDialogFileTypes[] =
-		{
-			{ L"Dash Files", L"*.dash" },
-			{ L"All Files",     L"*.*" },
-		};
-		static const wchar_t ProjectFileExtensionWithoutDot[] = L"dash";
+		throw_if_failed(hr);
 
 		//DWORD options;
 		//hr = dialog->GetOptions (&options); rassert_hr(hr);
 		//hr = dialog->SetOptions (options | FOS_FORCEFILESYSTEM); rassert_hr(hr);
-		hr = dialog->SetFileTypes (std::size(ProjectFileDialogFileTypes), ProjectFileDialogFileTypes);
-		if (FAILED(hr))
-			throw com_exception(hr);
+		hr = dialog->SetFileTypes ((UINT)file_types.size(), file_types.data());
+		throw_if_failed(hr);
 
-		hr = dialog->SetDefaultExtension (ProjectFileExtensionWithoutDot);
-		if (FAILED(hr))
-			throw com_exception(hr);
+		hr = dialog->SetDefaultExtension (file_extension_without_dot);
+		throw_if_failed(hr);
 
-		if ((pathToInitializeDialogTo != nullptr) && (pathToInitializeDialogTo[0] != 0))
+		if ((initial_path != nullptr) && (initial_path[0] != 0))
 		{
-			auto filePtr = PathFindFileName(pathToInitializeDialogTo);
+			auto filePtr = PathFindFileName(initial_path);
 			hr = dialog->SetFileName(filePtr);
-			if (FAILED(hr))
-				throw com_exception(hr);
+			throw_if_failed(hr);
 
-			std::wstring dir (pathToInitializeDialogTo, filePtr - pathToInitializeDialogTo);
+			std::wstring dir (initial_path, filePtr - initial_path);
 			com_ptr<IShellItem> si;
 			hr = SHCreateItemFromParsingName (dir.c_str(), nullptr, IID_PPV_ARGS(&si));
 			if (SUCCEEDED(hr))
 				dialog->SetFolder(si);
 		}
 
-		hr = dialog->Show(fileDialogParentHWnd);
+		hr = dialog->Show(parent_hwnd);
 		if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
-			return false;
-		if (FAILED(hr))
-			throw com_exception(hr);
+			throw canceled_by_user_exception();
+		throw_if_failed(hr);
 
 		com_ptr<IShellItem> item;
 		hr = dialog->GetResult (&item);
-		if (FAILED(hr))
-			throw com_exception(hr);
+		throw_if_failed(hr);
 
 		co_task_mem_ptr<wchar_t> filePath;
 		hr = item->GetDisplayName (SIGDN_FILESYSPATH, &filePath);
-		if (FAILED(hr))
-			throw com_exception(hr);
-		sbOut = filePath.get();
+		throw_if_failed(hr);
 
-		SHAddToRecentDocs(SHARD_PATHW, sbOut.c_str());
-		return true;
+		SHAddToRecentDocs(SHARD_PATHW, filePath.get());
+		return std::wstring(filePath.get());
+	}
+
+	std::wstring try_choose_open_path (HWND parent_hwnd, const wchar_t* initial_path,
+		std::span<const COMDLG_FILTERSPEC> file_types, const wchar_t* file_extension_without_dot)
+	{
+		return try_choose_file_path (open_or_save::open, parent_hwnd, initial_path, file_types, file_extension_without_dot);
+	}
+
+	std::wstring try_choose_save_path (HWND parent_hwnd, const wchar_t* initial_path,
+		std::span<const COMDLG_FILTERSPEC> file_types, const wchar_t* file_extension_without_dot)
+	{
+		return try_choose_file_path (open_or_save::save, parent_hwnd, initial_path, file_types, file_extension_without_dot);
+	}
+
+	// ========================================================================
+
+	bool ask_save_discard_cancel (HWND parent_hwnd, const wchar_t* ask_text, const wchar_t* title_text)
+	{
+		static const TASKDIALOG_BUTTON buttons[] =
+		{
+			{ IDYES, L"Save Changes" },
+			{ IDNO, L"Discard Changes" },
+			{ IDCANCEL, L"Cancel" },
+		};
+
+		TASKDIALOGCONFIG tdc = { sizeof (tdc) };
+		tdc.hwndParent = parent_hwnd;
+		tdc.pszWindowTitle = title_text;
+		tdc.pszMainIcon = TD_WARNING_ICON;
+		tdc.pszMainInstruction = L"File was changed";
+		tdc.pszContent = ask_text;
+		tdc.cButtons = _countof(buttons);
+		tdc.pButtons = buttons;
+		tdc.nDefaultButton = IDOK;
+
+		int pressedButton;
+		auto hr = TaskDialogIndirect (&tdc, &pressedButton, nullptr, nullptr);
+		throw_if_failed(hr);
+
+		if (pressedButton == IDCANCEL)
+			throw canceled_by_user_exception();
+
+		return pressedButton == IDYES;
 	}
 }

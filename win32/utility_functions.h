@@ -46,8 +46,18 @@ namespace edge
 	D2D1_RECT_F make_positive (const D2D1_RECT_F& r);
 	D2D1_RECT_F union_rects (const D2D1_RECT_F& a, const D2D1_RECT_F& b);
 
-	enum class open_or_save { open, save };
-	bool try_choose_file_path (open_or_save which, HWND fileDialogParentHWnd, const wchar_t* pathToInitializeDialogTo, std::wstring& sbOut);
+	class canceled_by_user_exception : std::exception
+	{
+		virtual const char* what() const override { return "Canceled by user"; }
+	};
+
+	std::wstring try_choose_open_path (HWND parent_hwnd, const wchar_t* initial_path,
+		std::span<const COMDLG_FILTERSPEC> file_types, const wchar_t* file_extension_without_dot);
+
+	std::wstring try_choose_save_path (HWND parent_hwnd, const wchar_t* initial_path,
+		std::span<const COMDLG_FILTERSPEC> file_types, const wchar_t* file_extension_without_dot);
+
+	bool ask_save_discard_cancel (HWND parent_hwnd, const wchar_t* ask_text, const wchar_t* title_text);
 }
 
 struct timer_queue_timer_deleter
